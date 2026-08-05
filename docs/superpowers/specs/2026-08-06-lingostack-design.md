@@ -1,6 +1,8 @@
 # LingoStack（译栈）设计文档
 
-> 版本：1.0 · 日期：2026-08-06 · 状态：已确认设计，待实施规划
+> 版本：1.1 · 日期：2026-08-06 · 状态：已确认设计，待实施规划
+>
+> 变更：v1.1 补充开源发布策略（§11），章节顺延重编号
 
 ## 1. 产品概述
 
@@ -15,6 +17,7 @@
 - **任意应用中**选中文本即可获得专业翻译（PopClip 式交互）
 - 翻译遵循**开发行业语言**，避让产品名、变量名、命令名、技术名词，避免直译
 - 支持**自定义 LLM 提供商/模型**，核心功能零订阅、零内置计费，仅用户自定义 Key
+- 作为 **MIT 开源项目**发布，接受社区贡献，隐私透明（零遥测）
 
 ### 2.2 非目标（明确不做）
 - 不做网页翻译/浏览器扩展
@@ -168,7 +171,40 @@ OpenAI 兼容协议为基座（覆盖 DeepSeek/通义/智谱/Ollama 等），Ant
 - macOS notarization；Windows 代码签名（先用自签名，正式发布购证书）
 - CI 缓存：cargo registry / node_modules
 
-## 11. UI 设计规范
+## 11. 开源策略（本项目为 MIT 开源项目）
+
+### 11.1 许可证与版权
+- **MIT License**，保留版权声明与免责声明
+- 尊重第三方依赖许可证（Rust crates / npm 包），发布时附 `THIRD_PARTY_NOTICES`（由 CI 从 Cargo.lock / package-lock 自动生成）
+- 贡献者协议：采用 **DCO（Developer Certificate of Origin）**，CI 检查 `Signed-off-by`，避免 CLA 的行政负担
+
+### 11.2 隐私与数据收集（零遥测）
+- **完全不收集**任何遥测/统计/崩溃数据，无后端依赖
+- 崩溃时用户手动通过 GitHub Issue 附本地日志（日志文件中不记录 API Key）
+- 文档明示隐私承诺：所有 LLM 请求直连用户配置的提供商，工具本身不经过任何中间服务器
+- 后续若引入可选统计，必须**默认关闭** + 隐私说明 + 单独的配置项
+
+### 11.3 社区与贡献规范
+- `CONTRIBUTING.md`：代码风格（rustfmt + clippy 无警告）、测试要求（新功能必须带测试）、PR 流程（所有 CI 绿才可合并）
+- 内置 **Issue 模板**（Bug 报告 / 功能请求）与 **PR 模板**
+- 支持多语言用户：界面语言含 i18n 框架（V1 中/英，V2 社区可提交翻译）
+- 文档（README / 使用指南）以中英双语维护，README 含功能截图、快速开始、截图、FAQ
+
+### 11.4 安全与密钥管理
+- API Key 存于本地配置（权限 0600），**绝不进日志 / 崩溃报告 / Issue 模板**
+- CI 中不使用真实密钥（只用 mock 集成测试）；签名/发布凭据存 GitHub Secrets
+- 依赖安全：Dependabot 自动 PR + `cargo audit` / `npm audit` 纳入 CI
+
+### 11.5 发布与产物
+- 发布流程与 CI/CD 一致（见 §10）：GitHub Releases 附带校验和
+- 发布说明自动生成（Release Notes，从 PR 标题聚合）
+- Windows 代码签名：先用自签名，正式发布后再购证书
+
+### 11.6 可持续维护
+- 保持依赖更新（Dependabot + 定期人工 review）
+- 明确维护者职责、响应时间承诺（社区标准）、Issue 处理策略（标定优先级/协助维护者）
+
+## 12. UI 设计规范
 
 ### 11.1 视觉风格：中性灰蓝 · 克制专业（Linear/Vercel 风）
 - 灰蓝中性色 + 单一蓝色强调色（`#2563eb` 浅色 / `#3b82f6` 深色）
@@ -192,7 +228,7 @@ OpenAI 兼容协议为基座（覆盖 DeepSeek/通义/智谱/Ollama 等），Ant
 - 左原文 / 右译文，段落级对齐
 - 底部导出：保持格式 .docx / Markdown / 纯文本
 
-## 12. 分期计划
+## 13. 分期计划
 
 ### V1（核心 MVP）
 - 划词翻译（选中自动弹 PopClip 式工具栏 + 热键唤起 + 读选中）
@@ -202,17 +238,19 @@ OpenAI 兼容协议为基座（覆盖 DeepSeek/通义/智谱/Ollama 等），Ant
 - 主题（明暗 + 跟随系统）、界面语言
 - 语言映射规则
 - 测试 + CI/CD 基础设施
+- 开源基建：MIT 许可证、CONTRIBUTING.md、Issue/PR 模板、DCO 检查、Dependabot + cargo/npm audit、THIRD_PARTY_NOTICES 生成
 
 ### V1.5（增强）
 - 文档翻译（md/pdf-txt/docx 提取 + 分块 + 对照阅读 + 导出）
 - 自动弹工具栏优化（监听选中变化去抖，减少误弹）
+- 社区翻译贡献流程（i18n 新增语种支持）
 
 ### V2（扩展）
 - PDF 扫描版 OCR（Tesseract 集成）
 - WebDAV 同步（如需）
 - Linux AT-SPI 取词完善
 
-## 13. 开放问题（待实施规划时细化）
+## 14. 开放问题（待实施规划时细化）
 
 - 变量名生成的命名规范列表（camelCase/snake_case/PascalCase/kebab-case 等）与候选数量
 - 收藏的分组/标签是否 V1 就做
@@ -220,7 +258,7 @@ OpenAI 兼容协议为基座（覆盖 DeepSeek/通义/智谱/Ollama 等），Ant
 - 热键默认值（如 Cmd/Ctrl+Shift+T / Option+Space 等）
 - 单实例锁的强约束（允许重启时无残留）
 
-## 14. 风险与对策
+## 15. 风险与对策
 
 | 风险 | 对策 |
 |------|------|
@@ -230,3 +268,7 @@ OpenAI 兼容协议为基座（覆盖 DeepSeek/通义/智谱/Ollama 等），Ant
 | 文档解析（docx/PDF）复杂 | 用成熟库（pandoc / pdf-extract），分块策略迭代 |
 | 流式 UI 卡顿 | 译文流式渲染用 React 并发特性 + 防抖 |
 | 热键被系统占用 | 冲突检测 + 提示更换 |
+| 开源项目维护负担 / 贡献质量参差 | CONTRIBUTING 规范 + CI 强制门禁 + 维护者 review |
+| 社区翻译（i18n）质量参差 | 翻译走 PR review，提供术语表与上下文字符串 |
+| 第三方依赖漏洞 | Dependabot + cargo/npm audit 纳入 CI |
+| 代码签名证书成本 | Windows 自签名先行，正式发布再购证书 |
