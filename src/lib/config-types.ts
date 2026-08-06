@@ -99,6 +99,15 @@ export type ChatEvent =
   | { type: "done" }
   | { type: "error"; message: string };
 
+/** 命名风格展示名（对应 `lingostack_core::naming::NamingStyle::display_name`）。 */
+export const NAMING_STYLE_LABEL: Record<NamingStyle, string> = {
+  camel_case: "camelCase",
+  snake_case: "snake_case",
+  pascal_case: "PascalCase",
+  kebab_case: "kebab-case",
+  constant_case: "CONSTANT_CASE",
+};
+
 /** 修饰键位常量（对应 `lingostack_core::hotkey::Modifiers`）。 */
 export const MOD = {
   CTRL: 1,
