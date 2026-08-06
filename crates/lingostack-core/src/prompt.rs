@@ -5,42 +5,27 @@
 //! - 避让产品名、变量名、命令名、技术名词（避免直译，如 Redis 不译为「远程字典服务」）；
 //! - 译文符合目标语言开发者社区的自然表达。
 //!
-//! 修改常量须配合快照测试（阶段 E 落地），防止风格回归。
+//! # Prompt 快照机制（设计文档 §10.1）
+//!
+//! Prompt 正文存放在 `src/prompts/*.txt`，经 `include_str!` 编入常量。这样：
+//! - 文本单一来源，无需在 Rust 字面量里处理转义与拼接；
+//! - **每次改动都会在 `git diff` 中逐行显示**——独立文本文件本身即快照，
+//!   无需引入快照测试框架与 `.snap` 管理；
+//! - 下方测试断言关键风格约束（保留原文 / 禁止意译 / 占位符完整），
+//!   守住「开发行业语言」规范不被无意改坏。
+//!
+//! 修改 Prompt 时请在 PR 中说明动机——风格回归很难在事后察觉。
 
 use serde::{Deserialize, Serialize};
 
 /// 翻译内置 Prompt。`{source_lang}` / `{target_lang}` 由功能层替换。
-pub const TRANSLATE_PROMPT: &str = concat!(
-    "你是一名熟悉软件工程的双语技术翻译。请将用户给出的文本由 {source_lang} 翻译为 {target_lang}。\n\n",
-    "严格规则：\n",
-    "- 技术名词、产品名、库 / 框架名、协议名、命令、标识符一律保留原文，禁止意译",
-    "（示例：Redis 不译作「远程字典服务」；Docker 不译作「集装箱」；git rebase 不翻译）。\n",
-    "- 代码、命令行、文件路径、URL 原样保留，只翻译其周边自然语言。\n",
-    "- 译文需符合 {target_lang} 开发者社区的日常表达，避免机翻腔与逐词直译。\n",
-    "- 仅输出译文本身：不要解释、不要加引号、不要写「翻译：」之类前缀。\n",
-    "- 若文本为纯代码 / 纯标识符，或已是 {target_lang}，原样返回。\n",
-);
+pub const TRANSLATE_PROMPT: &str = include_str!("prompts/translate.txt");
 
 /// 变量名生成内置 Prompt。`{style}` 由功能层替换为 [`crate::naming::NamingStyle`] 的展示名。
-pub const NAMING_PROMPT: &str = concat!(
-    "你是一名资深软件工程师，请根据用户给出的语义，生成符合 {style} 命名规范的程序标识符候选。\n\n",
-    "规则：\n",
-    "- 给出 3–5 个高质量候选，每行一个，仅标识符本身。\n",
-    "- 不输出编号、解释、反引号或 Markdown 格式。\n",
-    "- 候选须地道、简洁、词义准确，符合该命名规范的通用惯例。\n",
-    "- 使用英文词汇；遇多义词取「作为程序命名」最通用的解读。\n",
-);
+pub const NAMING_PROMPT: &str = include_str!("prompts/naming.txt");
 
 /// 词条解释内置 Prompt。`{target_lang}` 由功能层替换。
-pub const EXPLAIN_PROMPT: &str = concat!(
-    "你是一名耐心的技术导师，请用 {target_lang} 向程序员读者解释用户给出的术语或概念。\n\n",
-    "结构：\n",
-    "- 首句给出一句话定义。\n",
-    "- 随后 2–4 句补充：典型用途、常见场景、易混淆点或常见误用。\n",
-    "- 涉及代码或标识符时用行内代码标注。\n",
-    "- 术语首次出现给出 {target_lang} 译法并括注原文（如「优雅停机（graceful shutdown）」）。\n",
-    "- 聚焦开发者真正需要知道的内容，不堆砌百科式细节。\n",
-);
+pub const EXPLAIN_PROMPT: &str = include_str!("prompts/explain.txt");
 
 /// 用户自定义 Prompt 覆盖；任一字段留空（`None`）即回退到内置。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -118,5 +103,44 @@ mod tests {
     #[test]
     fn naming_prompt_references_style_placeholder() {
         assert!(NAMING_PROMPT.contains("{style}"));
+    }
+
+    #[test]
+    fn explain_prompt_targets_reader_language() {
+        assert!(EXPLAIN_PROMPT.contains("{target_lang}"));
+        // 解释须面向程序员而非百科式罗列。
+        assert!(EXPLAIN_PROMPT.contains("程序员"));
+    }
+
+    /// 结构完整性：防止 include_str! 指向空文件 / 文本被误截断。
+    #[test]
+    fn all_prompts_are_structurally_sound() {
+        for (name, prompt) in [
+            ("translate", TRANSLATE_PROMPT),
+            ("naming", NAMING_PROMPT),
+            ("explain", EXPLAIN_PROMPT),
+        ] {
+            assert!(prompt.len() > 80, "{name} Prompt 过短，疑似被截断");
+            assert!(
+                prompt.lines().count() >= 5,
+                "{name} Prompt 行数过少，疑似规则丢失"
+            );
+            assert!(
+                prompt.ends_with('\n'),
+                "{name} Prompt 应以换行结尾（文本文件惯例）"
+            );
+            // 不应把开发期占位标记发给模型。
+            assert!(
+                !prompt.contains("TODO") && !prompt.contains("FIXME"),
+                "{name} Prompt 残留待办标记"
+            );
+        }
+    }
+
+    /// 占位符必须成对齐全——缺失会让模型收到字面量 `{target_lang}`。
+    #[test]
+    fn translate_prompt_declares_both_language_placeholders() {
+        assert!(TRANSLATE_PROMPT.contains("{source_lang}"));
+        assert!(TRANSLATE_PROMPT.contains("{target_lang}"));
     }
 }
