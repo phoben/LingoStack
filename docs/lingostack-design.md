@@ -1,14 +1,15 @@
 # LingoStack（译栈）设计文档
 
-> 版本：1.2 · 日期：2026-08-06 · 状态：已确认设计，待实施规划
+> 版本：1.3 · 日期：2026-08-06 · 状态：已确认设计，待实施规划
 >
 > 变更：
+> - v1.3 新增 §14 开源治理任务清单（Backlog）；原 §14/§15 顺延为 §15/§16
 > - v1.2 新增 §13 V0（基础环境搭建）阶段，明确脚手架交付物与验收标准
 > - v1.1 补充开源发布策略（§11），章节顺延重编号
 
 ## 1. 产品概述
 
-**译栈（LingoStack）** 是一款面向非英语母语程序员的跨平台桌面翻译工具，定位为"轻量、简洁、现代"的系统常驻小工具。以**划词翻译**和**写作输出辅助**为核心场景，提供文本翻译、变量名生成、解释朗读、收藏管理、文档翻译等能力。
+**译栈（LingoStack）** 是一款面向程序员的跨平台桌面翻译工具，定位为"轻量、简洁、现代"的系统常驻小工具。以**划词翻译**和**写作输出辅助**为核心场景，提供文本翻译、变量名生成、解释朗读、收藏管理、文档翻译等能力。
 
 核心痛点：程序员日常阅读英文文档、编写代码/注释/文档时，需要快速、专业、符合开发行业语言的翻译辅助，而非直译。
 
@@ -283,7 +284,57 @@ OpenAI 兼容协议为基座（覆盖 DeepSeek/通义/智谱/Ollama 等），Ant
 - WebDAV 同步（如需）
 - Linux AT-SPI 取词完善
 
-## 14. 开放问题（待实施规划时细化）
+## 14. 开源治理任务清单（Backlog）
+
+> 本节汇总开源项目治理的可执行任务，作为跨阶段 backlog 跟踪。**原则见 §11，发布自动化见 §10.2。** 已完成项标注 ✅；其余按归属阶段与优先级排序，供后续迭代认领。任务不绑定单一阶段，可随社区反馈调整。
+
+### 14.1 贡献规范与社区入门
+
+- [ ] `CONTRIBUTING.md`：本地环境搭建、代码风格（rustfmt + clippy 零警告 / eslint）、测试要求、分支与提交规范、PR 流程
+- [ ] `CODE_OF_CONDUCT.md`（Contributor Covenant v2.1，中英双语）
+- [ ] Issue 模板：Bug 报告 / 功能请求 / 翻译改进（含复现步骤、环境信息；**模板中明示「勿粘贴 API Key」**）
+- [ ] PR 模板：变更说明、自测清单、DCO 提醒
+- [ ] README 英文版 `README.en.md`，与中文版互链（§11.3 双语要求）
+
+### 14.2 CI/CD 与自动化门禁
+
+- [x] DCO `Signed-off-by` 检查（`.github/workflows/dco.yml`） ✅
+- [x] Dependabot（cargo / npm / github-actions，`.github/dependabot.yml`） ✅
+- [x] CI 三平台矩阵（lint → 单测 → 构建）+ `lingostack-core` 纯净性校验 ✅
+- [ ] `cargo audit` / `pnpm audit` 纳入 CI 门禁，失败阻断合并
+- [ ] `THIRD_PARTY_NOTICES` 生成脚本（从 `Cargo.lock` / `pnpm-lock.yaml` 提取许可证），发布前自动产出
+- [ ] 自动打标签（labeler：`rust` / `frontend` / `ci` / `i18n` 等）
+
+### 14.3 发布管理
+
+- [ ] Tag `v*` 触发 `tauri-action` 打包：Windows NSIS/MSI · macOS dmg · Linux deb/AppImage
+- [ ] Release 产物附 SHA256 校验和
+- [ ] Release Notes 从 PR 标题自动聚合（release-drafter 或同类）
+- [ ] macOS notarization；Windows 代码签名（自签名先行 → 正式发布购证书，见 §11.5）
+- [ ] `CHANGELOG.md` 维护策略
+
+### 14.4 文档治理
+
+- [ ] 用户使用指南 + FAQ（截图、快捷键、各 LLM 提供商配置示例）
+- [ ] ADR（架构决策记录）目录 `docs/adr/`，记录关键决策（toolchain 选型、`src-tauri` 目录约定、cdylib 取舍等）
+- [ ] 截图与演示 GIF（随 V1 功能落地补充到 README）
+
+### 14.5 安全治理
+
+- [ ] `SECURITY.md`：漏洞上报流程（GitHub 私密 advisory）、响应时效承诺
+- [ ] API Key 泄漏审计：CI 静态扫描确认 Key 不进日志 / 产物 / Issue 模板（见 §11.4）
+- [ ] 依赖漏洞响应流程（Dependabot PR → 评估 → 升级 / 打补丁）
+
+### 14.6 社区与可持续维护
+
+- [ ] i18n 翻译贡献流程：术语表 + 上下文字符串说明，翻译走 PR review（见 §11.3）
+- [ ] 维护者职责说明：Issue 分类策略、响应时间承诺、协作者晋升机制
+- [ ] 版本号策略（SemVer）与分支策略（main 稳定 / develop 集成 / release 分支）文档化
+- [ ] 项目看板（GitHub Projects）管理 roadmap 与里程碑
+
+> **与分期计划的关系**：贡献规范、安全策略建议在 V1 功能落地前完成；发布管理与签名在 V1 首个可用版本前就绪；i18n 流程在 V1.5 社区翻译启动前建立。
+
+## 15. 开放问题（待实施规划时细化）
 
 - 变量名生成的命名规范列表（camelCase/snake_case/PascalCase/kebab-case 等）与候选数量
 - 收藏的分组/标签是否 V1 就做
@@ -291,7 +342,7 @@ OpenAI 兼容协议为基座（覆盖 DeepSeek/通义/智谱/Ollama 等），Ant
 - 热键默认值（如 Cmd/Ctrl+Shift+T / Option+Space 等）
 - 单实例锁的强约束（允许重启时无残留）
 
-## 15. 风险与对策
+## 16. 风险与对策
 
 | 风险 | 对策 |
 |------|------|
