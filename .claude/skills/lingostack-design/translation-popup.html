@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>翻译浮窗 · 译栈 LingoStack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root{--bg:#07080a;--surface:#101111;--fg:#f9f9f9;--fg-2:#cecece;--muted:#9c9c9d;--meta:#6a6b6c;--border:rgba(255,255,255,.06);--border-soft:rgba(255,255,255,.04);--accent:#FF6363;--info:hsl(202,100%,67%);--success:hsl(151,59%,59%);--font-display:"Inter",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;--text-xs:12px;--text-sm:14px;--text-base:16px;--text-lg:18px;--text-xl:20px;--text-3xl:36px;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-12:48px;--radius-sm:6px;--radius-md:12px;--radius-lg:14px;--radius-pill:9999px;--elev-ring:rgb(27,28,30) 0 0 0 1px,rgb(7,8,10) 0 0 0 1px inset;--focus-ring:0 0 0 3px hsla(202,100%,67%,.35);--motion-fast:150ms;--motion-base:220ms;--ease-standard:cubic-bezier(.2,0,0,1);--container-max:760px;--gutter:32px}
+    *,*::before,*::after{box-sizing:border-box}
+    html{-webkit-text-size-adjust:100%}
+    body{margin:0;background:radial-gradient(120% 80% at 50% -10%,color-mix(in oklch,var(--surface) 50%,var(--bg)) 0%,var(--bg) 55%);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:1.6;letter-spacing:.005em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-feature-settings:"calt","kern","liga","ss03";min-height:100vh}
+    h1,h2,h3,h4{font-family:var(--font-display);text-wrap:balance;margin:0;letter-spacing:-.015em;font-weight:600}
+    p{margin:0;text-wrap:pretty}
+    a{color:inherit;text-decoration:none}
+    button{font:inherit;cursor:pointer;color:inherit;background:none;border:0}
+    svg{display:block}
+    ::selection{background:hsla(202,100%,67%,.3)}
+    *::-webkit-scrollbar{width:10px;height:10px}
+    *::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:99px;border:2px solid transparent;background-clip:padding-box}
+    :focus-visible{outline:2px solid var(--info);outline-offset:2px}
+    .container{max-width:var(--container-max);margin-inline:auto;padding-inline:var(--gutter)}
+    .eyebrow{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 var(--space-4);font-weight:500}
+    .lead{font-size:var(--text-lg);line-height:1.6;color:var(--fg-2);max-width:56ch}
+    .meta{font-family:var(--font-mono);font-size:var(--text-sm);color:var(--muted)}
+    .h1{font-size:var(--text-3xl);line-height:1.1}
+    .topnav{position:sticky;top:0;z-index:20;background:color-mix(in oklch,var(--bg) 78%,transparent);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+    .topnav-inner{display:flex;align-items:center;justify-content:space-between;padding-block:14px}
+    .brand{font-weight:700;font-size:16px}
+    .back-link{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--muted)}
+    .back-link:hover{color:var(--fg)}
+    .page-head{padding-block:48px 32px;text-align:center}
+    /* floating window */
+    .floatwin{width:100%;max-width:520px;margin:8px auto 0;border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--elev-ring),rgba(0,0,0,.6) 0 40px 90px -30px;overflow:hidden;animation:floatIn .4s var(--ease-standard) both}
+    @keyframes floatIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+    .fw-titlebar{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.012)}
+    .tl{width:11px;height:11px;border-radius:50%;background:color-mix(in oklch,var(--meta) 50%,var(--bg));flex:0 0 auto}
+    .fw-title{margin-left:8px;font-family:var(--font-mono);font-size:var(--text-xs);color:var(--meta);letter-spacing:.04em;flex:1}
+    .fw-chrome-btn{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--meta);transition:background var(--motion-fast),color var(--motion-fast)}
+    .fw-chrome-btn:hover{background:rgba(255,255,255,.07);color:var(--fg)}
+    .fw-chrome-btn.active{color:var(--info)}
+    .fw-body{padding:18px}
+    .fw-meta{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+    .lang{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:.05em;color:var(--muted)}
+    .lang b{color:var(--fg);font-weight:600}
+    .lang .arr{color:var(--meta)}
+    .model-pill{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--radius-pill);background:rgba(255,255,255,.05);border:1px solid var(--border);font-family:var(--font-mono);font-size:var(--text-xs);color:var(--fg-2)}
+    .live{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:var(--text-xs);color:var(--info)}
+    .live .d{width:7px;height:7px;border-radius:50%;background:var(--info);animation:pulse 1s ease-in-out infinite}
+    @keyframes pulse{50%{opacity:.25}}
+    .src{font-size:15px;line-height:1.7;color:var(--fg-2)}
+    .src .code{font-family:var(--font-mono);font-size:13px;color:var(--info);background:rgba(255,255,255,.04);padding:1px 5px;border-radius:4px}
+    .divider{display:flex;align-items:center;gap:10px;margin:16px 0}
+    .divider .ln{flex:1;height:1px;background:var(--border)}
+    .divider .arrow{color:var(--meta)}
+    .dst{font-size:16px;line-height:1.75;color:var(--fg);min-height:1.75em}
+    .dst .keep{font-family:var(--font-mono);font-size:14px;color:var(--info);background:rgba(85,179,255,.1);padding:1px 5px;border-radius:4px}
+    .cursor{display:inline-block;width:2px;height:1.05em;background:var(--info);vertical-align:-3px;margin-left:1px;animation:blink 1s steps(1) infinite}
+    @keyframes blink{50%{opacity:0}}
+    .actions{display:flex;align-items:center;gap:6px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border-soft)}
+    .act{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:var(--radius-sm);font-size:var(--text-sm);color:var(--fg-2);border:1px solid transparent;transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast)}
+    .act:hover{background:rgba(255,255,255,.06);color:var(--fg)}
+    .act:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+    .act.primary{margin-left:auto;background:hsla(0,0%,100%,.9);color:var(--bg);font-weight:600;border-color:transparent}
+    .act.primary:hover{background:hsla(0,0%,100%,1);color:var(--bg)}
+    .act.on{color:var(--info);background:hsla(202,100%,67%,.1)}
+    .toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--fg);padding:10px 18px;border-radius:var(--radius-pill);font-size:var(--text-sm);box-shadow:rgba(0,0,0,.6) 0 12px 30px -8px,0 0 0 1px var(--border);opacity:0;pointer-events:none;transition:opacity var(--motion-base),transform var(--motion-base);z-index:50;display:inline-flex;align-items:center;gap:8px}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .toast .dot{width:7px;height:7px;border-radius:50%;background:var(--success)}
+    .hint-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-top:var(--space-12)}
+    .hint{padding:18px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--border)}
+    .hint h4{font-size:var(--text-sm);margin-bottom:6px}
+    .hint p{font-size:var(--text-xs);color:var(--muted);line-height:1.6}
+    .foot-note{margin-top:var(--space-8);text-align:center;color:var(--meta);font-size:var(--text-sm)}
+    @media(max-width:560px){.floatwin{max-width:100%}.act span.lbl{display:none}.act{padding:8px}}
+  </style>
+</head>
+<body>
+  <header class="topnav" data-od-id="topnav">
+    <div class="container topnav-inner">
+      <span class="brand">译栈 · 翻译浮窗</span>
+      <a class="back-link" href="index.html">← 返回总览</a>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="page-head" data-od-id="head">
+      <div class="container">
+        <p class="eyebrow">场景二 · 翻译浮窗 · P0</p>
+        <h1 class="h1">原文在上，译文流式而下。</h1>
+        <p class="lead" style="margin:14px auto 0">常驻隐藏、按需唤起的紧凑浮窗。逐字流式渲染译文，遵循开发行业语言——技术名词原样保留，可朗读、收藏、复制，也能拖动与置顶。</p>
+      </div>
+    </section>
+
+    <section data-od-id="popup">
+      <div class="container">
+        <div class="floatwin" id="floatwin">
+          <div class="fw-titlebar">
+            <span class="tl"></span><span class="tl"></span><span class="tl"></span>
+            <span class="fw-title">翻译浮窗 · 译栈</span>
+            <button class="fw-chrome-btn" id="pinBtn" title="置顶" aria-label="置顶">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 3h6l-1 7 3 3H7l3-3-1-7z"/></svg>
+            </button>
+            <button class="fw-chrome-btn" title="关闭" aria-label="关闭">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+          <div class="fw-body">
+            <div class="fw-meta">
+              <span class="lang"><b>EN</b><span class="arr">→</span><b>中文</b></span>
+              <span class="live" id="live"><span class="d"></span>流式渲染中</span>
+              <span class="model-pill">DeepSeek · deepseek-chat</span>
+            </div>
+            <p class="src">The middleware intercepts each request and attaches a <span class="code">correlation ID</span> before forwarding it to the upstream service. Retries use exponential backoff to avoid overwhelming the backend.</p>
+            <div class="divider"><span class="ln"></span><span class="arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span><span class="ln"></span></div>
+            <p class="dst" id="dst"></p>
+            <div class="actions">
+              <button class="act" data-act="speak"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg><span class="lbl">朗读</span></button>
+              <button class="act" data-act="fav"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg><span class="lbl">收藏</span></button>
+              <button class="act" data-act="copy"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="lbl">复制</span></button>
+              <button class="act primary" id="retry"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg>重新翻译</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hint-grid" data-od-id="hints">
+          <div class="hint"><h4>流式中断</h4><p>保留已渲染部分，提供「重试」按钮，不吞错、不丢失。</p></div>
+          <div class="hint"><h4>错误降级</h4><p>超时 / 5xx 自动重试一次（指数退避），失败即时浮窗提示。</p></div>
+          <div class="hint"><h4>速率限制</h4><p>遇 429 显示等待提示，自动降低并发，避免雪崩。</p></div>
+        </div>
+        <p class="foot-note">提示：点击「重新翻译」可重看流式渲染过程 · 置顶按钮可固定浮窗常驻最前</p>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"><span class="dot"></span><span id="toastText">已复制</span></div>
+
+  <script>
+    const parts=[
+      {s:"中间件会拦截每个请求，并在转发给上游服务前附加一个 "},
+      {s:"correlation ID",c:"keep"},
+      {s:"。重试采用指数退避策略，避免压垮后端。"}
+    ];
+    const total=parts.reduce((n,p)=>n+p.s.length,0);
+    const dst=document.getElementById('dst'), live=document.getElementById('live');
+    function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+    function build(count){
+      let html='',left=count;
+      for(const p of parts){
+        if(left<=0)break;
+        if(p.s.length<=left){html+=p.c?`<span class="${p.c}">${esc(p.s)}</span>`:esc(p.s);left-=p.s.length;}
+        else{const seg=p.s.slice(0,left);html+=p.c?`<span class="${p.c}">${esc(seg)}</span>`:esc(seg);left=0;break;}
+      }
+      return html;
+    }
+    let timer=null,count=0;
+    function stream(){
+      clearInterval(timer);count=0;dst.innerHTML='<span class="cursor"></span>';live.style.display='inline-flex';
+      timer=setInterval(()=>{
+        count+=2;
+        if(count>=total){count=total;clearInterval(timer);dst.innerHTML=build(total);live.innerHTML='<span class="d" style="background:var(--success)"></span>已完成';live.style.color='var(--success)';return;}
+        dst.innerHTML=build(count)+'<span class="cursor"></span>';
+      },22);
+    }
+    stream();
+    document.getElementById('retry').addEventListener('click',()=>{live.innerHTML='<span class="d"></span>流式渲染中';live.style.color='var(--info)';stream();});
+
+    const toast=document.getElementById('toast'),toastText=document.getElementById('toastText');let tt;
+    function showToast(m){toastText.textContent=m;toast.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>toast.classList.remove('show'),1600);}
+    document.querySelectorAll('.act[data-act]').forEach(b=>b.addEventListener('click',()=>{
+      const a=b.dataset.act;
+      document.querySelectorAll('.act[data-act]').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      if(a==='speak')showToast('正在朗读译文');if(a==='fav')showToast('已收藏到「句库」');if(a==='copy')showToast('已复制译文');
+    }));
+    document.getElementById('pinBtn').addEventListener('click',function(){this.classList.toggle('active');showToast(this.classList.contains('active')?'已置顶浮窗':'已取消置顶');});
+  </script>
+</body>
+</html>

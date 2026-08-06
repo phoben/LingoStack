@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>组件总览 · 译栈 LingoStack 设计系统</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="colors_and_type.css" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(120% 70% at 50% -10%,color-mix(in oklch,var(--surface) 50%,var(--bg)) 0%,var(--bg) 55%);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:var(--leading-body);letter-spacing:.005em;-webkit-font-smoothing:antialiased;font-feature-settings:"calt","kern","liga","ss03";padding:0 24px 56px}
+    h1,h2,h3{font-family:var(--font-display);margin:0;letter-spacing:var(--tracking-display);font-weight:600;text-wrap:balance}
+    p{margin:0;text-wrap:pretty}
+    a,button{font:inherit;color:inherit;text-decoration:none}
+    button{cursor:pointer;background:none;border:0}
+    svg{display:block}
+    :focus-visible{outline:2px solid var(--info);outline-offset:2px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;max-width:1080px;margin:0 auto;padding:22px 0}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+    .brand img{width:26px;height:26px;border-radius:7px}
+    .nav-links{display:flex;gap:18px}
+    .nav-links a{font-size:13px;color:var(--muted)}
+    .nav-links a:hover{color:var(--fg)}
+    .wrap{max-width:1080px;margin:0 auto}
+    .hero{padding:18px 0 8px;max-width:64ch}
+    .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 12px;font-weight:500}
+    h1{font-size:36px;line-height:1.08}
+    .lead{font-size:16px;color:var(--fg-2);margin-top:14px}
+    .sec{margin-top:38px}
+    .sec-title{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--meta);margin:0 0 16px;display:flex;align-items:center;gap:10px}
+    .sec-title::after{content:"";flex:1;height:1px;background:var(--border)}
+    .stage{padding:22px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);box-shadow:var(--elev-ring);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:var(--radius-pill);border:1px solid transparent;font-weight:600;transition:background var(--motion-fast),border-color var(--motion-fast)}
+    .btn-primary{background:hsla(0,0%,100%,.9);color:var(--bg)}
+    .btn-primary:hover{background:hsla(0,0%,100%,1)}
+    .btn-secondary{background:transparent;color:var(--fg);border-color:rgba(255,255,255,.12)}
+    .btn-secondary:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.22)}
+    .btn-ghost{background:transparent;color:var(--muted);padding-inline:12px}
+    .btn-ghost:hover{color:var(--fg)}
+    .btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+    .act{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;border:1px solid var(--border);color:var(--fg-2);transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast)}
+    .act:hover{background:rgba(255,255,255,.06);color:var(--fg);border-color:rgba(255,255,255,.14)}
+    .act.primary{background:hsla(0,0%,100%,.9);color:var(--bg);border-color:transparent;font-weight:600}
+    .icon-btn{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;color:var(--meta);border:1px solid transparent;transition:background var(--motion-fast),color var(--motion-fast)}
+    .icon-btn:hover{background:rgba(255,255,255,.06);color:var(--fg)}
+    .pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:9999px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-family:var(--font-mono);font-size:10px;color:var(--fg-2)}
+    .pill.ok{color:var(--success);background:color-mix(in oklch,var(--success) 12%,transparent);border-color:transparent}
+    .pill.warn{color:var(--warn);background:color-mix(in oklch,var(--warn) 12%,transparent);border-color:transparent}
+    .card{padding:18px;border-radius:var(--radius-lg);background:var(--bg);border:1px solid var(--border)}
+    .card h3{font-size:15px;margin-bottom:6px}
+    .card p{font-size:13px;color:var(--muted);line-height:1.6}
+    .input{width:100%;padding:9px 12px;background:var(--bg);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius-sm);color:var(--fg);font:inherit;font-size:14px}
+    .input:focus{outline:none;border-color:transparent;box-shadow:var(--focus-ring),0 0 0 1px hsla(202,100%,67%,.4)}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--muted);font-size:14px;font-weight:500;position:relative;width:100%;text-align:left;transition:background var(--motion-fast),color var(--motion-fast)}
+    .nav-item:hover{background:rgba(255,255,255,.04);color:var(--fg-2)}
+    .nav-item.active{background:rgba(255,255,255,.07);color:var(--fg)}
+    .nav-item.active::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:2px;background:rgba(255,255,255,.5)}
+    .keep{font-family:var(--font-mono);font-size:12px;color:var(--info);background:rgba(85,179,255,.1);padding:1px 5px;border-radius:4px}
+    .kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:5px;background:linear-gradient(var(--surface),var(--bg));color:var(--fg-2);font-family:var(--font-mono);font-size:11px;font-weight:600;box-shadow:rgba(0,0,0,.4) 0 1.5px 0 1px,rgba(255,255,255,.06) 0 1px 0 0 inset;border:1px solid rgba(255,255,255,.06)}
+    .toast{display:inline-flex;align-items:center;gap:8px;background:var(--surface);color:var(--fg);padding:10px 18px;border-radius:9999px;font-size:14px;box-shadow:rgba(0,0,0,.6) 0 12px 30px -8px,0 0 0 1px var(--border)}
+    .toast .d{width:7px;height:7px;border-radius:50%;background:var(--success)}
+    .foot{margin-top:48px;padding-top:24px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:12px;color:var(--meta);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+    @media(max-width:680px){.grid2{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="brand"><img src="assets/brand-mark.svg" alt="" />译栈 · 组件总览</span>
+    <nav class="nav-links">
+      <a href="DESIGN.md">DESIGN</a>
+      <a href="preview/index.html">预览</a>
+      <a href="ui_kits/app/index.html">应用套件</a>
+    </nav>
+  </div>
+
+  <div class="wrap">
+    <header class="hero">
+      <p class="eyebrow">components.html · 单页组件清单</p>
+      <h1>译栈全部组件，一页可览。</h1>
+      <p class="lead">这是清单引用的独立组件 fixture：令牌取自 <span class="keep">tokens.css</span>，配色与字体取自 <span class="keep">colors_and_type.css</span>。每类组件展示默认态；hover / focus 态详见 <a href="preview/components-buttons.html" style="color:var(--info)">分项预览</a>。</p>
+    </header>
+
+    <section class="sec">
+      <h2 class="sec-title">按钮 · buttons</h2>
+      <div class="stage">
+        <button class="btn btn-primary">进入主窗口</button>
+        <button class="btn btn-secondary">查看划词交互</button>
+        <button class="btn btn-ghost">返回总览</button>
+        <button class="act primary">翻译</button>
+        <button class="act">导出 JSON</button>
+        <button class="icon-btn" title="复制"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">表面 · surfaces</h2>
+      <div class="grid2">
+        <article class="card"><h3>并发不等于并行</h3><p>并发是同时「处理」，并行是同时「执行」。</p></article>
+        <article class="card"><h3>状态药丸</h3><div style="display:flex;gap:8px;margin-top:8px"><span class="pill ok">已连接</span><span class="pill warn">本地</span><span class="pill">v1.0.0</span></div></article>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">表单 · forms</h2>
+      <div class="grid2">
+        <label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:var(--muted)">中文描述</span><input class="input" value="获取用户资料" /></label>
+        <div style="display:flex;flex-direction:column;gap:6px;justify-content:flex-end"><span style="font-size:12px;color:var(--muted)">热键</span><div style="display:inline-flex;gap:5px"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">L</span></div></div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">导航 · navigation</h2>
+      <div class="stage" style="justify-content:flex-start">
+        <div style="background:rgba(255,255,255,.008);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px;display:flex;flex-direction:column;gap:2px;width:200px">
+          <div class="nav-item active"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h7M9 3v2c0 4.4-2.7 8.5-6.5 10.5"/><path d="M5 9c1.2 2.6 3.8 4.6 6.5 5.5"/><path d="M14 20l3-7 3 7M15.3 17.5h3.4"/></svg>翻译</div>
+          <div class="nav-item"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H6a2 2 0 0 0-2 2v2M16 4h2a2 2 0 0 1 2 2v2M8 20H6a2 2 0 0 1-2-2v-2M16 20h2a2 2 0 0 0 2-2v-2"/><path d="M9 12h6"/></svg>命名</div>
+        </div>
+        <div style="flex:1;min-width:200px">
+          <p style="font-size:14px;color:var(--fg-2);line-height:1.7;margin-bottom:14px">侧栏 active 项左侧 2px 发丝条；译文保留术语用 <span class="keep">keep</span> 片段。</p>
+          <div class="toast"><span class="d"></span>已复制译文</div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <span>© 译栈 LingoStack · MIT License · 零遥测</span>
+      <span>components.html · 令牌 tokens.css · 字体 Inter × JetBrains Mono</span>
+    </footer>
+  </div>
+</body>
+</html>

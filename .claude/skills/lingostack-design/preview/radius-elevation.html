@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>圆角与投影 · 译栈 LingoStack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../colors_and_type.css" />
+  <style>
+    body{margin:0;background:radial-gradient(120% 70% at 50% -10%,color-mix(in oklch,var(--surface) 50%,var(--bg)) 0%,var(--bg) 55%);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:var(--leading-body);-webkit-font-smoothing:antialiased;padding-bottom:56px}
+    h1,h2{font-family:var(--font-display);margin:0;letter-spacing:var(--tracking-display);font-weight:600}
+    a{color:inherit;text-decoration:none}
+    .page{max-width:900px;margin:0 auto;padding:0 28px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:22px 0 6px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+    .brand img{width:24px;height:24px;border-radius:7px}
+    .back{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+    .back:hover{color:var(--fg)}
+    .head{padding:14px 0 8px}
+    .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+    h1{font-size:32px;line-height:1.1}
+    .lead{font-size:16px;color:var(--fg-2);margin-top:12px;max-width:62ch}
+    .sec{margin-top:34px}
+    .sec-title{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--meta);margin:0 0 16px;display:flex;align-items:center;gap:10px}
+    .sec-title::after{content:"";flex:1;height:1px;background:var(--border)}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    .cell{display:flex;flex-direction:column;align-items:center;gap:10px}
+    .shape{width:100%;aspect-ratio:1;display:grid;place-items:center;background:var(--surface);border:1px solid var(--border);color:var(--fg-2);font-family:var(--font-mono);font-size:13px}
+    .cell .lbl{font-family:var(--font-mono);font-size:11px;color:var(--meta);text-align:center}
+    .elev-cell{padding:22px;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);min-height:130px}
+    .elev-cell .t{font-family:var(--font-mono);font-size:12px;color:var(--fg-2)}
+    .elev-cell .d{font-family:var(--font-mono);font-size:10px;color:var(--meta);text-align:center}
+    .focus-demo{display:inline-flex;padding:9px 16px;border-radius:var(--radius-sm);background:var(--bg);border:1px solid transparent;box-shadow:var(--focus-ring),0 0 0 1px hsla(202,100%,67%,.4);color:var(--fg);font-size:14px}
+    @media(max-width:680px){.grid{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <span class="brand"><img src="../assets/brand-mark.svg" alt="" />译栈</span>
+      <a class="back" href="index.html">← 预览索引</a>
+    </div>
+
+    <header class="head">
+      <p class="eyebrow">基础 · 04 · 圆角与投影</p>
+      <h1>四档圆角，一双标志性的环。</h1>
+      <p class="lead">圆角分四档：输入与键帽用 6，动作条与内联卡用 12，主卡片与弹窗用 16，药丸与主按钮用 9999。投影的签名是 <code style="font-family:var(--font-mono);color:var(--info)">--elev-ring</code>——外侧 1px 高光 + 内侧 1px 画布色描边，让深色卡片在黑底上「浮」起来而非糊作一团。</p>
+    </header>
+
+    <section class="sec">
+      <h2 class="sec-title">圆角阶梯 · radius</h2>
+      <div class="grid">
+        <div class="cell"><div class="shape" style="border-radius:var(--radius-sm)">sm</div><span class="lbl">--radius-sm · 6<br/>输入 / 键帽 / 图标</span></div>
+        <div class="cell"><div class="shape" style="border-radius:var(--radius-md)">md</div><span class="lbl">--radius-md · 12<br/>动作条 / 内联卡</span></div>
+        <div class="cell"><div class="shape" style="border-radius:var(--radius-lg)">lg</div><span class="lbl">--radius-lg · 16<br/>卡片 / 弹窗 / 窗体</span></div>
+        <div class="cell"><div class="shape" style="border-radius:var(--radius-pill);aspect-ratio:auto;padding:14px 0;width:100%">pill</div><span class="lbl">--radius-pill · 9999<br/>药丸 / 主按钮 / toast</span></div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">投影 · elevation</h2>
+      <div class="grid">
+        <div class="elev-cell" style="box-shadow:var(--elev-flat);border-color:var(--border)"><span class="t">flat</span><span class="d">none · 内联元素</span></div>
+        <div class="elev-cell" style="box-shadow:var(--elev-ring)"><span class="t">ring</span><span class="d">双环 · 卡片默认</span></div>
+        <div class="elev-cell" style="box-shadow:var(--elev-raised)"><span class="t">raised</span><span class="d">内高光 + 微投影</span></div>
+        <div class="elev-cell" style="box-shadow:var(--elev-ring),rgba(0,0,0,.6) 0 30px 70px -28px"><span class="t">window</span><span class="d">ring + 大投影 · 浮窗</span></div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">焦点环 · focus ring</h2>
+      <div style="padding:24px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);box-shadow:var(--elev-ring);display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <span class="focus-demo">聚焦中的输入</span>
+        <p style="margin:0;font-size:13px;color:var(--muted);max-width:42ch"><code style="font-family:var(--font-mono);color:var(--info)">--focus-ring: 0 0 0 3px hsla(202,100%,67%,.35)</code>，叠加 1px 天蓝描边。所有可聚焦元素必备可见的 <code style="font-family:var(--font-mono);color:var(--info)">:focus-visible</code> 环。</p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

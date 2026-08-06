@@ -1,0 +1,81 @@
+{
+  "$description": "译栈 LingoStack design tokens — verbatim from the source prototypes. See tokens.css for the canonical compiled stylesheet.",
+  "$source": {
+    "project": "Web Prototype (668f52f0-eb3c-47cc-b459-7ea9df5830ba)",
+    "files": [
+      "main-window.html",
+      "selection-bar.html",
+      "translation-popup.html",
+      "term-explanation.html",
+      "index.html"
+    ]
+  },
+  "color": {
+    "bg": "#07080a",
+    "surface": "#101111",
+    "surfaceWarm": "#161719",
+    "fg": "#f9f9f9",
+    "fg2": "#cecece",
+    "muted": "#9c9c9d",
+    "meta": "#6a6b6c",
+    "border": "rgba(255,255,255,0.06)",
+    "borderSoft": "rgba(255,255,255,0.04)",
+    "accent": "#FF6363",
+    "accentOn": "#ffffff",
+    "accentHover": "#ff7777",
+    "accentActive": "#e85757",
+    "info": "hsl(202,100%,67%)",
+    "success": "hsl(151,59%,59%)",
+    "warn": "hsl(43,100%,60%)",
+    "danger": "hsl(0,100%,69%)"
+  },
+  "typography": {
+    "fontDisplay": "\"Inter\", \"Inter Fallback\", system-ui, sans-serif",
+    "fontBody": "\"Inter\", \"Inter Fallback\", system-ui, sans-serif",
+    "fontMono": "\"JetBrains Mono\", ui-monospace, \"SF Mono\", Menlo, Consolas, monospace",
+    "scale": {
+      "xs": "12px",
+      "sm": "14px",
+      "base": "16px",
+      "lg": "18px",
+      "xl": "20px",
+      "2xl": "24px",
+      "3xl": "40px",
+      "4xl": "60px"
+    },
+    "leadingBody": "1.6",
+    "leadingTight": "1.06",
+    "trackingDisplay": "-0.02em"
+  },
+  "spacing": {
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "5": "20px",
+    "6": "24px",
+    "8": "32px",
+    "12": "48px"
+  },
+  "radius": { "sm": "6px", "md": "12px", "lg": "16px", "pill": "9999px" },
+  "elevation": {
+    "flat": "none",
+    "ring": "rgb(27,28,30) 0 0 0 1px, rgb(7,8,10) 0 0 0 1px inset",
+    "raised": "rgba(255,255,255,0.05) 0 1px 0 0 inset, rgba(0,0,0,0.28) 0 1.2px 2.4px, 0 0 0 1px rgba(255,255,255,0.06)",
+    "focusRing": "0 0 0 3px hsla(202,100%,67%,0.35)"
+  },
+  "motion": {
+    "fast": "150ms",
+    "base": "220ms",
+    "easeStandard": "cubic-bezier(0.2,0,0,1)"
+  },
+  "layout": {
+    "containerMax": "1120px",
+    "sectionYDesktop": "96px",
+    "sectionYTablet": "68px",
+    "sectionYPhone": "48px",
+    "gutterDesktop": "32px",
+    "gutterTablet": "24px",
+    "gutterPhone": "16px"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "od-design-system-project/v1",
+  "id": "lingostack",
+  "name": "译栈 LingoStack",
+  "category": "Project Design System",
+  "description": "Dark, developer-focused translation studio: near-black surfaces, single coral accent, sky-blue operational signal, Inter + JetBrains Mono. Distilled from the five LingoStack Tauri prototypes.",
+  "source": {
+    "type": "bundled",
+    "origin": "Open Design source project 'Web Prototype' (668f52f0-eb3c-47cc-b459-7ea9df5830ba); linked LingoStack repo. Tokens read verbatim from the copied prototypes (main-window.html, selection-bar.html, translation-popup.html, term-explanation.html, index.html)."
+  },
+  "files": {
+    "design": "DESIGN.md",
+    "tokens": "tokens.css",
+    "designTokens": "design-tokens.json",
+    "components": "components.html"
+  },
+  "assetsDir": "assets",
+  "previewDir": "preview",
+  "usage": "SKILL.md",
+  "importMode": "hybrid",
+  "craft": {
+    "applies": [
+      "desktop-app",
+      "productivity-tool",
+      "translation",
+      "developer-tools",
+      "command-palette"
+    ],
+    "suggested": [
+      "prototype",
+      "settings-panel",
+      "overlay-popup"
+    ],
+    "exemptions": [
+      "marketing-landing",
+      "print"
+    ]
+  },
+  "preview": {
+    "dir": "preview",
+    "pages": [
+      { "path": "preview/index.html", "role": "index", "title": "预览索引" },
+      { "path": "preview/colors-primary.html", "role": "color", "title": "色彩" },
+      { "path": "preview/typography-specimens.html", "role": "typography", "title": "字体" },
+      { "path": "preview/spacing-tokens.html", "role": "spacing", "title": "间距" },
+      { "path": "preview/radius-elevation.html", "role": "radius-shadow", "title": "圆角与投影" },
+      { "path": "preview/components-buttons.html", "role": "component", "title": "按钮" },
+      { "path": "preview/components-surfaces.html", "role": "component", "title": "卡片与表面" },
+      { "path": "preview/brand-assets.html", "role": "brand", "title": "品牌资产" },
+      { "path": "preview/applied-surfaces.html", "role": "applied-ui", "title": "应用界面" }
+    ]
+  },
+  "sourceFiles": {
+    "evidence": "context/provenance.md",
+    "tokens": "tokens.css"
+  }
+}

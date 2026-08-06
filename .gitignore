@@ -2,6 +2,7 @@
 .superpowers/
 .mcp.json
 .claude/settings.local.json
+.codegraph/
 
 # ===== Rust / Cargo =====
 target/

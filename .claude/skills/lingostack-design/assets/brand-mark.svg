@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="译栈品牌印记">
+  <title>译栈 LingoStack · 品牌印记</title>
+  <defs>
+    <linearGradient id="bm-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161719"/>
+      <stop offset="1" stop-color="#07080a"/>
+    </linearGradient>
+    <pattern id="bm-stripes" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(25)">
+      <rect x="0" y="0" width="2" height="8" fill="#FF6363"/>
+    </pattern>
+    <filter id="bm-inset" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1.4" stdDeviation="0" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <!-- dark rounded square body -->
+  <rect x="2" y="2" width="44" height="44" rx="12" ry="12"
+        fill="url(#bm-bg)" filter="url(#bm-inset)"
+        stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <!-- coral 115° diagonal stripes (product signature flourish) -->
+  <rect x="2" y="2" width="44" height="44" rx="12" ry="12"
+        fill="url(#bm-stripes)" opacity="0.85"/>
+</svg>

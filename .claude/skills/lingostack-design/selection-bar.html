@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>划词工具栏 · 译栈 LingoStack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root{--bg:#07080a;--surface:#101111;--fg:#f9f9f9;--fg-2:#cecece;--muted:#9c9c9d;--meta:#6a6b6c;--border:rgba(255,255,255,.06);--border-soft:rgba(255,255,255,.04);--accent:#FF6363;--accent-hover:#ff7777;--info:hsl(202,100%,67%);--success:hsl(151,59%,59%);--font-display:"Inter",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;--text-xs:12px;--text-sm:14px;--text-base:16px;--text-lg:18px;--text-xl:20px;--text-3xl:36px;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-12:48px;--radius-sm:6px;--radius-md:12px;--radius-lg:16px;--radius-pill:9999px;--elev-ring:rgb(27,28,30) 0 0 0 1px,rgb(7,8,10) 0 0 0 1px inset;--focus-ring:0 0 0 3px hsla(202,100%,67%,.35);--motion-fast:150ms;--motion-base:220ms;--ease-standard:cubic-bezier(.2,0,0,1);--container-max:960px;--gutter:32px}
+    *,*::before,*::after{box-sizing:border-box}
+    html{-webkit-text-size-adjust:100%}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:1.6;letter-spacing:.005em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-feature-settings:"calt","kern","liga","ss03"}
+    h1,h2,h3,h4{font-family:var(--font-display);text-wrap:balance;margin:0;letter-spacing:-.015em;font-weight:600}
+    p{margin:0;text-wrap:pretty}
+    a{color:inherit;text-decoration:none}
+    button{font:inherit;cursor:pointer;color:inherit;background:none;border:0}
+    svg{display:block}
+    ::selection{background:hsla(202,100%,67%,.3)}
+    *::-webkit-scrollbar{width:10px;height:10px}
+    *::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:99px;border:2px solid transparent;background-clip:padding-box}
+    :focus-visible{outline:2px solid var(--info);outline-offset:2px}
+    .container{max-width:var(--container-max);margin-inline:auto;padding-inline:var(--gutter)}
+    .stack{display:flex;flex-direction:column}
+    .row{display:flex;align-items:center;gap:var(--space-3)}
+    .eyebrow{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 var(--space-4);font-weight:500}
+    .lead{font-size:var(--text-lg);line-height:1.6;color:var(--fg-2);max-width:56ch}
+    .meta{font-family:var(--font-mono);font-size:var(--text-sm);color:var(--muted)}
+    .mono{font-family:var(--font-mono)}
+    .btn{display:inline-flex;align-items:center;gap:var(--space-2);padding:10px 18px;border-radius:var(--radius-pill);border:1px solid transparent;font-size:var(--text-sm);font-weight:600;transition:background var(--motion-fast),border-color var(--motion-fast)}
+    .btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+    .btn-secondary{color:var(--fg);border-color:rgba(255,255,255,.12)}
+    .btn-secondary:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.22)}
+    /* topnav */
+    .topnav{position:sticky;top:0;z-index:20;background:color-mix(in oklch,var(--bg) 80%,transparent);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+    .topnav-inner{display:flex;align-items:center;justify-content:space-between;padding-block:14px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+    .back-link{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--muted)}
+    .back-link:hover{color:var(--fg)}
+    /* header */
+    .page-head{padding-block:48px 24px}
+    .h1{font-size:var(--text-3xl);line-height:1.1}
+    /* scene */
+    .scene{padding-block:var(--space-6) 0;position:relative}
+    .app-frame{border-radius:14px;background:var(--bg);border:1px solid var(--border);box-shadow:var(--elev-ring),rgba(0,0,0,.5) 0 30px 70px -28px;overflow:hidden}
+    .app-titlebar{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.012)}
+    .tl{width:11px;height:11px;border-radius:50%;background:color-mix(in oklch,var(--meta) 50%,var(--bg))}
+    .app-tab{margin-left:10px;font-family:var(--font-mono);font-size:var(--text-xs);color:var(--meta);letter-spacing:.04em}
+    .app-body{padding:34px 44px 48px;min-height:340px;position:relative}
+    .doc-eyebrow{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--meta);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px}
+    .doc-h2{font-size:22px;margin-bottom:18px}
+    .doc-p{color:var(--fg-2);line-height:1.85;font-size:16px;margin-bottom:16px}
+    .doc-p .code{font-family:var(--font-mono);font-size:14px;color:var(--info);background:rgba(255,255,255,.04);padding:1px 6px;border-radius:4px}
+    .sel{background:hsla(202,100%,67%,.26);border-radius:3px;padding:1px 2px;color:var(--fg);box-shadow:0 0 0 1px hsla(202,100%,67%,.3)}
+    /* popclip action bar */
+    .popbar{position:absolute;display:inline-flex;align-items:center;gap:2px;padding:5px;border-radius:var(--radius-md);background:var(--surface);border:1px solid rgba(255,255,255,.1);box-shadow:rgba(0,0,0,.6) 0 18px 40px -10px,rgba(255,255,255,.06) 0 1px 0 0 inset,rgb(7,8,10) 0 0 0 1px inset;animation:popIn var(--motion-base) var(--ease-standard) both}
+    @keyframes popIn{from{opacity:0;transform:translate(-50%,-6px) scale(.92)}to{opacity:1;transform:translate(-50%,-14px) scale(1)}}
+    .popbar::after{content:"";position:absolute;left:50%;bottom:-6px;transform:translateX(-50%) rotate(45deg);width:11px;height:11px;background:var(--surface);border-right:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1)}
+    .pop-btn{position:relative;width:38px;height:38px;border-radius:8px;display:grid;place-items:center;color:var(--fg-2);transition:background var(--motion-fast),color var(--motion-fast)}
+    .pop-btn:hover{background:rgba(255,255,255,.09);color:var(--fg)}
+    .pop-btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+    .pop-btn.active{background:hsla(202,100%,67%,.16);color:var(--info)}
+    .pop-btn .tip{position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);background:var(--surface);color:var(--fg);font-size:var(--text-xs);padding:4px 9px;border-radius:5px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity var(--motion-fast);border:1px solid var(--border)}
+    .pop-btn:hover .tip{opacity:1}
+    .pop-divider{width:1px;height:22px;background:rgba(255,255,255,.08);margin:0 3px}
+    /* inline translation reveal */
+    .inline-tr{margin-top:6px;padding:12px 14px;border-radius:10px;background:color-mix(in oklch,var(--accent) 8%,transparent);border:1px solid color-mix(in oklch,var(--accent) 22%,transparent);color:var(--fg);font-size:15px;line-height:1.6;display:none}
+    .inline-tr.show{display:block;animation:fadeIn .25s var(--ease-standard)}
+    .inline-tr .tag{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--accent);letter-spacing:.06em;display:block;margin-bottom:4px}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+    /* legend */
+    .legend{margin-top:var(--space-8);display:grid;grid-template-columns:repeat(5,1fr);gap:var(--space-3)}
+    .leg{padding:18px 16px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--border)}
+    .leg .ic{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--fg);margin-bottom:10px}
+    .leg h4{font-size:var(--text-sm);font-weight:600;margin-bottom:4px}
+    .leg p{font-size:var(--text-xs);color:var(--muted);line-height:1.5}
+    .leg .kbd-hint{display:inline-block;margin-top:8px;font-family:var(--font-mono);font-size:10px;color:var(--meta)}
+    /* toast */
+    .toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--fg);padding:10px 18px;border-radius:var(--radius-pill);font-size:var(--text-sm);box-shadow:rgba(0,0,0,.6) 0 12px 30px -8px,0 0 0 1px var(--border);opacity:0;pointer-events:none;transition:opacity var(--motion-base),transform var(--motion-base);z-index:50;display:inline-flex;align-items:center;gap:8px}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .toast .dot{width:7px;height:7px;border-radius:50%;background:var(--success)}
+    .foot-note{margin-top:var(--space-12);padding-top:var(--space-6);border-top:1px solid var(--border);color:var(--meta);font-size:var(--text-sm);line-height:1.7}
+    @media(max-width:680px){.legend{grid-template-columns:repeat(2,1fr)}.app-body{padding:26px 22px 36px}}
+  </style>
+</head>
+<body>
+  <header class="topnav" data-od-id="topnav">
+    <div class="container topnav-inner">
+      <span class="brand">译栈 · 划词工具栏</span>
+      <a class="back-link" href="index.html">← 返回总览</a>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="page-head" data-od-id="head">
+      <div class="container">
+        <p class="eyebrow">场景一 · 划词翻译 · P0</p>
+        <h1 class="h1">选中即出，五键到位。</h1>
+        <p class="lead" style="margin-top:14px">在任意应用里选中文本，紧凑动作条自动浮现——翻译、解释、朗读、收藏、复制，圆润不挡视线，可快速连续操作。下面是一个真实阅读场景的演示。</p>
+      </div>
+    </section>
+
+    <section class="scene" data-od-id="scene">
+      <div class="container">
+        <div class="app-frame">
+          <div class="app-titlebar">
+            <span class="tl"></span><span class="tl"></span><span class="tl"></span>
+            <span class="app-tab">concurrency.md — 阅读器</span>
+          </div>
+          <div class="app-body" id="docBody">
+            <p class="doc-eyebrow">Go 并发笔记 · 第 2 节</p>
+            <h2 class="doc-h2">Concurrency is not parallelism</h2>
+            <p class="doc-p">When people talk about <span class="code">goroutine</span> scheduling, they often confuse two ideas. <span class="sel" id="selection">concurrency is not parallelism</span> — concurrency is about <em>dealing with</em> many things at once, while parallelism is about <em>doing</em> many things at once.</p>
+            <p class="doc-p">A well-designed program can be concurrent without being parallel, which makes it easier to reason about and scale across cores.</p>
+
+            <!-- PopClip 动作条 -->
+            <div class="popbar" id="popbar" style="left:0;top:0;visibility:hidden">
+              <button class="pop-btn" data-act="translate" aria-label="翻译">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h7M9 3v2c0 4.4-2.7 8.5-6.5 10.5"/><path d="M5 9c1.2 2.6 3.8 4.6 6.5 5.5"/><path d="M14 20l3-7 3 7M15.3 17.5h3.4"/></svg>
+                <span class="tip">翻译 · T</span>
+              </button>
+              <button class="pop-btn" data-act="explain" aria-label="解释">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h6M9 11h4"/></svg>
+                <span class="tip">解释 · E</span>
+              </button>
+              <span class="pop-divider"></span>
+              <button class="pop-btn" data-act="speak" aria-label="朗读">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg>
+                <span class="tip">朗读 · S</span>
+              </button>
+              <button class="pop-btn" data-act="favorite" aria-label="收藏">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                <span class="tip">收藏 · F</span>
+              </button>
+              <button class="pop-btn" data-act="copy" aria-label="复制">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span class="tip">复制 · C</span>
+              </button>
+            </div>
+
+            <div class="inline-tr" id="inlineTr">
+              <span class="tag">EN → 中文 · DeepSeek</span>
+              并发不等于并行——并发是同时「处理」多件事，并行是同时「执行」多件事。
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section data-od-id="legend" style="padding-top:var(--space-12)">
+      <div class="container">
+        <p class="eyebrow">五个动作</p>
+        <div class="legend">
+          <div class="leg"><div class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h7M9 3v2c0 4.4-2.7 8.5-6.5 10.5"/><path d="M5 9c1.2 2.6 3.8 4.6 6.5 5.5"/><path d="M14 20l3-7 3 7M15.3 17.5h3.4"/></svg></div><h4>翻译</h4><p>弹出翻译浮窗，流式渲染译文。</p><span class="kbd-hint">T</span></div>
+          <div class="leg"><div class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h6M9 11h4"/></svg></div><h4>解释</h4><p>查看词义、词性与开发语境用法。</p><span class="kbd-hint">E</span></div>
+          <div class="leg"><div class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg></div><h4>朗读</h4><p>系统 TTS 朗读原文，可暂停。</p><span class="kbd-hint">S</span></div>
+          <div class="leg"><div class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div><h4>收藏</h4><p>存入收藏，支持分组与导出。</p><span class="kbd-hint">F</span></div>
+          <div class="leg"><div class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div><h4>复制</h4><p>一键复制选中文本到剪贴板。</p><span class="kbd-hint">C</span></div>
+        </div>
+        <p class="foot-note">交互细节：选中后经原生辅助 API 监听变化并去抖弹出，避免误触；取词失败时降级为剪贴板取词并提示授权。动作条小而圆润，紧贴选区上方，连续划词可流畅衔接。点击下方按钮或在选区上方的动作条体验各动作 →</p>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"><span class="dot"></span><span id="toastText">已复制</span></div>
+
+  <script>
+    // 定位动作条到选区上方
+    function placeBar(){
+      const sel=document.getElementById('selection');
+      const bar=document.getElementById('popbar');
+      const body=document.getElementById('docBody');
+      const r=sel.getBoundingClientRect(), b=body.getBoundingClientRect();
+      bar.style.visibility='visible';
+      bar.style.left=(r.left-b.left+r.width/2)+'px';
+      bar.style.top=(r.top-b.top)+'px';
+    }
+    window.addEventListener('load',placeBar);
+    window.addEventListener('resize',placeBar);
+
+    const toast=document.getElementById('toast'), toastText=document.getElementById('toastText');
+    let toastTimer;
+    function showToast(msg){
+      toastText.textContent=msg; toast.classList.add('show');
+      clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),1600);
+    }
+    const inlineTr=document.getElementById('inlineTr');
+    document.querySelectorAll('.pop-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        document.querySelectorAll('.pop-btn').forEach(b=>b.classList.remove('active'));
+        const act=btn.dataset.act;
+        if(act==='translate'){btn.classList.add('active');inlineTr.classList.add('show');showToast('已唤起翻译浮窗');}
+        if(act==='explain'){btn.classList.add('active');window.location.href='term-explanation.html';}
+        if(act==='speak'){btn.classList.add('active');showToast('正在朗读选中文本');}
+        if(act==='favorite'){btn.classList.add('active');showToast('已收藏到「生词本」');}
+        if(act==='copy'){btn.classList.add('active');showToast('已复制选中内容');}
+      });
+    });
+  </script>
+</body>
+</html>

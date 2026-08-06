@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-label="译栈 LingoStack">
+  <title>译栈 LingoStack · 标识</title>
+  <defs>
+    <linearGradient id="lg-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161719"/>
+      <stop offset="1" stop-color="#07080a"/>
+    </linearGradient>
+    <pattern id="lg-stripes" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(25)">
+      <rect x="0" y="0" width="2" height="8" fill="#FF6363"/>
+    </pattern>
+  </defs>
+  <!-- mark -->
+  <rect x="0" y="2" width="44" height="44" rx="12" ry="12" fill="url(#lg-bg)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <rect x="0" y="2" width="44" height="44" rx="12" ry="12" fill="url(#lg-stripes)" opacity="0.85"/>
+  <!-- wordmark -->
+  <text x="58" y="31" font-family="Inter, system-ui, sans-serif" font-size="22" font-weight="700" letter-spacing="-0.4" fill="#f9f9f9">译栈</text>
+  <text x="104" y="31" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="600" letter-spacing="0.2" fill="#cecece">LingoStack</text>
+</svg>

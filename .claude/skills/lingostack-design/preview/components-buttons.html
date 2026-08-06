@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>按钮 · 译栈 LingoStack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../colors_and_type.css" />
+  <style>
+    body{margin:0;background:radial-gradient(120% 70% at 50% -10%,color-mix(in oklch,var(--surface) 50%,var(--bg)) 0%,var(--bg) 55%);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:var(--leading-body);-webkit-font-smoothing:antialiased;padding-bottom:56px}
+    h1,h2{font-family:var(--font-display);margin:0;letter-spacing:var(--tracking-display);font-weight:600}
+    a,button{font:inherit;color:inherit;text-decoration:none}
+    button{cursor:pointer;background:none;border:0}
+    .page{max-width:900px;margin:0 auto;padding:0 28px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:22px 0 6px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+    .brand img{width:24px;height:24px;border-radius:7px}
+    .back{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+    .back:hover{color:var(--fg)}
+    .head{padding:14px 0 8px}
+    .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+    h1{font-size:32px;line-height:1.1}
+    .lead{font-size:16px;color:var(--fg-2);margin-top:12px;max-width:62ch}
+    .sec{margin-top:34px}
+    .sec-title{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--meta);margin:0 0 16px;display:flex;align-items:center;gap:10px}
+    .sec-title::after{content:"";flex:1;height:1px;background:var(--border)}
+
+    /* buttons — mirror main-window / index component rules */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;border-radius:var(--radius-pill);border:1px solid transparent;font-size:var(--text-base);font-weight:600;letter-spacing:.01em;transition:background var(--motion-fast),border-color var(--motion-fast);white-space:nowrap}
+    .btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+    .btn-primary{background:hsla(0,0%,100%,.9);color:var(--bg)}
+    .btn-primary:hover{background:hsla(0,0%,100%,1)}
+    .btn-secondary{background:transparent;color:var(--fg);border-color:rgba(255,255,255,.12)}
+    .btn-secondary:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.22)}
+    .btn-ghost{background:transparent;color:var(--muted);padding-inline:12px}
+    .btn-ghost:hover{color:var(--fg)}
+    .btn[disabled]{opacity:.4;cursor:not-allowed}
+
+    .act{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:var(--text-sm);font-weight:500;border:1px solid var(--border);color:var(--fg-2);transition:background var(--motion-fast),color var(--motion-fast),border-color var(--motion-fast)}
+    .act:hover{background:rgba(255,255,255,.06);color:var(--fg);border-color:rgba(255,255,255,.14)}
+    .act:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+    .act.primary{background:hsla(0,0%,100%,.9);color:var(--bg);font-weight:600;border-color:transparent}
+    .act.primary:hover{background:hsla(0,0%,100%,1);color:var(--bg)}
+    .act.on{color:var(--info);background:hsla(202,100%,67%,.1)}
+
+    .icon-btn{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;color:var(--meta);border:1px solid transparent;transition:background var(--motion-fast),color var(--motion-fast)}
+    .icon-btn:hover{background:rgba(255,255,255,.06);color:var(--fg)}
+    .icon-btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+    .icon-btn.on{color:var(--info);background:hsla(202,100%,67%,.1)}
+
+    .demo-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 18px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);box-shadow:var(--elev-ring)}
+    .demo-row + .demo-row{margin-top:12px}
+    .demo-row .lab{font-family:var(--font-mono);font-size:11px;color:var(--meta);min-width:92px}
+    .states{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .st{padding:16px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);box-shadow:var(--elev-ring);text-align:center}
+    .st .lab{display:block;font-family:var(--font-mono);font-size:10px;color:var(--meta);margin-top:12px}
+    .note{margin-top:14px;font-size:13px;color:var(--muted);font-family:var(--font-mono)}
+    @media(max-width:680px){.states{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <span class="brand"><img src="../assets/brand-mark.svg" alt="" />译栈</span>
+      <a class="back" href="index.html">← 预览索引</a>
+    </div>
+
+    <header class="head">
+      <p class="eyebrow">组件 · 05 · 按钮</p>
+      <h1>每屏一个主操作，其余全部退后。</h1>
+      <p class="lead">主按钮近白底黑字、药丸圆角；次按钮透明 + 细边框；ghost 仅文字。图标按钮 30px 方形。hover 永远把背景往亮处移，绝不让文字变灰。主按钮整站只用一次，其余入口走次级 / ghost。</p>
+    </header>
+
+    <section class="sec">
+      <h2 class="sec-title">按钮族 · families</h2>
+      <div class="demo-row"><span class="lab">主 / 次 / ghost</span>
+        <button class="btn btn-primary">进入主窗口</button>
+        <button class="btn btn-secondary">查看划词交互</button>
+        <button class="btn btn-ghost">返回总览</button>
+      </div>
+      <div class="demo-row"><span class="lab">紧凑动作</span>
+        <button class="act primary">翻译</button>
+        <button class="act">导入 JSON</button>
+        <button class="act">导出 JSON</button>
+        <button class="act on">收藏</button>
+      </div>
+      <div class="demo-row"><span class="lab">图标按钮</span>
+        <button class="icon-btn" title="朗读"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></button>
+        <button class="icon-btn" title="收藏"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+        <button class="icon-btn" title="复制"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+        <button class="icon-btn on" title="置顶"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 3h6l-1 7 3 3H7l3-3-1-7z"/></svg></button>
+        <button class="icon-btn" title="关闭"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">交互态 · states（主按钮）</h2>
+      <div class="states">
+        <div class="st"><button class="btn btn-primary">重新翻译</button><span class="lab">default</span></div>
+        <div class="st"><button class="btn btn-primary" style="background:hsla(0,0%,100%,1)">重新翻译</button><span class="lab">hover</span></div>
+        <div class="st"><button class="btn btn-primary" style="box-shadow:var(--focus-ring)">重新翻译</button><span class="lab">focus-visible</span></div>
+        <div class="st"><button class="btn btn-primary" disabled>重新翻译</button><span class="lab">disabled · 唯一允许降对比</span></div>
+      </div>
+      <p class="note">铁律：hover / focus / active 永不把文字推向背景；移动背景亮度或提亮边框。disabled 是唯一允许降低对比的状态。</p>
+    </section>
+  </div>
+</body>
+</html>

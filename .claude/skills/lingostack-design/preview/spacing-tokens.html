@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>间距 · 译栈 LingoStack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../colors_and_type.css" />
+  <style>
+    body{margin:0;background:radial-gradient(120% 70% at 50% -10%,color-mix(in oklch,var(--surface) 50%,var(--bg)) 0%,var(--bg) 55%);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:var(--leading-body);-webkit-font-smoothing:antialiased;padding-bottom:56px}
+    h1,h2{font-family:var(--font-display);margin:0;letter-spacing:var(--tracking-display);font-weight:600}
+    a{color:inherit;text-decoration:none}
+    .page{max-width:860px;margin:0 auto;padding:0 28px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:22px 0 6px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+    .brand img{width:24px;height:24px;border-radius:7px}
+    .back{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+    .back:hover{color:var(--fg)}
+    .head{padding:14px 0 8px}
+    .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+    h1{font-size:32px;line-height:1.1}
+    .lead{font-size:16px;color:var(--fg-2);margin-top:12px;max-width:60ch}
+    .sec{margin-top:34px}
+    .sec-title{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--meta);margin:0 0 16px;display:flex;align-items:center;gap:10px}
+    .sec-title::after{content:"";flex:1;height:1px;background:var(--border)}
+    .row-s{display:flex;align-items:center;gap:16px;padding:9px 0}
+    .row-s .lbl{font-family:var(--font-mono);font-size:12px;color:var(--muted);min-width:96px}
+    .bar{height:18px;border-radius:5px;background:color-mix(in oklch,var(--info) 30%,transparent);border:1px solid color-mix(in oklch,var(--info) 40%,transparent)}
+    .row-s .v{font-family:var(--font-mono);font-size:12px;color:var(--fg-2);min-width:46px}
+    .applied{padding:18px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);box-shadow:var(--elev-ring)}
+    .applied h3{font-family:var(--font-mono);font-size:11px;color:var(--meta);text-transform:uppercase;letter-spacing:.1em;margin:0 0 14px;font-weight:500}
+    .pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .mini-pane{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden}
+    .mini-pane .ph{padding:9px 14px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:12px;color:var(--muted);letter-spacing:.04em}
+    .mini-pane .pb{padding:14px;font-size:14px;line-height:1.7;color:var(--fg-2)}
+    @media(max-width:680px){.pair{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <span class="brand"><img src="../assets/brand-mark.svg" alt="" />译栈</span>
+      <a class="back" href="index.html">← 预览索引</a>
+    </div>
+
+    <header class="head">
+      <p class="eyebrow">基础 · 03 · 间距</p>
+      <h1>4px 基线，稳定到每一个像素。</h1>
+      <p class="lead">组件内边距常用 12–16，卡片间距 12–16，段落 13–16。区块纵向留白 <code style="font-family:var(--font-mono);color:var(--info)">--section-y</code> 桌面 96 / 平板 68 / 手机 48。</p>
+    </header>
+
+    <section class="sec">
+      <h2 class="sec-title">间距阶梯 · scale</h2>
+      <div class="row-s"><span class="lbl">--space-1</span><span class="bar" style="width:4px"></span><span class="v">4px</span></div>
+      <div class="row-s"><span class="lbl">--space-2</span><span class="bar" style="width:8px"></span><span class="v">8px</span></div>
+      <div class="row-s"><span class="lbl">--space-3</span><span class="bar" style="width:12px"></span><span class="v">12px</span></div>
+      <div class="row-s"><span class="lbl">--space-4</span><span class="bar" style="width:16px"></span><span class="v">16px</span></div>
+      <div class="row-s"><span class="lbl">--space-5</span><span class="bar" style="width:20px"></span><span class="v">20px</span></div>
+      <div class="row-s"><span class="lbl">--space-6</span><span class="bar" style="width:24px"></span><span class="v">24px</span></div>
+      <div class="row-s"><span class="lbl">--space-8</span><span class="bar" style="width:32px"></span><span class="v">32px</span></div>
+      <div class="row-s"><span class="lbl">--space-12</span><span class="bar" style="width:48px"></span><span class="v">48px</span></div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">应用节奏 · applied rhythm</h2>
+      <div class="applied">
+        <h3>翻译分栏 · 内边距 14 / 标签栏 9 14 / 间距 14</h3>
+        <div class="pair">
+          <div class="mini-pane"><div class="ph">原文 · 自动检测</div><div class="pb">The graceful shutdown handler waits for in-flight requests to complete.</div></div>
+          <div class="mini-pane"><div class="ph">译文 · 中文</div><div class="pb">优雅停机处理器会等待请求完成后再终止进程。</div></div>
+        </div>
+        <p style="margin:14px 0 0;font-size:13px;color:var(--muted);font-family:var(--font-mono)">容器 --container-max 1120 · 槽口 32 / 24 / 16 · 区块 --section-y 96 / 68 / 48</p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

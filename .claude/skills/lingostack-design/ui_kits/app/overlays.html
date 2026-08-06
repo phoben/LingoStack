@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>浮层 · 译栈 UI Kit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../tokens.css" />
+  <link rel="stylesheet" href="kit.css" />
+  <style>
+    .modal-body{padding:18px 24px}
+    .blk-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--meta);margin-bottom:9px}
+    .ctx{font-size:14px;line-height:1.75;color:var(--fg)}
+    .ctx strong{color:var(--fg);font-weight:600}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="titlebar"><span class="tl"></span><span class="tl"></span><span class="tl"></span><span class="t">浮层 · 译栈 LingoStack</span></div>
+    <div class="kit-body">
+      <aside class="sidebar">
+        <div class="sb-brand"><img src="../../assets/brand-mark.svg" alt="" />译栈</div>
+        <a class="nav-item" href="index.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>概览</a>
+        <a class="nav-item" href="translation-panel.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h7M9 3v2c0 4.4-2.7 8.5-6.5 10.5"/><path d="M5 9c1.2 2.6 3.8 4.6 6.5 5.5"/><path d="M14 20l3-7 3 7M15.3 17.5h3.4"/></svg>翻译面板</a>
+        <a class="nav-item" href="buttons.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>按钮</a>
+        <a class="nav-item" href="surfaces.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>表面</a>
+        <a class="nav-item" href="forms.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>表单</a>
+        <a class="nav-item" href="navigation.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>导航</a>
+        <a class="nav-item active" href="overlays.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V7z"/></svg>浮层</a>
+        <div class="sb-foot">托盘常驻 · 零遥测<br/>UI Kit v1 · MIT</div>
+      </aside>
+
+      <div class="main">
+        <section class="panel">
+          <p class="eyebrow">组件 · 浮层</p>
+          <h2>浮窗、模态与动作条。</h2>
+          <p class="desc">翻译浮窗带红绿灯 chrome + 置顶 / 关闭；词条解释是居中模态；PopClip 动作条贴选区浮现。</p>
+
+          <h3 class="sec-title">翻译浮窗 chrome</h3>
+          <div class="floatwin" style="margin-bottom:6px">
+            <div class="fw-titlebar"><span class="tl"></span><span class="tl"></span><span class="tl"></span><span class="mono" style="margin-left:8px;font-size:12px;color:var(--meta)">翻译浮窗 · 译栈</span>
+              <button class="fw-chrome-btn active" style="margin-left:auto" title="置顶"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 3h6l-1 7 3 3H7l3-3-1-7z"/></svg></button>
+              <button class="fw-chrome-btn" title="关闭"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+            </div>
+            <div style="padding:16px">
+              <p style="font-size:14px;color:var(--fg-2);line-height:1.7;margin-bottom:10px">The middleware intercepts each request and attaches a <span class="keep">correlation ID</span>.</p>
+              <p style="font-size:15px;line-height:1.75;color:var(--fg)">中间件拦截每个请求，并在转发前附加一个 <span class="keep">correlation ID</span>。</p>
+            </div>
+          </div>
+
+          <h3 class="sec-title">词条解释 · 模态</h3>
+          <div class="floatwin" style="max-width:540px;margin-bottom:6px">
+            <div class="modal-head">
+              <div style="flex:1"><div class="w">concurrency</div><div class="pho">/kənˈkʌrənsi/ · noun</div><span class="pos">名词</span></div>
+              <button class="icon-btn" style="width:40px;height:40px;border:1px solid var(--border);background:rgba(255,255,255,.02)" title="朗读"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg></button>
+            </div>
+            <div class="modal-body">
+              <div class="blk-label">开发语境用法</div>
+              <p class="ctx">在编程中，<span class="keep">concurrency</span> 常与 <span class="keep">goroutine</span>、<span class="keep">channel</span> 同现。务必与 <strong>parallelism（并行）</strong>区分。</p>
+            </div>
+          </div>
+
+          <h3 class="sec-title">PopClip 划词动作条</h3>
+          <div class="card" style="display:flex;justify-content:center;padding:30px">
+            <div class="popbar">
+              <button class="pop-btn active" title="翻译"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h7M9 3v2c0 4.4-2.7 8.5-6.5 10.5"/><path d="M5 9c1.2 2.6 3.8 4.6 6.5 5.5"/><path d="M14 20l3-7 3 7M15.3 17.5h3.4"/></svg></button>
+              <button class="pop-btn" title="解释"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h6M9 11h4"/></svg></button>
+              <span class="pop-divider"></span>
+              <button class="pop-btn" title="朗读"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg></button>
+              <button class="pop-btn" title="收藏"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              <button class="pop-btn" title="复制"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="statusbar"><span><span class="dot"></span>就绪</span><span>组件：overlays</span><span class="sp">令牌：tokens.css · kit.css</span></div>
+  </div>
+</body>
+</html>

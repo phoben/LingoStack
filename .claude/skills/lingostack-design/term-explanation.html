@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>词条解释 · 译栈 LingoStack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root{--bg:#07080a;--surface:#101111;--fg:#f9f9f9;--fg-2:#cecece;--muted:#9c9c9d;--meta:#6a6b6c;--border:rgba(255,255,255,.06);--border-soft:rgba(255,255,255,.04);--accent:#FF6363;--info:hsl(202,100%,67%);--success:hsl(151,59%,59%);--font-display:"Inter",system-ui,sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;--text-xs:12px;--text-sm:14px;--text-base:16px;--text-lg:18px;--text-xl:20px;--text-3xl:36px;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;--space-12:48px;--radius-sm:6px;--radius-md:12px;--radius-lg:16px;--radius-pill:9999px;--elev-ring:rgb(27,28,30) 0 0 0 1px,rgb(7,8,10) 0 0 0 1px inset;--focus-ring:0 0 0 3px hsla(202,100%,67%,.35);--motion-fast:150ms;--motion-base:220ms;--ease-standard:cubic-bezier(.2,0,0,1);--container-max:760px;--gutter:32px}
+    *,*::before,*::after{box-sizing:border-box}
+    html{-webkit-text-size-adjust:100%}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:1.6;letter-spacing:.005em;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-feature-settings:"calt","kern","liga","ss03"}
+    h1,h2,h3,h4{font-family:var(--font-display);text-wrap:balance;margin:0;letter-spacing:-.015em;font-weight:600}
+    p{margin:0;text-wrap:pretty}
+    a{color:inherit;text-decoration:none}
+    button{font:inherit;cursor:pointer;color:inherit;background:none;border:0}
+    svg{display:block}
+    ::selection{background:hsla(202,100%,67%,.3)}
+    *::-webkit-scrollbar{width:10px;height:10px}
+    *::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:99px;border:2px solid transparent;background-clip:padding-box}
+    :focus-visible{outline:2px solid var(--info);outline-offset:2px}
+    .container{max-width:var(--container-max);margin-inline:auto;padding-inline:var(--gutter)}
+    .eyebrow{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 var(--space-4);font-weight:500}
+    .lead{font-size:var(--text-lg);line-height:1.6;color:var(--fg-2);max-width:56ch}
+    .meta{font-family:var(--font-mono);font-size:var(--text-sm);color:var(--muted)}
+    .h1{font-size:var(--text-3xl);line-height:1.1}
+    .topnav{position:sticky;top:0;z-index:20;background:color-mix(in oklch,var(--bg) 78%,transparent);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+    .topnav-inner{display:flex;align-items:center;justify-content:space-between;padding-block:14px}
+    .brand{font-weight:700;font-size:16px}
+    .back-link{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--muted)}
+    .back-link:hover{color:var(--fg)}
+    .page-head{padding-block:48px 28px;text-align:center}
+    /* modal */
+    .backdrop{position:relative;padding-block:0 64px}
+    .modal{width:100%;max-width:540px;margin:8px auto 0;border-radius:var(--radius-lg);background:var(--surface);box-shadow:var(--elev-ring),rgba(0,0,0,.65) 0 50px 110px -32px;overflow:hidden;animation:modalIn .38s var(--ease-standard) both}
+    @keyframes modalIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+    .m-head{display:flex;align-items:flex-start;gap:14px;padding:24px 24px 18px;border-bottom:1px solid var(--border)}
+    .m-word{flex:1}
+    .m-word .w{font-family:var(--font-display);font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+    .m-word .pho{font-family:var(--font-mono);font-size:var(--text-sm);color:var(--muted);margin-top:6px}
+    .pos{display:inline-flex;align-items:center;padding:3px 10px;border-radius:var(--radius-pill);background:color-mix(in oklch,var(--accent) 14%,transparent);color:var(--accent);font-family:var(--font-mono);font-size:var(--text-xs);font-style:italic;margin-top:10px}
+    .speak-big{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--fg-2);border:1px solid var(--border);background:rgba(255,255,255,.02);transition:background var(--motion-fast),color var(--motion-fast);flex:0 0 auto}
+    .speak-big:hover{background:rgba(255,255,255,.07);color:var(--fg)}
+    .speak-big:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+    .m-body{padding:20px 24px 8px}
+    .block{margin-bottom:20px}
+    .block:last-child{margin-bottom:0}
+    .blk-label{font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--meta);margin-bottom:9px;display:flex;align-items:center;gap:6px}
+    .meanings{display:flex;flex-direction:column;gap:8px}
+    .meaning{display:flex;gap:10px;font-size:15px;line-height:1.6;color:var(--fg)}
+    .meaning .n{font-family:var(--font-mono);color:var(--meta);font-size:13px;flex:0 0 auto;padding-top:2px}
+    .ex{padding:14px;border-radius:var(--radius-md);background:rgba(255,255,255,.025);border:1px solid var(--border-soft)}
+    .ex .en{font-size:15px;color:var(--fg-2);line-height:1.6}
+    .ex .en .keep{font-family:var(--font-mono);font-size:13px;color:var(--info)}
+    .ex .zh{font-size:14px;color:var(--muted);line-height:1.6;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-soft)}
+    .ctx{font-size:15px;line-height:1.75;color:var(--fg)}
+    .ctx .keep{font-family:var(--font-mono);font-size:13px;color:var(--info);background:rgba(85,179,255,.09);padding:1px 5px;border-radius:4px}
+    .ctx strong{color:var(--fg);font-weight:600}
+    .tags{display:flex;flex-wrap:wrap;gap:8px}
+    .tag{display:inline-flex;align-items:center;padding:5px 11px;border-radius:var(--radius-pill);background:rgba(255,255,255,.04);border:1px solid var(--border);font-family:var(--font-mono);font-size:var(--text-xs);color:var(--fg-2);transition:background var(--motion-fast),color var(--motion-fast);cursor:pointer}
+    .tag:hover{background:rgba(255,255,255,.09);color:var(--fg)}
+    .m-foot{display:flex;align-items:center;gap:8px;padding:16px 24px;border-top:1px solid var(--border);background:rgba(255,255,255,.012)}
+    .act{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:var(--text-sm);color:var(--fg-2);border:1px solid transparent;transition:background var(--motion-fast),color var(--motion-fast)}
+    .act:hover{background:rgba(255,255,255,.06);color:var(--fg)}
+    .act:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+    .act.on{color:var(--accent);background:color-mix(in oklch,var(--accent) 12%,transparent)}
+    .act.ghost{margin-left:auto;color:var(--muted)}
+    .act.ghost:hover{color:var(--fg)}
+    .reopen{display:none;text-align:center;padding:48px 0}
+    .reopen button{padding:11px 22px;border-radius:var(--radius-pill);background:hsla(0,0%,100%,.9);color:var(--bg);font-weight:600;font-size:var(--text-sm)}
+    .triggers{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-top:var(--space-12)}
+    .trg{padding:18px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--border)}
+    .trg .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--fg);margin-bottom:10px}
+    .trg h4{font-size:var(--text-sm);margin-bottom:4px}
+    .trg p{font-size:var(--text-xs);color:var(--muted);line-height:1.55}
+    .toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--fg);padding:10px 18px;border-radius:var(--radius-pill);font-size:var(--text-sm);box-shadow:rgba(0,0,0,.6) 0 12px 30px -8px,0 0 0 1px var(--border);opacity:0;pointer-events:none;transition:opacity var(--motion-base),transform var(--motion-base);z-index:60;display:inline-flex;align-items:center;gap:8px}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .toast .dot{width:7px;height:7px;border-radius:50%;background:var(--success)}
+    @media(max-width:560px){.triggers{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header class="topnav" data-od-id="topnav">
+    <div class="container topnav-inner">
+      <span class="brand">译栈 · 词条解释</span>
+      <a class="back-link" href="index.html">← 返回总览</a>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="page-head" data-od-id="head">
+      <div class="container">
+        <p class="eyebrow">场景七 · 词条解释 · P0</p>
+        <h1 class="h1">不止词义，更懂开发语境。</h1>
+        <p class="lead" style="margin:14px auto 0">在划词工具栏、翻译浮窗或收藏中点「解释」，即可查看词义、词性、例句，以及这个术语在真实开发场景里怎么用、常和谁一起出现。</p>
+      </div>
+    </section>
+
+    <section class="backdrop" data-od-id="modal-wrap">
+      <div class="container">
+        <div class="modal" id="modal">
+          <div class="m-head">
+            <div class="m-word">
+              <div class="w">concurrency</div>
+              <div class="pho">/kənˈkʌrənsi/ · noun</div>
+              <span class="pos">名词</span>
+            </div>
+            <button class="speak-big" id="speakBig" title="朗读" aria-label="朗读">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg>
+            </button>
+          </div>
+
+          <div class="m-body">
+            <div class="block">
+              <div class="blk-label">词义</div>
+              <div class="meanings">
+                <div class="meaning"><span class="n">①</span><span><strong>并发</strong>——程序在结构上同时处理多个任务的能力。</span></div>
+                <div class="meaning"><span class="n">②</span><span>同时发生、共存（通用义）。</span></div>
+              </div>
+            </div>
+
+            <div class="block">
+              <div class="blk-label">例句</div>
+              <div class="ex">
+                <p class="en">Go's concurrency model is built around <span class="keep">goroutines</span> and <span class="keep">channels</span>.</p>
+                <p class="zh">Go 的并发模型围绕 goroutine 与 channel 构建。</p>
+              </div>
+            </div>
+
+            <div class="block">
+              <div class="blk-label">开发语境用法</div>
+              <p class="ctx">在编程中，<span class="keep">concurrency</span> 常与 <span class="keep">goroutine</span>、<span class="keep">thread</span>、<span class="keep">async</span>、<span class="keep">channel</span> 同现。务必与 <strong>parallelism（并行）</strong>区分：<strong>并发</strong>是同时「应对」多件事，<strong>并行</strong>是同时「执行」多件事——一个程序可以并发而不并行。</p>
+            </div>
+
+            <div class="block">
+              <div class="blk-label">相关术语</div>
+              <div class="tags">
+                <span class="tag">parallelism</span><span class="tag">goroutine</span><span class="tag">async</span><span class="tag">thread-safe</span><span class="tag">channel</span><span class="tag">race condition</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="m-foot">
+            <button class="act" data-act="speak"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>朗读</button>
+            <button class="act" data-act="fav"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>收藏</button>
+            <button class="act ghost" id="closeBtn">关闭 ✕</button>
+          </div>
+        </div>
+
+        <div class="reopen" id="reopen">
+          <button id="reopenBtn">重新打开解释</button>
+        </div>
+
+        <div class="triggers" data-od-id="triggers">
+          <div class="trg"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h7M9 3v2c0 4.4-2.7 8.5-6.5 10.5"/><path d="M14 20l3-7 3 7M15.3 17.5h3.4"/></svg></div><h4>划词工具栏</h4><p>选中文本，点「解释」即时弹出。</p></div>
+          <div class="trg"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V7z"/></svg></div><h4>翻译浮窗</h4><p>译文中对任一词点按查看解释。</p></div>
+          <div class="trg"><div class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div><h4>收藏列表</h4><p>在收藏的词条上直接展开解释。</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"><span class="dot"></span><span id="toastText">已收藏</span></div>
+
+  <script>
+    const toast=document.getElementById('toast'),toastText=document.getElementById('toastText');let tt;
+    function showToast(m){toastText.textContent=m;toast.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>toast.classList.remove('show'),1600);}
+    document.getElementById('speakBig').addEventListener('click',()=>showToast('正在朗读 concurrency'));
+    document.querySelectorAll('.act[data-act]').forEach(b=>b.addEventListener('click',()=>{
+      const a=b.dataset.act;b.classList.toggle('on');
+      if(a==='speak')showToast('正在朗读');if(a==='fav')showToast(b.classList.contains('on')?'已收藏到「生词本」':'已取消收藏');
+    }));
+    document.getElementById('closeBtn').addEventListener('click',()=>{
+      document.getElementById('modal').style.display='none';
+      document.getElementById('reopen').style.display='block';
+    });
+    document.getElementById('reopenBtn').addEventListener('click',()=>{
+      document.getElementById('modal').style.display='block';
+      document.getElementById('reopen').style.display='none';
+    });
+  </script>
+</body>
+</html>

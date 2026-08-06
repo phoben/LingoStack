@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="译栈应用图标">
+  <title>译栈 LingoStack · 应用图标</title>
+  <defs>
+    <linearGradient id="ai-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161719"/>
+      <stop offset="1" stop-color="#07080a"/>
+    </linearGradient>
+    <radialGradient id="ai-glow" cx="0.5" cy="-0.1" r="0.9">
+      <stop offset="0" stop-color="rgba(255,255,255,0.06)"/>
+      <stop offset="1" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+    <pattern id="ai-stripes" patternUnits="userSpaceOnUse" width="16" height="16" patternTransform="rotate(25)">
+      <rect x="0" y="0" width="4" height="16" fill="#FF6363"/>
+    </pattern>
+    <filter id="ai-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <!-- squircle body -->
+  <rect x="14" y="14" width="228" height="228" rx="56" ry="56" fill="url(#ai-bg)" filter="url(#ai-shadow)" stroke="rgba(255,255,255,0.06)" stroke-width="2"/>
+  <rect x="14" y="14" width="228" height="228" rx="56" ry="56" fill="url(#ai-glow)"/>
+  <!-- coral 115° diagonal stripes -->
+  <rect x="42" y="42" width="172" height="172" rx="40" ry="40" fill="url(#ai-stripes)" opacity="0.9"/>
+  <!-- inner hairline ring to echo elev-ring -->
+  <rect x="42" y="42" width="172" height="172" rx="40" ry="40" fill="none" stroke="rgba(7,8,10,0.6)" stroke-width="2"/>
+</svg>

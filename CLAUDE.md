@@ -8,17 +8,6 @@
 
 **当前状态：V0 脚手架已就绪。** 7 crate workspace + Tauri 2 前端 + 工具链 / CI 全部初始化完成，门禁（fmt / clippy / test / lint）全绿，`pnpm tauri dev` 可启动主窗口占位界面。下一步进入 V1（业务 MVP）。
 
-## 技术栈
-
-
-| 层   | 选型                                                                |
-| --- | ----------------------------------------------------------------- |
-| 框架  | Tauri 2（Rust 后端 + 系统 WebView 前端）                                  |
-| 前端  | React 18 · TypeScript · Vite · Tailwind CSS · shadcn/ui · Zustand |
-| 后端  | Rust（Cargo workspace，多 crate）                                     |
-| 平台  | Windows · macOS · Linux                                           |
-
-
 ## 仓库布局（目标结构，搭建脚手架时遵循）
 
 > **结构说明**：`lingostack-app` 是 Tauri 入口 crate。因 Tauri 2 CLI 约定——Tauri 的 Rust 代码与 `tauri.conf.json` 必须位于 `src-tauri/` 目录——其物理路径为 `src-tauri/`，仅在 `Cargo.toml` 中以 `package.name = "lingostack-app"` 体现包名。前端工程根为仓库根（`package.json` 在根），符合 Vite + Tauri 2 惯例。包层面共 **7 个 crate**（`crates/*` 六个 + `src-tauri` 一个）。
@@ -63,6 +52,7 @@ docs/                           # 设计文档
 
 - **多窗口架构**：主窗口、翻译浮窗、划词工具栏、文档阅读器各自独立生命周期（见设计文档 §4.3）；窗口间通信走 Tauri events。
 - **状态管理统一用 Zustand**；收藏数据存 IndexedDB（仅 UI 层消费）。
+- **设计先行：先查原型**：在设计任何组件、页面、样式之前，必须先调用 `/lingostack-design` 技能熟悉项目既有的设计规范与原型稿，并优先按原型实现；原型未覆盖的场景才自行设计，且须与已有视觉规范保持一致。
 - **样式用 Tailwind + shadcn/ui**，遵循设计文档 §12 的视觉规范：中性灰蓝、单一蓝色强调色（`#2563eb` / `#3b82f6`）、圆角 10–14px、明暗主题+跟随系统。
 - **新增组件默认走 shadcn/ui**，避免手写重复样式。
 

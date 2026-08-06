@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>字体 · 译栈 LingoStack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../colors_and_type.css" />
+  <style>
+    body{margin:0;background:radial-gradient(120% 70% at 50% -10%,color-mix(in oklch,var(--surface) 50%,var(--bg)) 0%,var(--bg) 55%);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:var(--leading-body);-webkit-font-smoothing:antialiased;font-feature-settings:"calt","kern","liga","ss03";padding-bottom:56px}
+    h1,h2,h3{font-family:var(--font-display);margin:0;letter-spacing:var(--tracking-display);font-weight:600}
+    a{color:inherit;text-decoration:none}
+    .page{max-width:900px;margin:0 auto;padding:0 28px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:22px 0 6px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+    .brand img{width:24px;height:24px;border-radius:7px}
+    .back{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+    .back:hover{color:var(--fg)}
+    .head{padding:14px 0 8px}
+    .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+    h1{font-size:32px;line-height:1.1}
+    .lead{font-size:16px;color:var(--fg-2);margin-top:12px;max-width:60ch}
+    .sec{margin-top:34px}
+    .sec-title{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--meta);margin:0 0 16px;display:flex;align-items:center;gap:10px}
+    .sec-title::after{content:"";flex:1;height:1px;background:var(--border)}
+    .families{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .fam{padding:18px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);box-shadow:var(--elev-ring)}
+    .fam .lbl{font-family:var(--font-mono);font-size:11px;color:var(--meta);margin-bottom:8px}
+    .fam .s1{font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+    .fam .s2{font-size:14px;color:var(--fg-2);margin-top:6px}
+    .specimen{padding:16px 0;border-top:1px solid var(--border-soft)}
+    .specimen:first-child{border-top:0}
+    .specimen .tag{font-family:var(--font-mono);font-size:11px;color:var(--meta);letter-spacing:.04em;display:block;margin-bottom:6px}
+    .kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:5px;background:linear-gradient(var(--surface),var(--bg));color:var(--fg-2);font-family:var(--font-mono);font-size:11px;font-weight:600;box-shadow:rgba(0,0,0,.4) 0 1.5px 0 1px,rgba(255,255,255,.06) 0 1px 0 0 inset,rgba(0,0,0,.4) 0 -1px 0 0 inset;border:1px solid rgba(255,255,255,.06)}
+    .keep{font-family:var(--font-mono);font-size:13px;color:var(--info);background:rgba(85,179,255,.1);padding:1px 5px;border-radius:4px}
+    @media(max-width:680px){.families{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <span class="brand"><img src="../assets/brand-mark.svg" alt="" />译栈</span>
+      <a class="back" href="index.html">← 预览索引</a>
+    </div>
+
+    <header class="head">
+      <p class="eyebrow">基础 · 02 · 字体</p>
+      <h1>Inter 驱动正文，JetBrains Mono 锚定代码。</h1>
+      <p class="lead">数据密集的开发者工具按「实用场景允许单字族」准则：Display 与 Body 共用 Inter；变量名、术语、音标、kbd、状态微文案一律走等宽 JetBrains Mono。开启 calt/kern/liga/ss03 特性。</p>
+    </header>
+
+    <section class="sec">
+      <h2 class="sec-title">字族 · families</h2>
+      <div class="families">
+        <div class="fam"><span class="lbl">--font-display</span><div class="s1" style="font-family:var(--font-display)">优雅永不过时</div><div class="s2" style="font-family:var(--font-display)">Inter · 标题与词头</div></div>
+        <div class="fam"><span class="lbl">--font-body</span><div class="s1" style="font-family:var(--font-body);font-weight:600;font-size:24px">遵循开发行业语言</div><div class="s2" style="font-family:var(--font-body)">Inter · 正文与译文</div></div>
+        <div class="fam"><span class="lbl">--font-mono</span><div class="s1" style="font-family:var(--font-mono);font-size:22px">getUserProfile()</div><div class="s2" style="font-family:var(--font-mono)">JetBrains Mono · 代码与术语</div></div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">字阶 · scale</h2>
+      <div class="specimen"><span class="tag">--text-4xl · 60px · 首屏巨型标题</span><div style="font-size:var(--text-4xl);line-height:1.05;font-weight:700;letter-spacing:-.02em;font-family:var(--font-display)">程序员的桌面翻译栈</div></div>
+      <div class="specimen"><span class="tag">--text-3xl · 40px · 页面 H1</span><div style="font-size:var(--text-3xl);line-height:1.1;font-weight:600;font-family:var(--font-display)">不止词义，更懂开发语境</div></div>
+      <div class="specimen"><span class="tag">--text-2xl · 24px · 面板标题</span><div style="font-size:var(--text-2xl);font-weight:600;font-family:var(--font-display)">文本翻译</div></div>
+      <div class="specimen"><span class="tag">--text-lg · 18px · 引导段</span><div style="font-size:var(--text-lg);color:var(--fg-2)">划词即译、命名即取、文档对照。</div></div>
+      <div class="specimen"><span class="tag">--text-base · 16px · 列表/说明</span><div style="font-size:var(--text-base);color:var(--fg-2)">命中映射用映射目标；未命中用全局默认。</div></div>
+      <div class="specimen"><span class="tag">--text-sm · 14px · 正文/按钮</span><div style="font-size:var(--text-sm);color:var(--fg-2)">源语言自动识别，译文遵循开发行业语言流式渲染。</div></div>
+      <div class="specimen"><span class="tag">--text-xs · 12px · meta / eyebrow</span><div style="font-size:var(--text-xs);color:var(--muted);font-family:var(--font-mono)">DeepSeek · deepseek-chat · v1.0.0 · 84MB</div></div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">语义片段 · semantic runs</h2>
+      <div style="padding:18px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);box-shadow:var(--elev-ring);display:flex;flex-direction:column;gap:16px">
+        <div>
+          <span class="tag" style="font-family:var(--font-mono);font-size:11px;color:var(--meta);display:block;margin-bottom:8px">.keep · 保留术语（mono + 天蓝 + 半透明底）</span>
+          <p style="margin:0;font-size:15px;color:var(--fg)"><span class="keep">goroutine</span> 是由 Go 运行时管理的轻量级线程，常与 <span class="keep">channel</span> 同现。</p>
+        </div>
+        <div>
+          <span class="tag" style="font-family:var(--font-mono);font-size:11px;color:var(--meta);display:block;margin-bottom:8px">.kbd · 热键键帽（渐变 + 三层阴影）</span>
+          <span style="display:inline-flex;gap:5px;align-items:center"><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">L</span></span>
+        </div>
+        <div>
+          <span class="tag" style="font-family:var(--font-mono);font-size:11px;color:var(--meta);display:block;margin-bottom:8px">.eyebrow · 小标（mono · 大写 · 珊瑚 · .16em）</span>
+          <span style="font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)">场景二 · 翻译浮窗 · P0</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

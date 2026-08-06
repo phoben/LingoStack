@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>表面 · 译栈 UI Kit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../tokens.css" />
+  <link rel="stylesheet" href="kit.css" />
+</head>
+<body>
+  <div class="shell">
+    <div class="titlebar"><span class="tl"></span><span class="tl"></span><span class="tl"></span><span class="t">表面 · 译栈 LingoStack</span></div>
+    <div class="kit-body">
+      <aside class="sidebar">
+        <div class="sb-brand"><img src="../../assets/brand-mark.svg" alt="" />译栈</div>
+        <a class="nav-item" href="index.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>概览</a>
+        <a class="nav-item" href="translation-panel.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h7M9 3v2c0 4.4-2.7 8.5-6.5 10.5"/><path d="M5 9c1.2 2.6 3.8 4.6 6.5 5.5"/><path d="M14 20l3-7 3 7M15.3 17.5h3.4"/></svg>翻译面板</a>
+        <a class="nav-item" href="buttons.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>按钮</a>
+        <a class="nav-item active" href="surfaces.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>表面</a>
+        <a class="nav-item" href="forms.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>表单</a>
+        <a class="nav-item" href="navigation.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>导航</a>
+        <a class="nav-item" href="overlays.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V7z"/></svg>浮层</a>
+        <div class="sb-foot">托盘常驻 · 零遥测<br/>UI Kit v1 · MIT</div>
+      </aside>
+
+      <div class="main">
+        <section class="panel">
+          <p class="eyebrow">组件 · 表面</p>
+          <h2>卡片、药丸、列表与状态栏。</h2>
+          <p class="desc">所有表面共享 <span class="keep">--surface</span> + 双环 <span class="keep">--elev-ring</span>。hover 提亮边框到 .14–.16。</p>
+
+          <h3 class="sec-title">卡片</h3>
+          <div class="grid2" style="margin-bottom:6px">
+            <article class="surface-card"><h3 style="font-size:16px;margin-bottom:6px">并发不等于并行</h3><p style="font-size:13px;color:var(--muted)">并发是同时「处理」多件事，并行是同时「执行」多件事。</p></article>
+            <article class="surface-card"><h3 style="font-size:16px;margin-bottom:6px">悬停提亮边框</h3><p style="font-size:13px;color:var(--muted)">hover 仅提亮边框，可叠加 translateY(-2px)。</p></article>
+          </div>
+
+          <h3 class="sec-title">药丸与状态</h3>
+          <div class="card" style="margin-bottom:6px"><div class="row-x" style="gap:10px">
+            <span class="pill">v1.0.0 · MIT</span>
+            <span class="pill">5 标签</span>
+            <span class="pill ok">已连接</span>
+            <span class="pill ok">就绪</span>
+            <span class="pill warn">本地</span>
+          </div></div>
+
+          <h3 class="sec-title">列表行</h3>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:6px">
+            <div class="list-row"><span class="term">idempotent</span><span style="font-size:13px;color:var(--fg-2);flex:1">幂等：多次执行结果一致</span><span class="mono" style="font-size:10px;color:var(--meta)">单词 · 划词</span></div>
+            <div class="list-row"><span class="term">backpressure</span><span style="font-size:13px;color:var(--fg-2);flex:1">背压：下游来不及处理时反压上游</span><span class="mono" style="font-size:10px;color:var(--meta)">单词 · 翻译</span></div>
+          </div>
+
+          <h3 class="sec-title">kbd · toast · 状态栏</h3>
+          <div class="card">
+            <div class="row-x" style="margin-bottom:14px"><span class="mono" style="font-size:12px;color:var(--muted)">热键</span><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">L</span></div>
+            <div class="row-x" style="margin-bottom:14px"><span class="toast"><span class="d"></span>已复制译文</span></div>
+            <div class="statusbar" style="border-radius:var(--radius-sm)"><span><span class="dot"></span>就绪</span><span>模型：DeepSeek · deepseek-chat</span><span class="sp">内存 84MB · CPU 0%</span></div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="statusbar"><span><span class="dot"></span>就绪</span><span>组件：surfaces</span><span class="sp">令牌：tokens.css · kit.css</span></div>
+  </div>
+</body>
+</html>

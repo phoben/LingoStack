@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>卡片与表面 · 译栈 LingoStack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../colors_and_type.css" />
+  <style>
+    body{margin:0;background:radial-gradient(120% 70% at 50% -10%,color-mix(in oklch,var(--surface) 50%,var(--bg)) 0%,var(--bg) 55%);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:var(--leading-body);-webkit-font-smoothing:antialiased;padding-bottom:56px}
+    h1,h2,h3,h4{font-family:var(--font-display);margin:0;letter-spacing:var(--tracking-display);font-weight:600}
+    a,button{font:inherit;color:inherit;text-decoration:none}
+    button{cursor:pointer;background:none;border:0}
+    .page{max-width:960px;margin:0 auto;padding:0 28px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:22px 0 6px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+    .brand img{width:24px;height:24px;border-radius:7px}
+    .back{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+    .back:hover{color:var(--fg)}
+    .head{padding:14px 0 8px}
+    .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+    h1{font-size:32px;line-height:1.1}
+    .lead{font-size:16px;color:var(--fg-2);margin-top:12px;max-width:62ch}
+    .sec{margin-top:34px}
+    .sec-title{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--meta);margin:0 0 16px;display:flex;align-items:center;gap:10px}
+    .sec-title::after{content:"";flex:1;height:1px;background:var(--border)}
+
+    .card{padding:20px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);box-shadow:var(--elev-ring);transition:border-color var(--motion-fast)}
+    .card.hover-demo{border-color:rgba(255,255,255,.16)}
+    .card h3{font-size:18px;margin-bottom:6px}
+    .card p{font-size:14px;color:var(--muted);line-height:1.6}
+
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .row-x{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+    .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:var(--radius-pill);background:rgba(255,255,255,.05);border:1px solid var(--border);font-family:var(--font-mono);font-size:10px;color:var(--fg-2);letter-spacing:.02em}
+    .pill.ok{color:var(--success);background:color-mix(in oklch,var(--success) 12%,transparent);border-color:transparent}
+    .pill.warn{color:var(--warn);background:color-mix(in oklch,var(--warn) 12%,transparent);border-color:transparent}
+
+    .input{width:100%;padding:9px 12px;background:var(--bg);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius-sm);color:var(--fg);font:inherit;font-size:var(--text-sm);transition:border-color var(--motion-fast),box-shadow var(--motion-fast)}
+    .input::placeholder{color:var(--meta)}
+    .input:focus{outline:none;border-color:transparent;box-shadow:var(--focus-ring),0 0 0 1px hsla(202,100%,67%,.4)}
+
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--muted);font-size:14px;font-weight:500;position:relative;width:100%;text-align:left;transition:background var(--motion-fast),color var(--motion-fast)}
+    .nav-item:hover{background:rgba(255,255,255,.04);color:var(--fg-2)}
+    .nav-item.active{background:rgba(255,255,255,.07);color:var(--fg)}
+    .nav-item.active::before{content:"";position:absolute;left:-10px;top:8px;bottom:8px;width:2px;border-radius:2px;background:rgba(255,255,255,.5)}
+
+    .subtabs{display:flex;gap:2px;padding:3px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--radius-sm);width:fit-content}
+    .subtab{padding:7px 14px;border-radius:5px;font-size:14px;font-weight:500;color:var(--muted);transition:background var(--motion-fast),color var(--motion-fast)}
+    .subtab:hover{color:var(--fg-2);background:rgba(255,255,255,.04)}
+    .subtab.active{background:rgba(255,255,255,.09);color:var(--fg)}
+
+    .kbd{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:5px;background:linear-gradient(var(--surface),var(--bg));color:var(--fg-2);font-family:var(--font-mono);font-size:11px;font-weight:600;box-shadow:rgba(0,0,0,.4) 0 1.5px 0 1px,rgba(255,255,255,.06) 0 1px 0 0 inset,rgba(0,0,0,.4) 0 -1px 0 0 inset;border:1px solid rgba(255,255,255,.06)}
+
+    .statusbar{display:flex;align-items:center;gap:16px;padding:8px 16px;border-top:1px solid var(--border);background:rgba(255,255,255,.012);font-family:var(--font-mono);font-size:10px;color:var(--meta);border-radius:0 0 var(--radius-lg) var(--radius-lg)}
+    .statusbar .dot{width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;margin-right:5px}
+    .statusbar .sp{margin-left:auto}
+
+    .toast{display:inline-flex;align-items:center;gap:8px;background:var(--surface);color:var(--fg);padding:10px 18px;border-radius:var(--radius-pill);font-size:14px;box-shadow:rgba(0,0,0,.6) 0 12px 30px -8px,0 0 0 1px var(--border)}
+    .toast .d{width:7px;height:7px;border-radius:50%;background:var(--success)}
+
+    .name-row{display:flex;align-items:center;gap:14px;padding:13px 16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);transition:border-color var(--motion-fast)}
+    .name-row:hover{border-color:rgba(255,255,255,.14)}
+    .name-row .nm{font-family:var(--font-mono);font-size:15px;color:var(--fg);font-weight:500}
+    .name-row .hint{font-size:12px;color:var(--meta);margin-left:6px}
+    @media(max-width:680px){.grid2{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <span class="brand"><img src="../assets/brand-mark.svg" alt="" />译栈</span>
+      <a class="back" href="index.html">← 预览索引</a>
+    </div>
+
+    <header class="head">
+      <p class="eyebrow">组件 · 06 · 卡片与表面</p>
+      <h1>卡片、药丸、输入与导航的全套表面。</h1>
+      <p class="lead">所有表面共享 <code style="font-family:var(--font-mono);color:var(--info)">--surface</code> + <code style="font-family:var(--font-mono);color:var(--info)">--border</code> + 双环 <code style="font-family:var(--font-mono);color:var(--info)">--elev-ring</code>。hover 提亮边框到 .14–.16。输入聚焦用 focus 环 + 1px 天蓝描边。</p>
+    </header>
+
+    <section class="sec">
+      <h2 class="sec-title">卡片 · cards</h2>
+      <div class="grid2">
+        <article class="card"><h3>并发不等于并行</h3><p>并发是同时「处理」多件事，并行是同时「执行」多件事。</p></article>
+        <article class="card hover-demo"><h3>hover 态（边框 .16）</h3><p>悬停时仅提亮边框，必要时叠加 translateY(-2px)。</p></article>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">药丸与状态 · pills &amp; badges</h2>
+      <div class="card" style="display:flex;flex-direction:column;gap:14px">
+        <div class="row-x"><span class="pill">v1.0.0 · MIT</span><span class="pill">5 标签</span></div>
+        <div class="row-x"><span class="pill ok">已连接</span><span class="pill ok">就绪</span><span class="pill warn">本地</span></div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">输入 · inputs</h2>
+      <div class="grid2">
+        <label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:var(--muted);font-weight:500">中文描述</span><input class="input" value="获取用户资料" /></label>
+        <label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:var(--muted);font-weight:500">搜索词条</span><input class="input" placeholder="输入以筛选…" /></label>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">导航 · nav &amp; subtabs</h2>
+      <div class="grid2">
+        <div style="background:rgba(255,255,255,.008);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 10px;display:flex;flex-direction:column;gap:2px;width:200px">
+          <button class="nav-item active"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h7M9 3v2c0 4.4-2.7 8.5-6.5 10.5"/><path d="M5 9c1.2 2.6 3.8 4.6 6.5 5.5"/><path d="M14 20l3-7 3 7M15.3 17.5h3.4"/></svg>翻译</button>
+          <button class="nav-item"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H6a2 2 0 0 0-2 2v2M16 4h2a2 2 0 0 1 2 2v2M8 20H6a2 2 0 0 1-2-2v-2M16 20h2a2 2 0 0 0 2-2v-2"/><path d="M9 12h6"/></svg>命名</button>
+          <button class="nav-item"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>文档</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+          <div class="subtabs"><button class="subtab active">通用</button><button class="subtab">热键</button><button class="subtab">AI</button><button class="subtab">外观</button></div>
+          <div class="row-x"><span style="font-size:13px;color:var(--muted);font-family:var(--font-mono)">热键：</span><span class="kbd">⌘</span><span class="kbd">⇧</span><span class="kbd">L</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">列表行 · list rows</h2>
+      <div class="name-row"><span class="nm">getUserProfile</span><span class="hint">方法名</span><button style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);color:var(--fg-2);font-size:13px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>复制</button></div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">状态栏与 toast · statusbar &amp; toast</h2>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:18px 20px">
+          <div class="row-x"><span class="toast"><span class="d"></span>已复制译文</span></div>
+        </div>
+        <div class="statusbar"><span><span class="dot"></span>就绪</span><span>模型：DeepSeek · deepseek-chat</span><span class="sp">内存 84MB · CPU 0%</span></div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

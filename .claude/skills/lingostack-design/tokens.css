@@ -1,0 +1,97 @@
+/* =============================================================================
+ * tokens.css — 译栈 LingoStack · canonical compiled design tokens
+ *
+ * Source of truth for every LingoStack surface. Derived from the five copied
+ * source prototypes (main-window, selection-bar, translation-popup,
+ * term-explanation, index). Identity values (#07080a, #101111, #FF6363 …) are
+ * read verbatim from those files; derived/state values follow the source's
+ * hsl()/color-mix conventions.
+ *
+ * Paste this :root block verbatim into the first <style> of any LingoStack
+ * artifact. One accent (#FF6363 coral) — reserved for brand + conflict states.
+ * The sky-blue --info is the operational signal color (streaming, keep-terms,
+ * focus) and is the most-used hue in the product.
+ * ============================================================================= */
+
+:root {
+  /* ── A1 Identity · surfaces & text (3-tier neutral dark) ─────────────────── */
+  --bg:            #07080a;   /* canvas — deepest black, input fields & panes */
+  --surface:       #101111;   /* shells, cards, toolbars, modals */
+  --surface-warm:  #161719;   /* raised second surface (source --surface-2) */
+  --fg:            #f9f9f9;   /* primary text */
+  --fg-2:          #cecece;   /* body / secondary text */
+  --muted:         #9c9c9d;   /* labels, captions, nav idle */
+  --meta:          #6a6b6c;   /* chrome chrome: phonetics, stats, mono microcopy */
+  --border:        rgba(255, 255, 255, .06);
+  --border-soft:   rgba(255, 255, 255, .04);
+
+  /* ── A1 Identity · accent (coral) — brand + destructive/conflict ────────── */
+  --accent:        #FF6363;
+  --accent-on:     #ffffff;
+  --accent-hover:  #ff7777;
+  --accent-active: #e85757;
+
+  /* ── A2 / C-ext · operational signal + semantic state ───────────────────── */
+  --info:    hsl(202, 100%, 67%);   /* sky-blue: streaming, keep-terms, live, focus, links */
+  --success: hsl(151, 59%, 59%);    /* connected, ready, done */
+  --warn:    hsl(43, 100%, 60%);    /* local provider, caution */
+  --danger:  hsl(0, 100%, 69%);     /* reserved escalation (maps to accent family) */
+
+  /* ── A1 Identity · type ─────────────────────────────────────────────────── */
+  --font-display: "Inter", "Inter Fallback", system-ui, sans-serif;
+  --font-body:    "Inter", "Inter Fallback", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ── A1 Structure · type scale ──────────────────────────────────────────── */
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-lg:   18px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  40px;
+  --text-4xl:  60px;
+
+  --leading-body:   1.6;
+  --leading-tight:  1.06;
+  --tracking-display: -0.02em;
+
+  /* ── A2 · spacing (4px grid) ────────────────────────────────────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-12: 48px;
+
+  /* ── A2 · radius ────────────────────────────────────────────────────────── */
+  --radius-sm:   6px;   /* inputs, kbd, icon chips, small buttons */
+  --radius-md:   12px;  /* legend tiles, action bars, inline cards */
+  --radius-lg:   16px;  /* primary cards, modals, window bodies */
+  --radius-pill: 9999px;/* pills, primary CTAs, toasts */
+
+  /* ── A2 · elevation ─────────────────────────────────────────────────────── */
+  --elev-flat:   none;
+  /* signature double-ring: hairline highlight outside, bg-colored inset inside */
+  --elev-ring:   rgb(27, 28, 30) 0 0 0 1px, rgb(7, 8, 10) 0 0 0 1px inset;
+  --elev-raised: rgba(255, 255, 255, .05) 0 1px 0 0 inset,
+                 rgba(0, 0, 0, .28) 0 1.2px 2.4px,
+                 0 0 0 1px rgba(255, 255, 255, .06);
+  --focus-ring:  0 0 0 3px hsla(202, 100%, 67%, .35);
+
+  /* ── A2 · motion ────────────────────────────────────────────────────────── */
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+
+  /* ── A1 Structure · layout ──────────────────────────────────────────────── */
+  --container-max: 1120px;
+  --section-y-desktop: 96px;
+  --section-y-tablet: 68px;
+  --section-y-phone: 48px;
+  --container-gutter-desktop: 32px;
+  --container-gutter-tablet: 24px;
+  --container-gutter-phone: 16px;
+}

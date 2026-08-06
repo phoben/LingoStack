@@ -1,0 +1,97 @@
+/* =============================================================================
+ * colors_and_type.css — 译栈 LingoStack · color & typography foundations
+ *
+ * Focused, review-friendly subset of tokens.css: the color palette and the type
+ * system only (spacing / radius / motion / layout live in tokens.css). Values
+ * are byte-for-byte identical to tokens.css — keep the two in sync.
+ *
+ * Preview cards <link> this file. It also ships a few presentation-only helper
+ * classes (.sw, .sw__chip, .type-row) used by the color & type specimens; they
+ * carry no token meaning and are safe to drop when porting into a product build.
+ * ============================================================================= */
+
+:root {
+  /* ── Color · surfaces & text ────────────────────────────────────────────── */
+  --bg:            #07080a;
+  --surface:       #101111;
+  --surface-warm:  #161719;
+  --fg:            #f9f9f9;
+  --fg-2:          #cecece;
+  --muted:         #9c9c9d;
+  --meta:          #6a6b6c;
+  --border:        rgba(255, 255, 255, .06);
+  --border-soft:   rgba(255, 255, 255, .04);
+
+  /* ── Color · accent (coral) — brand + destructive/conflict ──────────────── */
+  --accent:        #FF6363;
+  --accent-on:     #ffffff;
+  --accent-hover:  #ff7777;
+  --accent-active: #e85757;
+
+  /* ── Color · operational signal + semantic state ────────────────────────── */
+  --info:    hsl(202, 100%, 67%);
+  --success: hsl(151, 59%, 59%);
+  --warn:    hsl(43, 100%, 60%);
+  --danger:  hsl(0, 100%, 69%);
+
+  /* ── Typography ─────────────────────────────────────────────────────────── */
+  --font-display: "Inter", "Inter Fallback", system-ui, sans-serif;
+  --font-body:    "Inter", "Inter Fallback", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-lg:   18px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  40px;
+  --text-4xl:  60px;
+
+  --leading-body:     1.6;
+  --leading-tight:    1.06;
+  --tracking-display: -0.02em;
+}
+
+/* ── Presentation helpers (specimen cards only) ───────────────────────────── */
+.sw {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.sw__chip {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.sw__block {
+  height: 64px;
+  display: grid;
+  place-items: end start;
+  padding: 10px 12px;
+}
+.sw__meta {
+  padding: 9px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.sw__meta b { color: var(--fg-2); font-weight: 500; }
+
+.type-row {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 16px;
+  align-items: baseline;
+  padding: 14px 0;
+  border-top: 1px solid var(--border-soft);
+}
+.type-row:first-child { border-top: 0; }
+.type-row .tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--meta);
+  letter-spacing: .04em;
+}

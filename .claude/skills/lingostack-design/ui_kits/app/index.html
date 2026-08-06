@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>译栈 · 应用界面套件</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../tokens.css" />
+  <link rel="stylesheet" href="../../colors_and_type.css" />
+  <style>
+    :root{--sidebar-w:200px}
+    *,*::before,*::after{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(120% 70% at 50% -10%,color-mix(in oklch,var(--surface) 50%,var(--bg)) 0%,var(--bg) 55%);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:var(--leading-body);letter-spacing:.005em;-webkit-font-smoothing:antialiased;font-feature-settings:"calt","kern","liga","ss03";min-height:100vh;padding:24px}
+    h1,h2,h3,h4{font-family:var(--font-display);margin:0;letter-spacing:var(--tracking-display);font-weight:600;text-wrap:balance}
+    p{margin:0;text-wrap:pretty}
+    a,button{font:inherit;color:inherit;text-decoration:none}
+    button{cursor:pointer;background:none;border:0}
+    svg{display:block}
+
+    .shell{border-radius:14px;background:var(--surface);box-shadow:var(--elev-ring),rgba(0,0,0,.6) 0 40px 90px -30px;overflow:hidden;border:1px solid var(--border);display:flex;flex-direction:column;max-width:1100px;margin:0 auto;aspect-ratio:8/5.4}
+    .titlebar{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.012)}
+    .tl{width:11px;height:11px;border-radius:50%;background:color-mix(in oklch,var(--meta) 50%,var(--bg))}
+    .titlebar .t{position:absolute;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-size:12px;color:var(--meta);letter-spacing:.04em}
+    .titlebar{position:relative}
+    .body{display:grid;grid-template-columns:var(--sidebar-w) 1fr;flex:1;min-height:0}
+    .sidebar{border-right:1px solid var(--border);padding:12px 10px;display:flex;flex-direction:column;background:rgba(255,255,255,.008);overflow:auto}
+    .sb-brand{display:flex;align-items:center;gap:9px;padding:6px 8px 16px;font-weight:700;font-size:15px}
+    .sb-brand img{width:24px;height:24px;border-radius:7px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--muted);font-size:14px;font-weight:500;position:relative;transition:background var(--motion-fast),color var(--motion-fast);width:100%;text-align:left}
+    .nav-item:hover{background:rgba(255,255,255,.04);color:var(--fg-2)}
+    .nav-item.active{background:rgba(255,255,255,.07);color:var(--fg)}
+    .nav-item.active::before{content:"";position:absolute;left:-10px;top:8px;bottom:8px;width:2px;border-radius:2px;background:rgba(255,255,255,.5)}
+    .nav-item svg{flex:0 0 auto;opacity:.85}
+    .sb-foot{margin-top:auto;padding:10px 8px 2px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:10px;color:var(--meta);line-height:1.6}
+    .main{overflow:auto;min-width:0}
+    .panel{padding:24px 28px;animation:fade .25s var(--ease-standard)}
+    @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+    .panel h2{font-size:22px;margin-bottom:4px}
+    .panel .desc{font-size:13px;color:var(--muted);margin-bottom:20px;max-width:54ch}
+    .statusbar{display:flex;align-items:center;gap:16px;padding:8px 16px;border-top:1px solid var(--border);background:rgba(255,255,255,.012);font-family:var(--font-mono);font-size:10px;color:var(--meta)}
+    .statusbar .dot{width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;margin-right:5px}
+    .statusbar .sp{margin-left:auto}
+
+    .grid{display:grid;gap:14px}
+    .card{padding:18px;border-radius:var(--radius-lg);background:var(--bg);border:1px solid var(--border)}
+    .card h3{font-size:15px;margin-bottom:6px}
+    .card p{font-size:13px;color:var(--muted);line-height:1.6}
+    .card .go{display:inline-flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;color:var(--info)}
+    .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-weight:500}
+    .keep{font-family:var(--font-mono);font-size:12px;color:var(--info);background:rgba(85,179,255,.1);padding:1px 5px;border-radius:4px}
+    .pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:9999px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-family:var(--font-mono);font-size:10px;color:var(--fg-2)}
+    @media(max-width:760px){.body{grid-template-columns:1fr;grid-template-rows:auto 1fr}.sidebar{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--border)}.sb-brand,.sb-foot{display:none}.shell{aspect-ratio:auto;min-height:70vh}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="titlebar"><span class="tl"></span><span class="tl"></span><span class="tl"></span><span class="t">译栈 · 应用界面套件 · LingoStack UI Kit</span></div>
+
+    <div class="body">
+      <aside class="sidebar">
+        <div class="sb-brand"><img src="../../assets/brand-mark.svg" alt="" />译栈</div>
+        <a class="nav-item active" href="index.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>概览</a>
+        <a class="nav-item" href="translation-panel.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h7M9 3v2c0 4.4-2.7 8.5-6.5 10.5"/><path d="M5 9c1.2 2.6 3.8 4.6 6.5 5.5"/><path d="M14 20l3-7 3 7M15.3 17.5h3.4"/></svg>翻译面板</a>
+        <a class="nav-item" href="buttons.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="8" rx="4"/></svg>按钮</a>
+        <a class="nav-item" href="surfaces.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>表面</a>
+        <a class="nav-item" href="forms.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>表单</a>
+        <a class="nav-item" href="navigation.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>导航</a>
+        <a class="nav-item" href="overlays.html"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 4.5-3.2 7.6-8 9-4.8-1.4-8-4.5-8-9V7z"/></svg>浮层</a>
+        <div class="sb-foot">托盘常驻 · 零遥测<br/>UI Kit v1 · MIT</div>
+      </aside>
+
+      <div class="main">
+        <section class="panel">
+          <p class="eyebrow">应用界面套件 · Applied UI Kit</p>
+          <h2>译栈的组件，长在真实窗口里。</h2>
+          <p class="desc">这套套件复刻译栈主窗口的真实骨架——红绿灯标题栏、固定侧栏、多面板与状态栏。左侧导航切换到每个组件分类，所有令牌取自 <span class="keep">tokens.css</span>。</p>
+
+          <div class="grid" style="grid-template-columns:repeat(2,1fr)">
+            <a class="card" href="translation-panel.html"><h3>翻译面板 <span class="pill" style="margin-left:6px">签名</span></h3><p>原文 / 译文分栏、逐字流式渲染、保留术语、live 指示与动作行——译栈最高频的表面。</p><span class="go">打开 →</span></a>
+            <a class="card" href="buttons.html"><h3>按钮</h3><p>主 / 次 / ghost / 图标按钮，紧凑动作与全部交互态。</p><span class="go">打开 →</span></a>
+            <a class="card" href="surfaces.html"><h3>表面</h3><p>卡片、药丸、状态药丸、列表行、kbd 键帽与状态栏。</p><span class="go">打开 →</span></a>
+            <a class="card" href="forms.html"><h3>表单</h3><p>输入、文本域、选择器、单选与字段组、热键冲突态。</p><span class="go">打开 →</span></a>
+            <a class="card" href="navigation.html"><h3>导航</h3><p>侧栏项、子标签凹槽、文档库列表与 active 指示。</p><span class="go">打开 →</span></a>
+            <a class="card" href="overlays.html"><h3>浮层</h3><p>翻译浮窗 chrome、词条解释模态、toast 与 PopClip 动作条。</p><span class="go">打开 →</span></a>
+          </div>
+
+          <div class="card" style="margin-top:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+            <img src="../../assets/app-icon.svg" alt="" style="width:56px;height:56px;border-radius:14px" />
+            <div style="flex:1;min-width:200px">
+              <h3 style="margin-bottom:4px">译栈 LingoStack</h3>
+              <p>程序员的桌面翻译栈 · Tauri 2 / Rust · ~10MB · 内存 &lt; 150MB · 零遥测 · MIT</p>
+            </div>
+            <a class="go" href="../../preview/index.html">查看设计系统预览 →</a>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <span><span class="dot"></span>就绪</span>
+      <span>套件：ui_kits/app</span>
+      <span class="sp">令牌：tokens.css · 字体：Inter × JetBrains Mono</span>
+    </div>
+  </div>
+</body>
+</html>

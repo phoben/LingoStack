@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>色彩 · 译栈 LingoStack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../colors_and_type.css" />
+  <style>
+    body{margin:0;background:radial-gradient(120% 70% at 50% -10%,color-mix(in oklch,var(--surface) 50%,var(--bg)) 0%,var(--bg) 55%);color:var(--fg);font-family:var(--font-body);font-size:var(--text-base);line-height:var(--leading-body);-webkit-font-smoothing:antialiased;font-feature-settings:"calt","kern","liga","ss03";padding-bottom:56px}
+    h1,h2,h3{font-family:var(--font-display);margin:0;letter-spacing:var(--tracking-display);font-weight:600}
+    a{color:inherit;text-decoration:none}
+    .page{max-width:900px;margin:0 auto;padding:0 28px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:22px 0 6px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+    .brand img{width:24px;height:24px;border-radius:7px}
+    .back{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+    .back:hover{color:var(--fg)}
+    .head{padding:14px 0 8px}
+    .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+    h1{font-size:32px;line-height:1.1}
+    .lead{font-size:16px;color:var(--fg-2);margin-top:12px;max-width:60ch}
+    .sec{margin-top:34px}
+    .sec-title{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--meta);margin:0 0 14px;display:flex;align-items:center;gap:10px}
+    .sec-title::after{content:"";flex:1;height:1px;background:var(--border)}
+    .sw{gap:14px}
+    .sw__chip{border-radius:var(--radius-md)}
+    .sw__meta{display:flex;flex-direction:column;gap:2px}
+    .sw__meta b{color:var(--fg);font-weight:600;font-size:13px;font-family:var(--font-body)}
+    .sw__meta span{font-family:var(--font-mono);font-size:11px;color:var(--meta)}
+    .pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+    .demo{padding:18px;border-radius:var(--radius-lg);border:1px solid var(--border);font-size:14px}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <span class="brand"><img src="../assets/brand-mark.svg" alt="" />译栈</span>
+      <a class="back" href="index.html">← 预览索引</a>
+    </div>
+
+    <header class="head">
+      <p class="eyebrow">基础 · 01 · 色彩</p>
+      <h1>三层深表面，一抹珊瑚，一道天蓝。</h1>
+      <p class="lead">所有色值逐字取自原型的 <code style="font-family:var(--font-mono);color:var(--info)">:root</code>，未臆造。珊瑚是品牌与冲突态；天蓝是流式渲染、保留术语、焦点环与链接——产品最高频的色相。每屏强调色不超过两处。</p>
+    </header>
+
+    <section class="sec">
+      <h2 class="sec-title">表面与文字 · surfaces &amp; text</h2>
+      <div class="sw">
+        <div class="sw__chip"><div class="sw__block" style="background:var(--bg)"></div><div class="sw__meta"><b>--bg</b><span>#07080a · 画布</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--surface)"></div><div class="sw__meta"><b>--surface</b><span>#101111 · 卡片</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--surface-warm)"></div><div class="sw__meta"><b>--surface-warm</b><span>#161719 · 抬升</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--fg)"></div><div class="sw__meta"><b>--fg</b><span>#f9f9f9 · 主文字</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--fg-2)"></div><div class="sw__meta"><b>--fg-2</b><span>#cecece · 正文</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--muted)"></div><div class="sw__meta"><b>--muted</b><span>#9c9c9d · 弱化</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--meta)"></div><div class="sw__meta"><b>--meta</b><span>#6a6b6c · 元信息</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--bg);box-shadow:inset 0 0 0 1px var(--border)"></div><div class="sw__meta"><b>--border</b><span>rgba(255,255,255,.06)</span></div></div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">强调色 · accent（珊瑚 · 品牌与冲突）</h2>
+      <div class="sw">
+        <div class="sw__chip"><div class="sw__block" style="background:var(--accent)"></div><div class="sw__meta"><b>--accent</b><span>#FF6363</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--accent-hover)"></div><div class="sw__meta"><b>--accent-hover</b><span>#ff7777</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--accent-active)"></div><div class="sw__meta"><b>--accent-active</b><span>#e85757</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--accent);color:var(--accent-on);font-family:var(--font-mono);font-size:11px">accent-on #fff</div><div class="sw__meta"><b>--accent-on</b><span>#ffffff</span></div></div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2 class="sec-title">操作信号与状态 · signal &amp; state</h2>
+      <div class="sw">
+        <div class="sw__chip"><div class="sw__block" style="background:var(--info)"></div><div class="sw__meta"><b>--info</b><span>hsl(202,100%,67%) · 天蓝信号</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--success)"></div><div class="sw__meta"><b>--success</b><span>hsl(151,59%,59%) · 就绪</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--warn)"></div><div class="sw__meta"><b>--warn</b><span>hsl(43,100%,60%) · 本地</span></div></div>
+        <div class="sw__chip"><div class="sw__block" style="background:var(--danger)"></div><div class="sw__meta"><b>--danger</b><span>hsl(0,100%,69%) · 升级</span></div></div>
+      </div>
+
+      <div class="pair">
+        <div class="demo" style="background:var(--surface)">
+          <p style="margin:0 0 10px;color:var(--fg)">译文示例：中间件附加 <span style="font-family:var(--font-mono);color:var(--info);background:rgba(85,179,255,.1);padding:1px 5px;border-radius:4px;font-size:13px">correlation ID</span>。</p>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:12px;color:var(--info)"><span style="width:7px;height:7px;border-radius:50%;background:var(--info)"></span>流式渲染中</span>
+        </div>
+        <div class="demo" style="background:var(--bg)">
+          <p style="margin:0 0 10px;color:var(--fg-2)">提供商状态药丸：</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="display:inline-flex;padding:3px 10px;border-radius:9999px;background:color-mix(in oklch,var(--success) 14%,transparent);color:var(--success);font-family:var(--font-mono);font-size:12px">已连接</span>
+            <span style="display:inline-flex;padding:3px 10px;border-radius:9999px;background:color-mix(in oklch,var(--warn) 14%,transparent);color:var(--warn);font-family:var(--font-mono);font-size:12px">本地</span>
+            <span style="display:inline-flex;padding:3px 10px;border-radius:9999px;background:color-mix(in oklch,var(--accent) 14%,transparent);color:var(--accent);font-family:var(--font-mono);font-size:12px">冲突</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
