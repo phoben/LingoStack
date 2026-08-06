@@ -1,5 +1,11 @@
 {
   "enabledPlugins": {
     "agent-skills@addy-agent-skills": true
-  }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": ".claude/scripts/statusline.sh",
+    "padding": 1
+  },
+  "outputStyle": "业务翻译官"
 }
