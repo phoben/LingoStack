@@ -11,8 +11,10 @@ publish.workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+futures = { workspace = true }
+async-stream = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
 
-# V1 接入真实 HTTP/SSE 时启用：
-# reqwest = { version = "0.12", features = ["stream", "json"] }
-# tokio = { version = "1", features = ["full"] }
-# futures-util = "0.3"
+[dev-dependencies]
+wiremock = { workspace = true }
