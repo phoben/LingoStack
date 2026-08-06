@@ -1,45 +1,39 @@
-import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { TitleBar } from "@/components/title-bar";
+import { Sidebar } from "@/components/sidebar";
+import { StatusBar } from "@/components/status-bar";
+import { AboutView } from "@/components/views/about-view";
+import { DocsView } from "@/components/views/docs-view";
+import { FavoritesView } from "@/components/views/favorites-view";
+import { NamingView } from "@/components/views/naming-view";
+import { SettingsView } from "@/components/views/settings-view";
+import { TranslateView } from "@/components/views/translate-view";
+import { useAppStore } from "@/stores/app-store";
 import { useApplyTheme } from "@/hooks/use-theme";
 
+/**
+ * 主窗口：自定义标题栏 + 左侧导航 + 视图内容区 + 底部状态栏（§4.3 / §12.4）。
+ * 视图切换经 app-store；主题由 useApplyTheme 同步至 <html>。
+ * 布局与视觉对齐 Open Design 高保真原型 main-window.html。
+ */
 function App() {
   useApplyTheme();
-  const [info, setInfo] = useState("正在连接后端…");
-
-  useEffect(() => {
-    let cancelled = false;
-    invoke<string>("app_info")
-      .then((value) => {
-        if (!cancelled) setInfo(value);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setInfo(`IPC 错误：${String(err)}`);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const activeView = useAppStore((s) => s.activeView);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       <TitleBar />
-      <main className="flex flex-1 flex-col items-center justify-center gap-6 overflow-auto p-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            LingoStack · 译栈
-          </h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            面向程序员的跨平台桌面翻译工具
-          </p>
-        </div>
-        <div className="bg-muted text-muted-foreground rounded-2xl px-6 py-3 font-mono text-sm">
-          {info}
-        </div>
-        <p className="text-muted-foreground/70 text-xs">
-          V0 脚手架占位 · 业务功能将在 V1 实现
-        </p>
-      </main>
+      <div className="flex min-h-0 flex-1">
+        <Sidebar />
+        <main className="min-w-0 flex-1 overflow-hidden">
+          {activeView === "translate" ? <TranslateView /> : null}
+          {activeView === "naming" ? <NamingView /> : null}
+          {activeView === "docs" ? <DocsView /> : null}
+          {activeView === "favorites" ? <FavoritesView /> : null}
+          {activeView === "settings" ? <SettingsView /> : null}
+          {activeView === "about" ? <AboutView /> : null}
+        </main>
+      </div>
+      <StatusBar />
     </div>
   );
 }

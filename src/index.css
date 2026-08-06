@@ -2,72 +2,97 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * 设计 token —— 对齐 Open Design 高保真原型 main-window.html。
+ * 原型以深色做高保真，故 :root 推导浅色、.dark 1:1 对齐原型变量；
+ * 应用默认 mode=system，系统为深色时即呈现原型态。
+ * HSL 空间遵循 shadcn/ui 惯例（tailwind.config.ts 以 hsl(var(--*)) 引用）。
+ */
 @layer base {
   :root {
-    /* §12 浅色：背景 #f8fafc，前景 slate-800 */
-    --background: 210 40% 98%;
-    --foreground: 215 28% 17%;
+    /* 浅色（推导：亮底 + 同色系青蓝） */
+    --background: 220 30% 98%;
+    --foreground: 220 25% 14%;
 
-    /* §12 单一蓝色强调色 #2563eb */
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 100%;
+    --surface: 0 0% 100%;
+    --surface-2: 220 24% 96%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 215 28% 17%;
+    --muted: 220 24% 96%;
+    --muted-foreground: 220 10% 42%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --accent: 220 18% 92%;
+    --accent-foreground: 220 25% 14%;
 
-    --accent: 210 40% 96%;
-    --accent-foreground: 215 28% 17%;
+    /* info：原型主交互色（焦点环 / 链接 / 流式 / 保留词高亮） */
+    --info: 202 92% 46%;
+    --info-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    --success: 151 52% 38%;
+    --warning: 38 95% 44%;
+
+    --destructive: 0 72% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
+    /* primary：浅色态青蓝底白字；深色态反转为白底深字（见 .dark） */
+    --primary: 202 92% 46%;
+    --primary-foreground: 0 0% 100%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 215 28% 17%;
+    --secondary: 220 24% 96%;
+    --secondary-foreground: 220 25% 14%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 215 28% 17%;
+    --border: 220 18% 88%;
+    --input: 220 18% 84%;
+    --ring: 202 92% 46%;
 
-    /* §12 圆角 10–14px，取 12px 为基 */
+    /* 原型 radius：sm=6 md=10 lg=12（--radius），shell 外框 14 单用 */
     --radius: 0.75rem;
+
+    /* elevation：浅色用极轻 ring；深色见 .dark 的双层 ring */
+    --elev-ring: hsl(220 25% 14% / 0.05) 0 0 0 1px;
+    --focus-ring: 0 0 0 3px hsl(202 92% 46% / 0.35);
+
+    color-scheme: light;
   }
 
   .dark {
-    /* §12 深色：背景 #0f172a */
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    /* 深色：1:1 对齐原型 main-window.html :root */
+    --background: 220 18% 3%; /* #07080a */
+    --foreground: 0 0% 98%; /* #f9f9f9 */
 
-    /* §12 深色强调色 #3b82f6 */
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+    --surface: 220 8% 6%; /* #101111 */
+    --surface-2: 220 6% 9%; /* #161719 */
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --muted: 220 6% 9%;
+    --muted-foreground: 0 0% 61%; /* #9c9c9d */
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --accent: 220 8% 14%; /* 近似 rgba(255,255,255,.06) 叠深底 */
+    --accent-foreground: 0 0% 98%;
 
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --info: 202 100% 67%; /* 原型主交互色 */
+    --info-foreground: 220 18% 3%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    --success: 151 59% 59%;
+    --warning: 43 100% 60%;
 
-    --border: 217 33% 20%;
-    --input: 217 33% 20%;
-    --ring: 217 91% 60%;
+    --destructive: 0 100% 69%; /* #FF6363 */
+    --destructive-foreground: 0 0% 100%;
 
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
+    /* 原型 .act.primary 为白底深字（高对比主按钮） */
+    --primary: 0 0% 100%;
+    --primary-foreground: 220 18% 3%;
 
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
+    --secondary: 220 6% 12%;
+    --secondary-foreground: 0 0% 98%;
+
+    --border: 220 12% 16%; /* ≈ rgba(255,255,255,.06) */
+    --input: 220 14% 20%; /* ≈ rgba(255,255,255,.08) */
+    --ring: 202 100% 67%;
+
+    /* 双层 ring：外亮内暗，营造深色面板的精致浮起边缘 */
+    --elev-ring: hsl(220 8% 12%) 0 0 0 1px, hsl(220 18% 3%) 0 0 0 1px inset;
+    --focus-ring: 0 0 0 3px hsl(202 100% 67% / 0.35);
+
+    color-scheme: dark;
   }
 }
 
@@ -75,8 +100,124 @@
   * {
     @apply border-border;
   }
+  html {
+    @apply bg-background text-foreground;
+    /* Inter 本地打包留待 V1（零遥测不引网络字体）；JetBrains Mono 降级到系统等宽 */
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", "PingFang SC",
+      "Microsoft YaHei", sans-serif;
+    font-feature-settings: "calt", "kern", "liga", "ss03";
+    letter-spacing: 0.005em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
   body {
     @apply bg-background text-foreground;
-    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.6;
+  }
+  /* 深色态极轻顶光，呼应原型 body 的 radial 质感（浅色保持纯净底） */
+  .dark body {
+    background: radial-gradient(
+      120% 70% at 50% -10%,
+      hsl(var(--surface) / 0.5) 0%,
+      hsl(var(--background)) 55%
+    );
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  /* 强调色选区：呼应 info 主交互色 */
+  ::selection {
+    background: hsl(var(--info) / 0.3);
+  }
+  /* 键盘焦点：info 实线 outline，仅键盘导航出现 */
+  :focus-visible {
+    outline: 2px solid hsl(var(--info));
+    outline-offset: 2px;
+  }
+  /* 纤细半透明滚动条，明暗各自协调 */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--foreground) / 0.1) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--foreground) / 0.1);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--foreground) / 0.2);
+    background-clip: content-box;
+  }
+}
+
+@layer components {
+  /**
+   * 品牌标识：斜纹方块（原型 .brand-mark）。
+   * 渐变底 + 双层 ring + accent 色斜纹叠层。
+   */
+  .brand-mark {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(
+      hsl(var(--surface)),
+      hsl(var(--background))
+    );
+    border: 1px solid hsl(var(--border));
+    box-shadow: hsl(var(--background) / 0.4) 0 1.5px 0 1px,
+      hsl(var(--foreground) / 0.06) 0 1px 0 0 inset;
+  }
+  .brand-mark::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      115deg,
+      transparent 0 2px,
+      hsl(var(--destructive)) 2px 4px,
+      transparent 4px 8px
+    );
+    opacity: 0.85;
+  }
+
+  /** 深色面板精致浮起边缘（原型 --elev-ring）；浅色退化为极轻 ring */
+  .elev-ring {
+    box-shadow: var(--elev-ring);
+  }
+
+  /**
+   * 键帽（原型 .kbd）：渐变底 + 三向阴影模拟物理凸起。
+   * 用于设置页热键展示。
+   */
+  .kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.4375rem;
+    border-radius: 5px;
+    background: linear-gradient(hsl(var(--surface)), hsl(var(--background)));
+    color: hsl(var(--muted-foreground));
+    font-family: var(--font-mono, inherit);
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid hsl(var(--border));
+    box-shadow: hsl(var(--background) / 0.4) 0 1.5px 0 1px,
+      hsl(var(--foreground) / 0.06) 0 1px 0 0 inset;
   }
 }

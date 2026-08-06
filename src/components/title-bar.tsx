@@ -39,7 +39,7 @@ function WindowControl({
       title={label}
       aria-label={label}
       className={cn(
-        "flex h-10 w-11 items-center justify-center text-muted-foreground",
+        "flex h-10 w-[44px] items-center justify-center text-muted-foreground",
         danger
           ? "hover:bg-destructive hover:text-destructive-foreground"
           : "hover:bg-accent hover:text-foreground",
@@ -51,8 +51,9 @@ function WindowControl({
 }
 
 /**
- * 主窗口自定义标题栏：拖拽区 + 应用标识 + 主题切换 + 窗口控制。
+ * 主窗口自定义标题栏：拖拽区 + 居中 mono 标识 + 主题切换 + 窗口控制。
  * 配合 tauri.conf.json 的 decorations:false 实现沉浸式一体化外观。
+ * 视觉对齐原型 .titlebar（居中细等宽标题），窗口控制保留 Windows 习惯。
  */
 export function TitleBar() {
   const mode = useThemeStore((s) => s.mode);
@@ -81,26 +82,20 @@ export function TitleBar() {
   return (
     <header
       data-tauri-drag-region
-      className="flex h-10 shrink-0 select-none items-center justify-between border-b border-border bg-background"
+      className="relative flex h-10 shrink-0 select-none items-center justify-between border-b border-border bg-background"
     >
-      {/* 左：应用标识（整块可拖拽） */}
-      <div data-tauri-drag-region className="flex items-center gap-2 pl-3">
-        <span
-          data-tauri-drag-region
-          className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground"
-        >
-          译
-        </span>
-        <span
-          data-tauri-drag-region
-          className="text-sm font-medium tracking-tight"
-        >
-          LingoStack · 译栈
-        </span>
-      </div>
+      {/* 居中标识（对齐原型 mono title；pointer-events-none 让拖拽穿透） */}
+      <span
+        data-tauri-drag-region
+        className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-mono text-xs tracking-[0.04em] text-muted-foreground"
+      >
+        译栈 — LingoStack
+      </span>
 
-      {/* 右：主题切换 + 窗口控制 */}
-      {/* stopPropagation：避免按钮区的 mousedown 触发拖拽 */}
+      {/* 左：拖拽占位 */}
+      <div data-tauri-drag-region className="pl-3" />
+
+      {/* 右：主题切换 + 窗口控制（stopPropagation 避免触发拖拽） */}
       <div
         className="flex items-center"
         onMouseDown={(e) => e.stopPropagation()}
