@@ -8,9 +8,9 @@
 
 **当前状态：V1 进行中（主窗口 MVP 已跑通）。** 7 crate workspace + Tauri 2 前端 + 工具链 / CI 就绪，门禁（fmt / clippy / test / lint）全绿。
 
-已完成：`lingostack-core` 配置模型（提供商 / 模型解析 / 语言规则 / 热键 / 内置 Prompt）；`lingostack-llm` OpenAI 兼容协议 + SSE 流式（wiremock 集成测试）；`src-tauri` 配置读写 + IPC（`load_config` / `save_config` / `effective_prompt` / `chat_stream`）+ 单实例锁；主窗口四视图接真实能力（翻译流式 / 命名生成 / 收藏 IndexedDB / 设置 provider CRUD）。
+已完成：`lingostack-core` 配置模型（提供商 / 模型解析 / 语言规则 / 热键 / 内置 Prompt）；`lingostack-llm` **四协议全实装**（OpenAI 兼容 + Anthropic + Gemini + Ollama，含 SSE 与 JSON 数组流两种流式解析，wiremock 集成测试）；`src-tauri` 配置读写 + IPC（`load_config` / `save_config` / `effective_prompt` / `chat_stream`）+ 单实例锁；主窗口四视图接真实能力（翻译流式 / 命名生成 / 收藏 IndexedDB / 设置 provider CRUD）。
 
-待做：Anthropic + Gemini 原生协议；系统能力（取词 / 全局热键 / TTS）；多窗口与划词闭环；开源基建与 CI 门禁。
+待做：系统能力（取词 / 全局热键 / TTS）；多窗口与划词闭环；开源基建与 CI 门禁。
 
 ## 仓库布局（目标结构，搭建脚手架时遵循）
 
