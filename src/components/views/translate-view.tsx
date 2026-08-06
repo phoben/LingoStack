@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { chatStream, effectivePrompt } from "@/lib/ipc";
 import { useConfigStore } from "@/stores/config-store";
+import { useFavoritesStore } from "@/stores/favorites-store";
 import { cn } from "@/lib/utils";
 
 /** 默认示例原文（开发者语境，便于首次体验）。 */
@@ -67,6 +68,8 @@ function StatusBadge({ status }: { status: Status }) {
  */
 export function TranslateView() {
   const config = useConfigStore((s) => s.config);
+  const addFavorite = useFavoritesStore((s) => s.add);
+  const [saved, setSaved] = useState(false);
   const [source, setSource] = useState(SOURCE_TEXT);
   const [target, setTarget] = useState("");
   const [status, setStatus] = useState<Status>("idle");
@@ -119,6 +122,14 @@ export function TranslateView() {
     if (target) {
       void navigator.clipboard.writeText(target);
     }
+  };
+
+  // 收藏「原文 → 译文」，来源标记为翻译。
+  const favorite = async () => {
+    if (!source.trim() || !target.trim()) return;
+    await addFavorite(source, target, "翻译");
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1500);
   };
 
   return (
@@ -198,8 +209,17 @@ export function TranslateView() {
               <Button variant="ghost" size="icon" title="V1 实装" aria-label="朗读译文">
                 <Volume2 className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" title="V1 实装" aria-label="收藏译文">
-                <Bookmark className="h-3.5 w-3.5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                title={saved ? "已收藏" : "收藏译文"}
+                aria-label="收藏译文"
+                onClick={() => void favorite()}
+                disabled={!target || status === "streaming"}
+              >
+                <Bookmark
+                  className={cn("h-3.5 w-3.5", saved && "text-success")}
+                />
               </Button>
               <Button
                 variant="ghost"
