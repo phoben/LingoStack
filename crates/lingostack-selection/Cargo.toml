@@ -10,3 +10,17 @@ publish.workspace = true
 [dependencies]
 serde = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+# Windows 取词（UI Automation + 剪贴板）。仅 windows target 引入，
+# 版本与 tauri 的传递依赖一致以避免重复编译。
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_System_DataExchange",
+    "Win32_System_Memory",
+    "Win32_UI_Accessibility",
+] }

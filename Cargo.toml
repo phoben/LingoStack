@@ -48,7 +48,11 @@ tempfile = "3"
 
 # Tauri 插件与系统能力（src-tauri 使用）
 tauri-plugin-single-instance = "2"
+tauri-plugin-global-shortcut = "2"
 dirs = "5"
+
+# Windows 原生 API（取词 / TTS）。版本对齐 tauri 的传递依赖，避免重复编译。
+windows = "0.61"
 
 [profile.release]
 panic = "abort"
