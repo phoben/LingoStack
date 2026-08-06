@@ -2,3 +2,7 @@
 node_modules/
 target/
 dist/
+
+# 本地开发工具配置（含本机路径，勿提交）
+.mcp.json
+.claude/settings.local.json
