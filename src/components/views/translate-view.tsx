@@ -1,28 +1,24 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
-import { Bookmark, Copy, Sparkles, Volume2 } from "lucide-react";
+import { type ReactNode, useState } from "react";
+import { Bookmark, Copy, RotateCcw, Sparkles, Volume2 } from "lucide-react";
 import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { chatStream, effectivePrompt } from "@/lib/ipc";
+import { useConfigStore } from "@/stores/config-store";
 import { cn } from "@/lib/utils";
 
-/** 预设译文片段：keep 标记的开发术语不予翻译（§翻译质量）。 */
-interface Part {
-  s: string;
-  keep?: boolean;
-}
-
+/** 默认示例原文（开发者语境，便于首次体验）。 */
 const SOURCE_TEXT =
   "The graceful shutdown handler waits for in-flight requests to complete before terminating the process, with a configurable timeout to force-exit if they hang.";
 
-const TRANSLATION: Part[] = [
-  { s: "优雅停机处理器会等待 " },
-  { s: "in-flight", keep: true },
-  { s: " 请求完成后再终止进程，并设有可配置的 " },
-  { s: "timeout", keep: true },
-  { s: "，在请求卡住时强制退出。" },
-];
+const LANG_NAME: Record<string, string> = {
+  auto: "自动检测",
+  zh: "中文",
+  en: "English",
+  ja: "日本語",
+};
 
-const TOTAL = TRANSLATION.reduce((n, p) => n + p.s.length, 0);
+type Status = "idle" | "streaming" | "done" | "error";
 
 /** 面板标签栏（原型 .pane-label）。 */
 function PaneLabel({ children }: { children: ReactNode }) {
@@ -42,65 +38,88 @@ function PaneFoot({ children }: { children: ReactNode }) {
   );
 }
 
-/** 按已揭示字符数渲染译文，保留词以 info 色高亮（还原原型流式揭示）。 */
-function renderParts(parts: Part[], count: number): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  let left = count;
-  parts.forEach((p, i) => {
-    if (left <= 0) return;
-    let text: string;
-    if (p.s.length <= left) {
-      text = p.s;
-      left -= p.s.length;
-    } else {
-      text = p.s.slice(0, left);
-      left = 0;
-    }
-    nodes.push(
-      p.keep ? (
-        <span
-          key={i}
-          className="rounded bg-info/10 px-[5px] py-px font-mono text-xs text-info"
-        >
-          {text}
-        </span>
-      ) : (
-        <span key={i}>{text}</span>
-      ),
-    );
-  });
-  return nodes;
+const STATUS_STYLE: Record<Status, { dot: string; text: string; cls: string }> = {
+  idle: { dot: "bg-muted-foreground/40", text: "待翻译", cls: "text-muted-foreground" },
+  streaming: { dot: "animate-pulse bg-info", text: "流式", cls: "text-info" },
+  done: { dot: "bg-success", text: "已完成", cls: "text-success" },
+  error: { dot: "bg-accent", text: "错误", cls: "text-accent" },
+};
+
+/** 状态点 + 文案（译文面板右上）。 */
+function StatusBadge({ status }: { status: Status }) {
+  const s = STATUS_STYLE[status];
+  return (
+    <span className={cn("inline-flex items-center gap-1 font-mono text-[10px]", s.cls)}>
+      <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
+      {s.text}
+    </span>
+  );
 }
 
 /**
  * 翻译视图（§3 场景 2，对齐原型翻译 panel）：
- * 双 pane（原文 / 译文）+ 语言对 + 字符计数 + 模拟流式渲染。
- * 真实 LLM 流式、朗读、收藏、复制留待 V1。
+ * 双 pane（原文 / 译文）+ 语言对 + 真实流式 SSE。
+ *
+ * 经 `effective_prompt` 取内置 Prompt（替换 {source_lang}/{target_lang} 占位符），
+ * 再以 `chat_stream` 发起流式聊天，增量经 Channel 回填译文面板。
+ * 流式中断时保留已渲染部分并提供「重试」（§9）。
+ * 当前模型由 config 解析（功能默认 → 全局默认）。
  */
 export function TranslateView() {
+  const config = useConfigStore((s) => s.config);
   const [source, setSource] = useState(SOURCE_TEXT);
-  const [count, setCount] = useState(TOTAL);
-  const [done, setDone] = useState(true);
-  const timer = useRef<number>(0);
+  const [target, setTarget] = useState("");
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [sourceLang, setSourceLang] = useState("auto");
+  const [targetLang, setTargetLang] = useState("zh");
 
-  // 模拟流式：逐字揭示预设译文，还原原型流式视觉（V1 接真实 SSE）
-  const stream = () => {
-    let n = 0;
-    setDone(false);
-    setCount(0);
-    window.clearInterval(timer.current);
-    timer.current = window.setInterval(() => {
-      n += 2;
-      if (n >= TOTAL) {
-        n = TOTAL;
-        window.clearInterval(timer.current);
-        setDone(true);
-      }
-      setCount(n);
-    }, 24);
+  // 当前翻译所用模型（功能默认 → 全局默认 → 未配置）。
+  const modelLabel = (() => {
+    const ref = config?.models.translate ?? config?.models.global_default;
+    if (!ref) return "未配置模型";
+    const provider = config?.providers.find((p) => p.id === ref.provider_id);
+    return provider ? `${provider.name} · ${ref.model}` : ref.model;
+  })();
+
+  const translate = async () => {
+    if (!source.trim() || status === "streaming") return;
+    setStatus("streaming");
+    setTarget("");
+    setErrorMsg(null);
+    try {
+      const tpl = await effectivePrompt("translate");
+      const system = tpl
+        .replace(/\{source_lang\}/g, LANG_NAME[sourceLang] ?? "自动检测")
+        .replace(/\{target_lang\}/g, LANG_NAME[targetLang] ?? "中文");
+      await chatStream(
+        "translate",
+        [
+          { role: "system", content: system },
+          { role: "user", content: source },
+        ],
+        (event) => {
+          if (event.type === "chunk") {
+            setTarget((prev) => prev + event.delta);
+          } else if (event.type === "done") {
+            setStatus("done");
+          } else if (event.type === "error") {
+            setStatus("error");
+            setErrorMsg(event.message);
+          }
+        },
+      );
+    } catch (e) {
+      setStatus("error");
+      setErrorMsg(typeof e === "string" ? e : String(e));
+    }
   };
 
-  useEffect(() => () => window.clearInterval(timer.current), []);
+  const copy = () => {
+    if (target) {
+      void navigator.clipboard.writeText(target);
+    }
+  };
 
   return (
     <ViewShell view="translate">
@@ -112,12 +131,14 @@ export function TranslateView() {
             <span className="flex-1" aria-hidden="true" />
             <Select
               aria-label="源语言"
-              defaultValue="auto"
+              value={sourceLang}
+              onChange={(e) => setSourceLang(e.target.value)}
               className="h-8 w-[124px] text-xs"
             >
               <option value="auto">自动检测</option>
               <option value="en">English</option>
               <option value="zh">中文</option>
+              <option value="ja">日本語</option>
             </Select>
           </PaneLabel>
           <textarea
@@ -130,9 +151,9 @@ export function TranslateView() {
             <span className="font-mono text-[10px] text-muted-foreground">
               {source.length} 字符
             </span>
-            <Button size="sm" onClick={stream} title="V1 实装">
+            <Button size="sm" onClick={translate} disabled={status === "streaming"}>
               <Sparkles className="h-3.5 w-3.5" />
-              翻译
+              {status === "streaming" ? "翻译中…" : "翻译"}
             </Button>
           </PaneFoot>
         </section>
@@ -142,23 +163,11 @@ export function TranslateView() {
           <PaneLabel>
             <span>译文</span>
             <span className="flex-1" aria-hidden="true" />
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 font-mono text-[10px]",
-                done ? "text-success" : "text-info",
-              )}
-            >
-              <span
-                className={cn(
-                  "h-1.5 w-1.5 rounded-full",
-                  done ? "bg-success" : "animate-pulse bg-info",
-                )}
-              />
-              {done ? "已完成" : "流式"}
-            </span>
+            <StatusBadge status={status} />
             <Select
               aria-label="目标语言"
-              defaultValue="zh"
+              value={targetLang}
+              onChange={(e) => setTargetLang(e.target.value)}
               className="h-8 w-[110px] text-xs"
             >
               <option value="zh">中文</option>
@@ -166,15 +175,24 @@ export function TranslateView() {
               <option value="ja">日本語</option>
             </Select>
           </PaneLabel>
-          <div className="min-h-0 flex-1 overflow-auto px-3.5 py-3.5 text-sm leading-7 text-foreground">
-            {renderParts(TRANSLATION, count)}
-            {!done ? (
+          <div className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words px-3.5 py-3.5 text-sm leading-7 text-foreground">
+            {target}
+            {status === "streaming" ? (
               <span className="ml-px inline-block h-[1.05em] w-0.5 animate-pulse bg-info align-middle" />
+            ) : null}
+            {status === "error" ? (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs text-accent">{errorMsg}</span>
+                <Button variant="ghost" size="sm" onClick={translate}>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  重试
+                </Button>
+              </div>
             ) : null}
           </div>
           <PaneFoot>
             <span className="font-mono text-[10px] text-muted-foreground">
-              DeepSeek · deepseek-chat
+              {modelLabel}
             </span>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="icon" title="V1 实装" aria-label="朗读译文">
@@ -183,7 +201,14 @@ export function TranslateView() {
               <Button variant="ghost" size="icon" title="V1 实装" aria-label="收藏译文">
                 <Bookmark className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" title="V1 实装" aria-label="复制译文">
+              <Button
+                variant="ghost"
+                size="icon"
+                title="复制译文"
+                aria-label="复制译文"
+                onClick={copy}
+                disabled={!target}
+              >
                 <Copy className="h-3.5 w-3.5" />
               </Button>
             </div>
