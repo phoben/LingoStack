@@ -1,8 +1,31 @@
+# ===== 本地工具配置（含本机路径，勿提交）=====
 .superpowers/
-node_modules/
-target/
-dist/
-
-# 本地开发工具配置（含本机路径，勿提交）
 .mcp.json
 .claude/settings.local.json
+
+# ===== Rust / Cargo =====
+target/
+
+# ===== Node / 前端 =====
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# ===== Tauri 构建产物 =====
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# ===== IDE / 编辑器 =====
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== 系统 =====
+.DS_Store
+Thumbs.db
+
+# ===== 日志 / 本地临时 =====
+*.log
+*.local

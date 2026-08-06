@@ -1,0 +1,31 @@
+[package]
+name = "lingostack-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+default-run = "lingostack-app"
+
+[lib]
+name = "lingostack_app_lib"
+# desktop 仅需 rlib（供 bin main.rs 链接）；
+# mobile 支持时改回 ["staticlib", "cdylib", "rlib"]。
+# 注：cdylib 在 MinGW ld 下会因导出符号过多触发 "export ordinal too large"。
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { workspace = true }
+
+[dependencies]
+tauri = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# 内部 crate（V0 仅链接验证依赖链路；V1 接入业务）
+lingostack-core = { workspace = true }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

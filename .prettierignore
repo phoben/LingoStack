@@ -1,0 +1,6 @@
+dist
+src-tauri
+target
+coverage
+pnpm-lock.yaml
+*.tsbuildinfo

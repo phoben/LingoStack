@@ -1,0 +1,37 @@
+name: DCO
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+# DCO 要求每个 commit message 含合规的 `Signed-off-by: Name <email>` 行。
+jobs:
+  dco:
+    name: Signed-off-by 检查
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: 校验 PR 所有 commit 含 Signed-off-by
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+            const re = /^Signed-off-by: .+ <.+@.+>/m;
+            const offenders = commits.filter((c) => !re.test(c.commit.message));
+            if (offenders.length) {
+              const list = offenders
+                .map((c) => `  - ${c.sha.slice(0, 8)} ${c.commit.message.split("\n")[0]}`)
+                .join("\n");
+              core.setFailed(
+                `以下 commit 缺少合规的 Signed-off-by（DCO 要求，详见 CONTRIBUTING）：\n${list}`
+              );
+            } else {
+              core.info(`✅ 全部 ${commits.length} 个 commit 均含 Signed-off-by`);
+            }

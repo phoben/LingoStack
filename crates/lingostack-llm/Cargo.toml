@@ -1,0 +1,18 @@
+[package]
+name = "lingostack-llm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+# V1 接入真实 HTTP/SSE 时启用：
+# reqwest = { version = "0.12", features = ["stream", "json"] }
+# tokio = { version = "1", features = ["full"] }
+# futures-util = "0.3"
