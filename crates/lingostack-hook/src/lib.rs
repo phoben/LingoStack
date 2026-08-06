@@ -3,8 +3,10 @@
 //! 全局热键、托盘、单实例锁。平台差异按 `#[cfg(target_os)]` 分文件隔离
 //! （同 [`lingostack-selection`]）。
 
+pub mod accelerator;
 pub mod tray;
 
+pub use accelerator::{is_valid, to_accelerator};
 pub use tray::setup_tray;
 
 #[cfg(test)]

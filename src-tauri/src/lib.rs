@@ -5,6 +5,7 @@
 
 mod commands;
 mod config;
+mod hotkeys;
 
 use std::path::PathBuf;
 
@@ -34,14 +35,20 @@ pub fn run() {
         .manage(AppState {
             config_path: config::config_path(),
         })
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::load_config,
             commands::save_config,
             commands::effective_prompt,
             commands::chat_stream,
+            commands::get_selection,
         ])
         .setup(|app| {
-            lingostack_hook::setup_tray(app.handle())?;
+            let handle = app.handle();
+            lingostack_hook::setup_tray(handle)?;
+            // 按配置注册全局热键；失败逐条上报前端（设置页标红），不中断启动。
+            let cfg = config::load(&config::config_path()).unwrap_or_default();
+            hotkeys::register_and_report(handle, &cfg.hotkeys);
             Ok(())
         })
         .run(tauri::generate_context!())

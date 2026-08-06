@@ -9,6 +9,16 @@ use tauri::State;
 use crate::config as config_store;
 use crate::AppState;
 
+/// 读取当前系统选中文本（UIA 优先，失败降级剪贴板）。
+///
+/// 返回的 `source` 标明来源，前端据此提示用户（如降级到剪贴板时说明，§9）。
+#[tauri::command]
+pub fn get_selection() -> Result<lingostack_selection::Selection, String> {
+    lingostack_selection::provider()
+        .get_selection()
+        .map_err(|e| e.to_string())
+}
+
 /// 加载应用配置；文件不存在时回退默认值（首次运行）。
 #[tauri::command]
 pub fn load_config(state: State<'_, AppState>) -> Result<AppConfig, String> {

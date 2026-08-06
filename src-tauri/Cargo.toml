@@ -28,11 +28,13 @@ futures = { workspace = true }
 
 # Tauri 插件
 tauri-plugin-single-instance = { workspace = true }
+tauri-plugin-global-shortcut = { workspace = true }
 
 # 内部 crate
 lingostack-core = { workspace = true }
 lingostack-hook = { workspace = true }
 lingostack-llm = { workspace = true }
+lingostack-selection = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
