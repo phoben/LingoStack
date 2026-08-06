@@ -42,6 +42,8 @@ pub fn run() {
             commands::effective_prompt,
             commands::chat_stream,
             commands::get_selection,
+            commands::speak,
+            commands::stop_speaking,
         ])
         .setup(|app| {
             let handle = app.handle();

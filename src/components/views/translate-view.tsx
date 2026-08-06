@@ -3,7 +3,7 @@ import { Bookmark, Copy, RotateCcw, Sparkles, Volume2 } from "lucide-react";
 import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { chatStream, effectivePrompt } from "@/lib/ipc";
+import { chatStream, effectivePrompt, speak } from "@/lib/ipc";
 import { useConfigStore } from "@/stores/config-store";
 import { useFavoritesStore } from "@/stores/favorites-store";
 import { cn } from "@/lib/utils";
@@ -206,7 +206,14 @@ export function TranslateView() {
               {modelLabel}
             </span>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" title="V1 实装" aria-label="朗读译文">
+              <Button
+                variant="ghost"
+                size="icon"
+                title="朗读译文"
+                aria-label="朗读译文"
+                onClick={() => void speak(target)}
+                disabled={!target || status === "streaming"}
+              >
                 <Volume2 className="h-3.5 w-3.5" />
               </Button>
               <Button

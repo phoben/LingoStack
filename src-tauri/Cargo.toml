@@ -35,6 +35,7 @@ lingostack-core = { workspace = true }
 lingostack-hook = { workspace = true }
 lingostack-llm = { workspace = true }
 lingostack-selection = { workspace = true }
+lingostack-tts = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

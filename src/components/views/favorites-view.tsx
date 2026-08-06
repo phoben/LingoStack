@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bookmark, Search, Trash2 } from "lucide-react";
+import { Bookmark, Search, Trash2, Volume2 } from "lucide-react";
 import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +8,7 @@ import {
   parseImport,
   toExportJson,
 } from "@/lib/favorites";
+import { speak } from "@/lib/ipc";
 import { useFavoritesStore } from "@/stores/favorites-store";
 import { cn } from "@/lib/utils";
 
@@ -174,6 +175,14 @@ export function FavoritesView() {
                   {f.kind === "word" ? "单词" : "短句"} · {f.source} ·{" "}
                   {formatDate(f.createdAt)}
                 </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`朗读 ${f.term}`}
+                  onClick={() => void speak(f.term)}
+                >
+                  <Volume2 className="h-3.5 w-3.5" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"

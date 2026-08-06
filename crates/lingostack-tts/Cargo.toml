@@ -6,3 +6,15 @@ rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 publish.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+
+# Windows 朗读（SAPI ISpVoice）。仅 windows target 引入，
+# 版本与 tauri 的传递依赖一致以避免重复编译。
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Media_Speech",
+    "Win32_System_Com",
+] }

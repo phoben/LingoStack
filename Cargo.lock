@@ -2091,6 +2091,7 @@ dependencies = [
  "lingostack-hook",
  "lingostack-llm",
  "lingostack-selection",
+ "lingostack-tts",
  "serde",
  "serde_json",
  "tauri",
@@ -2149,6 +2150,10 @@ dependencies = [
 [[package]]
 name = "lingostack-tts"
 version = "0.0.0"
+dependencies = [
+ "thiserror 2.0.19",
+ "windows",
+]
 
 [[package]]
 name = "linux-raw-sys"

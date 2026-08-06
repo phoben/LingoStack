@@ -8,6 +8,29 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type { AppConfig, ChatEvent, ChatMessage, Feature } from "./config-types";
 
+/** 取词来源：辅助 API 直读，或降级自剪贴板。 */
+export type SelectionSource = "accessibility" | "clipboard";
+
+export interface SystemSelection {
+  text: string;
+  source: SelectionSource;
+}
+
+/** 读取当前系统选中文本（UIA 优先，失败降级剪贴板）。 */
+export function getSelection(): Promise<SystemSelection> {
+  return invoke<SystemSelection>("get_selection");
+}
+
+/** 朗读文本（异步，打断上一句）。 */
+export function speak(text: string): Promise<void> {
+  return invoke<void>("speak", { text });
+}
+
+/** 停止当前朗读。 */
+export function stopSpeaking(): Promise<void> {
+  return invoke<void>("stop_speaking");
+}
+
 /** 加载应用配置（文件不存在时后端返回默认值）。 */
 export function loadConfig(): Promise<AppConfig> {
   return invoke<AppConfig>("load_config");

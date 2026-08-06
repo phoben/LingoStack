@@ -5,7 +5,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "src-tauri", "target", "coverage"] },
+  // .claude/ 为编辑器 / Agent 工具脚本（Node 环境），不属前端源码，
+  // 不适用本配置的浏览器 + React 规则。
+  { ignores: ["dist", "src-tauri", "target", "coverage", ".claude"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

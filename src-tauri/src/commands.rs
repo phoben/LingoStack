@@ -19,6 +19,20 @@ pub fn get_selection() -> Result<lingostack_selection::Selection, String> {
         .map_err(|e| e.to_string())
 }
 
+/// 朗读文本（异步，打断上一句）。
+#[tauri::command]
+pub fn speak(text: String) -> Result<(), String> {
+    lingostack_tts::speaker()
+        .speak(&text)
+        .map_err(|e| e.to_string())
+}
+
+/// 停止当前朗读。
+#[tauri::command]
+pub fn stop_speaking() -> Result<(), String> {
+    lingostack_tts::speaker().stop().map_err(|e| e.to_string())
+}
+
 /// 加载应用配置；文件不存在时回退默认值（首次运行）。
 #[tauri::command]
 pub fn load_config(state: State<'_, AppState>) -> Result<AppConfig, String> {
