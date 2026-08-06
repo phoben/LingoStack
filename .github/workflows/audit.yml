@@ -1,0 +1,66 @@
+name: Audit
+
+on:
+  pull_request:
+    paths:
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/audit.yml"
+  push:
+    branches: [main, develop]
+  schedule:
+    # 每周一 03:00 UTC 定期扫描——新披露的漏洞不依赖代码变更
+    - cron: "0 3 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cargo-audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # 预编译二进制，避免 cargo install 现场编译拖慢 CI
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      # 默认对 RUSTSEC 漏洞公告失败；unmaintained 类警告不阻断，
+      # 以免长期未更新但无漏洞的传递依赖持续卡住合并。
+      - name: cargo audit
+        run: cargo audit
+
+  pnpm-audit:
+    name: pnpm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      # 注意：audit 依赖 registry 提供 audit endpoint。CI 走官方
+      # registry.npmjs.org 可用；若本地配置了国内镜像（如 npmmirror），
+      # 该端点不存在，本地会报 ERR_PNPM_AUDIT_ENDPOINT_NOT_EXISTS——
+      # 属预期现象，以 CI 结果为准。
+      - name: pnpm audit
+        run: pnpm audit --audit-level high

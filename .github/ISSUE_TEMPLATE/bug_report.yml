@@ -1,0 +1,72 @@
+name: Bug 报告
+description: 报告一个缺陷
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > **⚠️ 请勿粘贴你的 API Key。** 日志与截图中如含 Key，请先脱敏（例如替换为 `sk-***`）。
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 问题描述
+      description: 发生了什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开设置 → AI，添加提供商 …
+        2. 在翻译视图输入 …
+        3. 点击「翻译」
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: 操作系统
+      placeholder: Windows 11 24H2 / macOS 15.1 / Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: LingoStack 版本
+      description: 见「关于」视图，或 git commit
+      placeholder: v0.1.0 / commit abc1234
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: 涉及的 LLM 提供商
+      description: 与 LLM 无关可选「不涉及」
+      options:
+        - 不涉及
+        - OpenAI 兼容（OpenAI / DeepSeek / 通义 / 智谱）
+        - Anthropic
+        - Gemini
+        - Ollama（本地）
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志 / 错误信息（可选）
+      description: 记得脱敏 API Key
+      render: text

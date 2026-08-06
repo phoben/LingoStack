@@ -1,0 +1,48 @@
+name: 译文质量问题
+description: 报告翻译结果不符合「开发行业语言」规范
+labels: ["translation-quality"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        LingoStack 的核心是**符合开发者语境的翻译**：技术名词保留原文、不逐词直译。
+        若译文不符合这一规范（例如把 Redis 译成「远程字典服务」），请在此报告。
+
+        > **⚠️ 请勿粘贴 API Key。**
+
+  - type: textarea
+    id: source
+    attributes:
+      label: 原文
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际译文
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望译文
+      description: 说明哪些术语应保留原文、哪些表达不自然
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: 使用的模型
+      placeholder: DeepSeek · deepseek-chat
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: custom_prompt
+    attributes:
+      label: Prompt 来源
+      options:
+        - label: 我使用的是内置 Prompt（未自定义）
