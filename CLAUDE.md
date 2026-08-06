@@ -4,7 +4,7 @@
 
 ## 项目概况
 
-**LingoStack（译栈）** — 面向非英语母语程序员的跨平台桌面翻译工具。Tauri 2 应用，核心场景：划词翻译、文本翻译、变量名生成、词条解释、收藏管理、文档翻译。MIT 开源、零遥测、用户自带 LLM Key。
+**LingoStack（译栈）** — 面向程序员的跨平台桌面翻译工具。Tauri 2 应用，核心场景：划词翻译、文本翻译、变量名生成、词条解释、收藏管理、文档翻译。MIT 开源、零遥测、用户自带 LLM Key。
 
 **当前状态：V0 脚手架已就绪。** 7 crate workspace + Tauri 2 前端 + 工具链 / CI 全部初始化完成，门禁（fmt / clippy / test / lint）全绿，`pnpm tauri dev` 可启动主窗口占位界面。下一步进入 V1（业务 MVP）。
 
@@ -26,7 +26,7 @@
 ```
 package.json / vite.config.ts / tsconfig.json / tailwind.config.ts / index.html
                                 # 前端工程根（Vite + React 18 + TypeScript 严格模式）
-src/                            # 前端源码（窗口入口 / 组件 / stores）
+src/                            # 前端源码（窗口入口 / 组件 components / hooks / stores / lib）
 Cargo.toml                      # workspace 根；members = ["crates/*", "src-tauri"]
 src-tauri/                      # Tauri 入口 crate（package.name = "lingostack-app"）
   tauri.conf.json               #   仅主窗口（翻译浮窗 / 划词工具栏 / 文档阅读器留待 V1）

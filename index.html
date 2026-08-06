@@ -4,6 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LingoStack · 译栈</title>
+    <script>
+      // 首屏前同步主题，避免 React 挂载前的明暗闪烁。
+      // 键名须与 src/stores/theme-store.ts 的 THEME_STORAGE_KEY 一致。
+      (function () {
+        try {
+          var mode = localStorage.getItem("lingostack.theme");
+          var isDark =
+            mode === "dark" ||
+            (mode !== "light" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (isDark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

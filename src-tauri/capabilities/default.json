@@ -1,7 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "V0 默认权限：仅主窗口，最小核心权限。V1 按需放开系统能力（热键 / 托盘 / 文件系统等）。",
+  "description": "V0 默认权限：仅主窗口，最小核心权限 + 自定义标题栏所需窗口控制。V1 按需放开系统能力（热键 / 托盘 / 文件系统等）。",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-start-dragging",
+    "core:window:allow-close"
+  ]
 }
