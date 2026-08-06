@@ -8,6 +8,7 @@
 use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 
+pub mod anthropic;
 pub mod openai;
 mod sse;
 

@@ -90,7 +90,14 @@ fn build_provider(p: &ProviderConfig) -> Result<Box<dyn LlmProvider>, String> {
                     .map_err(|e| e.to_string())?;
             Ok(Box::new(provider))
         }
-        ProviderKind::Anthropic => Err("Anthropic 协议将在 A2b 实现".into()),
+        ProviderKind::Anthropic => {
+            let provider = lingostack_llm::anthropic::AnthropicProvider::new(
+                p.base_url.clone(),
+                p.api_key.clone(),
+            )
+            .map_err(|e| e.to_string())?;
+            Ok(Box::new(provider))
+        }
         ProviderKind::Gemini => Err("Gemini 协议将在 A2c 实现".into()),
     }
 }
@@ -116,11 +123,11 @@ mod tests {
     }
 
     #[test]
-    fn build_provider_anthropic_not_implemented() {
+    fn build_provider_anthropic_ok() {
         let mut p = deepseek();
         p.kind = ProviderKind::Anthropic;
-        let err = build_provider(&p).err().expect("期望 Anthropic 未实装错误");
-        assert!(err.contains("A2b"));
+        p.base_url = "https://api.anthropic.com".into();
+        assert!(build_provider(&p).is_ok());
     }
 
     #[test]
