@@ -1,40 +1,49 @@
 //! # lingostack-app
 //!
 //! Tauri 入口 crate（仓库内唯一依赖 `tauri` 的 crate）。
-//! 负责窗口管理、IPC commands / events 组装。
-//!
-//! 已接入系统托盘驻留（`lingostack_hook::setup_tray`）；V0 占位 IPC command
-//! 保留以验证前后端链路，V1 替换为真实业务命令。
+//! 职责：窗口管理、IPC commands 组装、配置读写、单实例锁、托盘驻留。
 
-/// V0 占位 IPC command：返回应用标记串（含 core crate 名，顺带验证 workspace 依赖链路）。
-/// V1 替换为真实业务命令。
-#[tauri::command]
-fn app_info() -> String {
-    format!(
-        "LingoStack V0 scaffolding (core={})",
-        lingostack_core::CRATE_NAME
-    )
+mod commands;
+mod config;
+
+use std::path::PathBuf;
+
+use tauri::Manager;
+
+/// 应用全局状态：持有配置文件路径，供 IPC commands 共享。
+struct AppState {
+    config_path: PathBuf,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![app_info])
+    let mut builder = tauri::Builder::default();
+
+    // 单实例锁（仅桌面）：第二实例启动时聚焦已有主窗口，而非新开。
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }));
+    }
+
+    builder
+        .manage(AppState {
+            config_path: config::config_path(),
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::load_config,
+            commands::save_config,
+            commands::effective_prompt,
+            commands::chat_stream,
+        ])
         .setup(|app| {
             lingostack_hook::setup_tray(app.handle())?;
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn app_info_mentions_core() {
-        let info = app_info();
-        assert!(info.contains("lingostack-core"));
-    }
 }

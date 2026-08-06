@@ -42,8 +42,13 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-build = { version = "2" }
 
-# 仅测试（lingostack-llm 集成测试）
+# 仅测试（lingostack-llm 集成测试 / src-tauri 临时文件）
 wiremock = "0.6"
+tempfile = "3"
+
+# Tauri 插件与系统能力（src-tauri 使用）
+tauri-plugin-single-instance = "2"
+dirs = "5"
 
 [profile.release]
 panic = "abort"
