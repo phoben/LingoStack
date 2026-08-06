@@ -45,4 +45,4 @@ MIT 开源项目。贡献规范（`CONTRIBUTING.md`）、Issue / PR 模板、DCO
 
 ## 📄 许可证
 
-[MIT License](LICENSE) · Copyright © 2026 phoben
+[MIT License](LICENSE) · Copyright © 2026 夏超
