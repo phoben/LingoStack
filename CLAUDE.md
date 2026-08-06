@@ -6,7 +6,11 @@
 
 **LingoStack（译栈）** — 面向程序员的跨平台桌面翻译工具。Tauri 2 应用，核心场景：划词翻译、文本翻译、变量名生成、词条解释、收藏管理、文档翻译。MIT 开源、零遥测、用户自带 LLM Key。
 
-**当前状态：V0 脚手架已就绪。** 7 crate workspace + Tauri 2 前端 + 工具链 / CI 全部初始化完成，门禁（fmt / clippy / test / lint）全绿，`pnpm tauri dev` 可启动主窗口占位界面。下一步进入 V1（业务 MVP）。
+**当前状态：V1 进行中（主窗口 MVP 已跑通）。** 7 crate workspace + Tauri 2 前端 + 工具链 / CI 就绪，门禁（fmt / clippy / test / lint）全绿。
+
+已完成：`lingostack-core` 配置模型（提供商 / 模型解析 / 语言规则 / 热键 / 内置 Prompt）；`lingostack-llm` OpenAI 兼容协议 + SSE 流式（wiremock 集成测试）；`src-tauri` 配置读写 + IPC（`load_config` / `save_config` / `effective_prompt` / `chat_stream`）+ 单实例锁；主窗口四视图接真实能力（翻译流式 / 命名生成 / 收藏 IndexedDB / 设置 provider CRUD）。
+
+待做：Anthropic + Gemini 原生协议；系统能力（取词 / 全局热键 / TTS）；多窗口与划词闭环；开源基建与 CI 门禁。
 
 ## 仓库布局（目标结构，搭建脚手架时遵循）
 
@@ -15,13 +19,23 @@
 ```
 package.json / vite.config.ts / tsconfig.json / tailwind.config.ts / index.html
                                 # 前端工程根（Vite + React 18 + TypeScript 严格模式）
-src/                            # 前端源码（窗口入口 / 组件 components / hooks / stores / lib）
+src/                            # 前端源码
+  App.tsx / main.tsx            #   主窗口入口（标题栏 + 侧栏 + 视图路由 + 状态栏）
+  components/                   #   title-bar / sidebar / status-bar / view-shell
+    views/                      #     六视图：translate / naming / docs / favorites / settings / about
+    ui/                         #     原语：button / input / textarea / select / pill
+    provider-form / settings-ai #     LLM 提供商表单与设置页 AI 子标签
+  lib/                          #   config-types（Rust 类型 TS 镜像）/ ipc（invoke 封装）
+                                #   naming（候选解析）/ favorites(+db) / view-meta / utils
+  stores/                       #   zustand：app / theme / config / favorites
+  hooks/                        #   use-theme
 Cargo.toml                      # workspace 根；members = ["crates/*", "src-tauri"]
 src-tauri/                      # Tauri 入口 crate（package.name = "lingostack-app"）
   tauri.conf.json               #   仅主窗口（翻译浮窗 / 划词工具栏 / 文档阅读器留待 V1）
   Cargo.toml                    #   依赖 tauri + 其余 6 个 crate（仓库内唯一依赖 tauri 的 crate）
   build.rs
-  src/{main.rs, lib.rs}         #   注册空 IPC command（V0 占位）
+  src/{main.rs, lib.rs}         #   入口：单实例锁 + 托盘 + IPC 注册
+  src/{config.rs, commands.rs}  #   配置文件读写（0600）/ IPC commands + provider 工厂
   capabilities/default.json     #   Tauri 2 ACL 权限声明
 crates/                         # Rust workspace（纯后端能力，跨平台 / 分平台）
   lingostack-core/              #   配置模型、语言判定、事件总线、热键冲突检测（纯 Rust，禁依赖 tauri，CI 校验）
