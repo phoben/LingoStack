@@ -1,8 +1,10 @@
 # LingoStack（译栈）设计文档
 
-> 版本：1.1 · 日期：2026-08-06 · 状态：已确认设计，待实施规划
+> 版本：1.2 · 日期：2026-08-06 · 状态：已确认设计，待实施规划
 >
-> 变更：v1.1 补充开源发布策略（§11），章节顺延重编号
+> 变更：
+> - v1.2 新增 §13 V0（基础环境搭建）阶段，明确脚手架交付物与验收标准
+> - v1.1 补充开源发布策略（§11），章节顺延重编号
 
 ## 1. 产品概述
 
@@ -229,6 +231,37 @@ OpenAI 兼容协议为基座（覆盖 DeepSeek/通义/智谱/Ollama 等），Ant
 - 底部导出：保持格式 .docx / Markdown / 纯文本
 
 ## 13. 分期计划
+
+### V0（基础环境搭建 · Scaffolding）
+
+**目标**：从「仅有设计文档」推进到「框架可编译运行、工具链与 CI 全绿」，为 V1 业务开发铺平道路。本阶段**不实现任何业务逻辑**，仅交付可编译、可启动、可测试的空壳骨架，并固定仓库布局与依赖版本。
+
+**交付物：**
+
+- **Cargo workspace 骨架**：根 `Cargo.toml`（workspace + 共享依赖/profile）；按 §4.2 与仓库布局创建七个 crate，各自 `Cargo.toml` + 入口文件，仅含模块声明与 `TODO` 占位：
+  - `lingostack-core`（纯逻辑，**禁止依赖 `tauri`**，以 CI 校验）
+  - `lingostack-llm`（声明 `LlmProvider` trait 与 `chat_stream()` 签名空壳）
+  - `lingostack-selection`（trait 抽象 + 按平台分文件占位）
+  - `lingostack-hook` / `lingostack-tts` / `lingostack-docparse`（模块占位）
+  - `lingostack-app`（**唯一依赖 `tauri`** 的入口，`main.rs` 仅注册空 IPC command）
+- **Tauri 2 前端工程**（`src-tauri/`）：pnpm + React 18 + TypeScript（严格模式）+ Vite；Tailwind CSS（接入 §12 色板/圆角令牌）；shadcn/ui 初始化；Zustand store 占位；主窗口渲染最小占位页
+- **最小可运行应用**：`pnpm tauri dev` 启动并显示主窗口占位界面；`tauri.conf.json` 仅配置主窗口（翻译浮窗 / 划词工具栏 / 文档阅读器留待 V1）
+- **质量门禁工具链**：`rust-toolchain.toml`（固定 stable + rustfmt/clippy）；rustfmt；clippy（workspace 级 `-D warnings`）；ESLint + Prettier；`.editorconfig`
+- **测试基础设施骨架**：`cargo test --workspace` 可跑（每 crate 至少一个冒烟测试）；Vitest 配置 + 冒烟测试；声明 `wiremock` 依赖（供 V1 LLM 集成测试）
+- **CI 骨架**：`.github/workflows/ci.yml`（PR 触发：clippy + eslint → 单测 → 构建，windows/macos/linux 矩阵，cargo/npm 缓存）；`.github/dependabot.yml`；DCO `Signed-off-by` 检查
+- **仓库文件**：更新 `.gitignore`（前端/Tauri 产物、IDE 文件）
+
+**验收标准（Definition of Done）：**
+
+- `pnpm tauri dev` 启动并显示主窗口占位界面（Windows 主开发机实跑验证；macOS/Linux 平台能力标注「需在目标平台验证」）
+- `cargo build --workspace` 通过
+- `cargo fmt --check` + `cargo clippy --all-targets -- -D warnings` 零警告通过
+- `cargo test --workspace` 与 `pnpm lint` / `pnpm test` 全绿
+- CI 首次跑通（三平台 lint + 单测绿）
+- 七个 crate 结构与仓库布局一致，`lingostack-core` 无 `tauri` 依赖
+- 回填 `CLAUDE.md`「常用命令」小节为实际可用命令
+
+**范围边界（移交 V1 及以后）**：任何业务功能（翻译 / 取词 / 热键 / TTS / 文档解析 / LLM 实调 / 收藏 / 设置）、多窗口、真实 Prompt 模板与快照测试、真实 LLM 集成用例、开源治理细则（`CONTRIBUTING.md` 与模板内容、`THIRD_PARTY_NOTICES` 生成、cargo/npm audit 门禁）。
 
 ### V1（核心 MVP）
 - 划词翻译（选中自动弹 PopClip 式工具栏 + 热键唤起 + 读选中）

@@ -3,7 +3,7 @@
 > A lightweight, minimal, modern cross-platform desktop translator for non-native English programmers.
 > 一款面向非英语母语程序员的轻量、简洁、现代的跨平台桌面翻译工具。
 
-**状态：📋 设计阶段（设计已确认，待实施）** — 本仓库目前仅含设计文档，尚无可运行代码。
+**状态：🚧 V0 脚手架已就绪** — Tauri 2 + Rust workspace（七 crate）+ 前端工程 + 工具链 / CI 已初始化，`pnpm tauri dev` 可启动主窗口占位界面，全部门禁（fmt / clippy / lint / test）零警告。业务功能将在 V1 实现。
 
 ## ✨ 特性（规划中）
 
@@ -27,10 +27,11 @@
 
 ## 📐 设计文档
 
-完整产品设计见 [`docs/2026-08-06-lingostack-design.md`](docs/2026-08-06-lingostack-design.md)。
+完整产品设计见 [`docs/lingostack-design.md`](docs/lingostack-design.md)。
 
 ## 🗺 路线图
 
+- **V0（脚手架）** — Tauri 2 + React/Vite 前端工程、Rust workspace（七 crate）骨架、工具链（rustfmt/clippy/eslint）与 CI 骨架；`pnpm tauri dev` 可启动空白主窗口，全部门禁零警告
 - **V1（MVP）** — 划词翻译、文本翻译、变量名生成、解释朗读、收藏、托盘与全局热键（含冲突检测）、多 LLM 配置、明暗主题、测试与 CI/CD 基建
 - **V1.5** — 文档翻译与对照阅读、社区 i18n 贡献
 - **V2** — PDF 扫描版 OCR、WebDAV 同步
