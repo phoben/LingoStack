@@ -10,7 +10,7 @@ const KIND_OPTIONS: { value: ProviderKind; label: string }[] = [
     label: "OpenAI 兼容（OpenAI / DeepSeek / 通义 / 智谱）",
   },
   { value: "anthropic", label: "Anthropic（Claude）" },
-  { value: "gemini", label: "Gemini（待实现）" },
+  { value: "gemini", label: "Gemini" },
   { value: "ollama", label: "Ollama 本地（OpenAI 兼容）" },
 ];
 

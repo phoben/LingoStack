@@ -81,7 +81,7 @@ pub async fn chat_stream(
 
 /// 由 [`ProviderConfig`] 构造具体 LLM 提供商实例。
 ///
-/// Anthropic / Gemini 留待 A2b / A2c 实装；Ollama 复用 OpenAI 兼容协议。
+/// 四种协议均已实装；Ollama 复用 OpenAI 兼容协议（同一 wire format）。
 fn build_provider(p: &ProviderConfig) -> Result<Box<dyn LlmProvider>, String> {
     match p.kind {
         ProviderKind::OpenAiCompatible | ProviderKind::Ollama => {
@@ -98,7 +98,12 @@ fn build_provider(p: &ProviderConfig) -> Result<Box<dyn LlmProvider>, String> {
             .map_err(|e| e.to_string())?;
             Ok(Box::new(provider))
         }
-        ProviderKind::Gemini => Err("Gemini 协议将在 A2c 实现".into()),
+        ProviderKind::Gemini => {
+            let provider =
+                lingostack_llm::gemini::GeminiProvider::new(p.base_url.clone(), p.api_key.clone())
+                    .map_err(|e| e.to_string())?;
+            Ok(Box::new(provider))
+        }
     }
 }
 
@@ -131,11 +136,26 @@ mod tests {
     }
 
     #[test]
-    fn build_provider_gemini_not_implemented() {
+    fn build_provider_gemini_ok() {
         let mut p = deepseek();
         p.kind = ProviderKind::Gemini;
-        let err = build_provider(&p).err().expect("期望 Gemini 未实装错误");
-        assert!(err.contains("A2c"));
+        p.base_url = "https://generativelanguage.googleapis.com".into();
+        assert!(build_provider(&p).is_ok());
+    }
+
+    #[test]
+    fn build_provider_covers_all_kinds() {
+        // 四种协议均已实装——新增 ProviderKind 时此测试会因缺分支而编译失败。
+        for kind in [
+            ProviderKind::OpenAiCompatible,
+            ProviderKind::Ollama,
+            ProviderKind::Anthropic,
+            ProviderKind::Gemini,
+        ] {
+            let mut p = deepseek();
+            p.kind = kind;
+            assert!(build_provider(&p).is_ok(), "协议 {kind:?} 构造失败");
+        }
     }
 
     #[test]
