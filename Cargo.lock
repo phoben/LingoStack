@@ -1652,6 +1652,7 @@ name = "lingostack-app"
 version = "0.0.0"
 dependencies = [
  "lingostack-core",
+ "lingostack-hook",
  "serde",
  "serde_json",
  "tauri",
@@ -1674,6 +1675,9 @@ version = "0.0.0"
 [[package]]
 name = "lingostack-hook"
 version = "0.0.0"
+dependencies = [
+ "tauri",
+]
 
 [[package]]
 name = "lingostack-llm"

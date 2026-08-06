@@ -23,8 +23,9 @@ tauri = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
-# 内部 crate（V0 仅链接验证依赖链路；V1 接入业务）
+# 内部 crate
 lingostack-core = { workspace = true }
+lingostack-hook = { workspace = true }
 
 [features]
 default = ["custom-protocol"]
