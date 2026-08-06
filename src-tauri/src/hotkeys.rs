@@ -118,19 +118,15 @@ fn apply_effect(app: &AppHandle, effect: HotkeyEffect) {
                 let _ = w.set_focus();
             }
         }
-        // 浮窗尚未实现（留待 D 阶段）：先显示主窗口并通知前端，
-        // 由前端决定在翻译视图中承接。
+        // 划词翻译 / 唤起翻译：显示主窗口，前端收到事件后切到翻译视图、
+        // 取词、填充原文并自动翻译（见 App.tsx 的 translate-selection 监听）。
         HotkeyEffect::TranslateSelection | HotkeyEffect::TranslatePopup => {
             if let Some(w) = app.get_webview_window(MAIN_WINDOW) {
                 let _ = w.show();
                 let _ = w.unminimize();
                 let _ = w.set_focus();
             }
-            let event = match effect {
-                HotkeyEffect::TranslateSelection => "hotkey-translate-selection",
-                _ => "hotkey-translate-popup",
-            };
-            let _ = app.emit(event, ());
+            let _ = app.emit("translate-selection", ());
         }
     }
 }

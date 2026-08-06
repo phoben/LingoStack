@@ -20,6 +20,13 @@ interface AppState {
   /** 当前激活的视图标签页，默认「翻译」。 */
   activeView: AppView;
   setActiveView: (view: AppView) => void;
+
+  /**
+   * 待注入翻译视图的原文（热键划词触发时由 App 写入）。
+   * 翻译视图消费后清空，故非空即「有一次待执行的翻译」。
+   */
+  injectSource: string | null;
+  setInjectSource: (source: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -27,4 +34,6 @@ export const useAppStore = create<AppState>((set) => ({
   setReady: (ready) => set({ ready }),
   activeView: "translate",
   setActiveView: (activeView) => set({ activeView }),
+  injectSource: null,
+  setInjectSource: (injectSource) => set({ injectSource }),
 }));

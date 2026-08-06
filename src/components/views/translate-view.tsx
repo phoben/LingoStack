@@ -1,9 +1,10 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Bookmark, Copy, RotateCcw, Sparkles, Volume2 } from "lucide-react";
 import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { chatStream, effectivePrompt, speak } from "@/lib/ipc";
+import { useAppStore } from "@/stores/app-store";
 import { useConfigStore } from "@/stores/config-store";
 import { useFavoritesStore } from "@/stores/favorites-store";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,8 @@ function StatusBadge({ status }: { status: Status }) {
 export function TranslateView() {
   const config = useConfigStore((s) => s.config);
   const addFavorite = useFavoritesStore((s) => s.add);
+  const injectSource = useAppStore((s) => s.injectSource);
+  const setInjectSource = useAppStore((s) => s.setInjectSource);
   const [saved, setSaved] = useState(false);
   const [source, setSource] = useState(SOURCE_TEXT);
   const [target, setTarget] = useState("");
@@ -85,8 +88,10 @@ export function TranslateView() {
     return provider ? `${provider.name} · ${ref.model}` : ref.model;
   })();
 
-  const translate = async () => {
-    if (!source.trim() || status === "streaming") return;
+  const translate = async (override?: string) => {
+    const src = override ?? source;
+    if (!src.trim() || status === "streaming") return;
+    if (override !== undefined) setSource(override);
     setStatus("streaming");
     setTarget("");
     setErrorMsg(null);
@@ -99,7 +104,7 @@ export function TranslateView() {
         "translate",
         [
           { role: "system", content: system },
-          { role: "user", content: source },
+          { role: "user", content: src },
         ],
         (event) => {
           if (event.type === "chunk") {
@@ -117,6 +122,16 @@ export function TranslateView() {
       setErrorMsg(typeof e === "string" ? e : String(e));
     }
   };
+
+  // 划词热键注入的原文：消费后立即翻译（覆盖当前输入框内容）。
+  useEffect(() => {
+    if (injectSource != null) {
+      setInjectSource(null);
+      void translate(injectSource);
+    }
+    // translate 与 setInjectSource 为稳定引用；仅 injectSource 变化时触发。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [injectSource]);
 
   const copy = () => {
     if (target) {
@@ -162,7 +177,7 @@ export function TranslateView() {
             <span className="font-mono text-[10px] text-muted-foreground">
               {source.length} 字符
             </span>
-            <Button size="sm" onClick={translate} disabled={status === "streaming"}>
+            <Button size="sm" onClick={() => void translate()} disabled={status === "streaming"}>
               <Sparkles className="h-3.5 w-3.5" />
               {status === "streaming" ? "翻译中…" : "翻译"}
             </Button>
@@ -194,7 +209,7 @@ export function TranslateView() {
             {status === "error" ? (
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-xs text-accent">{errorMsg}</span>
-                <Button variant="ghost" size="sm" onClick={translate}>
+                <Button variant="ghost" size="sm" onClick={() => void translate()}>
                   <RotateCcw className="h-3.5 w-3.5" />
                   重试
                 </Button>
