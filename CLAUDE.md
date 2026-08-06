@@ -12,7 +12,9 @@
 
 **系统能力（Windows 已实装并实跑验证）**：`lingostack-selection` UIA 取词 + 剪贴板降级；`lingostack-hook` 热键字符串转换（注册走 `tauri-plugin-global-shortcut`，冲突逐条上报前端）；`lingostack-tts` SAPI 朗读。macOS / Linux 均为占位实现，各文件已标注所需 API 与「需在目标平台验证」。
 
-待做：多窗口与划词闭环（翻译浮窗 + PopClip 式工具栏）；开源基建与 CI 门禁。
+**划词翻译闭环已打通**（走主窗口，不采用独立浮窗 / 工具栏——见设计文档 §4.3 决策）：全局热键唤起主窗口 → 切翻译视图 → UIA 取词 → 填充原文 → 自动流式翻译。
+
+待做：开源基建与 CI 门禁（CONTRIBUTING / 安全策略 / audit 门禁 / THIRD_PARTY_NOTICES / Prompt 快照测试 / E2E）。
 
 ## 仓库布局（目标结构，搭建脚手架时遵循）
 
