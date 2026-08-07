@@ -25,6 +25,8 @@ interface ProviderFormProps {
  * 提供商新增 / 编辑表单（内联展开）。
  * 对齐 lingostack-design：info 焦点环、必填校验失败用 accent（coral）提示、
  * 一个主操作（保存）。`id` 由父组件在新增时生成，故此处保持空串透传。
+ *
+ * 表单区不套卡片——上下各一条浅色分割线界定范围，与设置页其余分节一致。
  */
 export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
   const [name, setName] = useState(initial?.name ?? "");
@@ -58,7 +60,7 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
   };
 
   return (
-    <div className="rounded-lg border border-info/30 bg-background p-3.5">
+    <div className="border-y border-border py-3.5">
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">名称</span>

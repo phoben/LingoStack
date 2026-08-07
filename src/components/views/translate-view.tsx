@@ -23,10 +23,10 @@ const LANG_NAME: Record<string, string> = {
   ja: "日本語",
 };
 
-/** 面板标签栏（原型 .pane-label）。 */
+/** 面板标签栏（原型 .pane-label）：与正文之间只隔一条浅色线。 */
 function PaneLabel({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 border-b border-border px-3.5 py-1.5 font-mono text-xs text-muted-foreground">
+    <div className="flex items-center gap-2 border-b border-border px-4 py-2 font-mono text-xs text-muted-foreground">
       {children}
     </div>
   );
@@ -129,7 +129,10 @@ function PaneActions({
 
 /**
  * 翻译视图（§3 场景 2，对齐原型翻译 panel）：
- * 顶部操作卡片（语言对 + 状态 + 翻译按钮）+ 双 pane（原文 / 译文）。
+ * 顶部操作行（语言对 + 状态 + 翻译按钮）+ 双 pane（原文 / 译文）。
+ *
+ * 全页只有主面板一层容器，内部靠浅色分割线分区：操作行与内容区隔一条横线，
+ * 原文与译文之间隔一条竖线，两侧文本区直接坐在面板底色上，不再各自套卡片。
  *
  * 两个面板结构完全对称：标题栏（名称 + 朗读/收藏/复制）+ 内容区，无底栏。
  * 动作按钮位置左右一致，避免同一组操作在两侧高度不同造成的视觉割裂。
@@ -232,9 +235,10 @@ export function TranslateView() {
         </>
       }
     >
-      <div className="grid h-full grid-cols-2 gap-3.5">
+      {/* 原文 / 译文靠一条竖向分割线分隔，不各自成卡片 */}
+      <div className="grid h-full grid-cols-2 divide-x divide-border">
         {/* 原文 */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-background">
+        <section className="flex min-h-0 flex-col overflow-hidden">
           <PaneLabel>
             <span>原文</span>
             <span className="flex-1" aria-hidden="true" />
@@ -250,12 +254,12 @@ export function TranslateView() {
             value={source}
             onChange={(e) => setInput("translate", e.target.value)}
             placeholder="输入或粘贴要翻译的文本"
-            className="min-h-0 flex-1 resize-none bg-transparent px-3.5 py-3.5 text-sm leading-7 text-foreground outline-none placeholder:text-muted-foreground/60"
+            className="min-h-0 flex-1 resize-none bg-transparent px-4 py-3.5 text-sm leading-7 text-foreground outline-none placeholder:text-muted-foreground/60"
           />
         </section>
 
         {/* 译文 */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-background">
+        <section className="flex min-h-0 flex-col overflow-hidden">
           <PaneLabel>
             <span>译文</span>
             <span className="flex-1" aria-hidden="true" />
@@ -270,7 +274,7 @@ export function TranslateView() {
           <div
             aria-live="polite"
             aria-busy={streaming}
-            className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words px-3.5 py-3.5 text-sm leading-7 text-foreground"
+            className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words px-4 py-3.5 text-sm leading-7 text-foreground"
           >
             {target}
             {task.status === "error" ? (

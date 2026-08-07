@@ -18,7 +18,7 @@ export function AboutView() {
         </>
       }
     >
-      <div className="max-w-2xl text-xs leading-7 text-muted-foreground">
+      <div className="max-w-2xl px-4 py-4 text-xs leading-7 text-muted-foreground">
         <p>译栈 LingoStack · v1.0.0 · MIT License</p>
         <p>零遥测：所有请求直连你配置的提供商，不经任何中间服务器。</p>
         <p>

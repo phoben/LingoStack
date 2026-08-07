@@ -47,11 +47,36 @@ const SIZE: Record<ButtonSize, string> = { sm: "...", md: "...", lg: "...", icon
 - `App.tsx:57-64` 用一串 `activeView === "x" ? <XView /> : null` 渲染，未命中的视图返回 `null`（不是隐藏，是不挂载）
 - 六个视图全部静态 import，无懒加载
 
-**加视图的动作**：`AppView` 加成员 → `VIEW_ORDER` 加顺序 → `VIEW_META` 加元信息 → `App.tsx` 加一行条件渲染 → 视图组件用 `<ViewShell view="...">` 包裹。
+**加视图的动作**：`AppView` 加成员 → `VIEW_ORDER` 加顺序 → `VIEW_META` 加元信息 → `App.tsx` 加一行条件渲染 → 视图组件用 `<ViewShell toolbar={...}>` 包裹。
 
-`ViewShell`（`view-shell.tsx:18-40`）提供每个视图的统一外壳：从 `VIEW_META` 取标题与描述，一个右上角 `actions` 插槽（用法见 `favorites-view.tsx:75-104`），内容区。
+`ViewShell`（`view-shell.tsx`）提供每个视图的统一外壳：一个 `toolbar` 插槽（顶部操作行，用法见 `favorites-view.tsx:78-138`）+ 内容区。**无标题与描述**——页面身份由侧栏选中态表达，不从 `VIEW_META` 取文案。分区规则见下方「内容区分区」。
 
 设置页有**自己的二级标签**，是组件内 `useState`，不进 app store、不进 view-meta（`settings-view.tsx:9-16,72`）。这套二级机制不可复用，别照抄到其他视图。
+
+## 内容区分区：分割线，不是嵌套卡片
+
+**视图区只有一层容器**：`App.tsx:59` 的圆角主面板。面板内部一律用 1px 浅色分割线分区，**不再套第二层圆角卡片**。
+
+`ViewShell`（`view-shell.tsx`）为此做了两件事：
+
+- 顶部操作行是一条 `border-b border-border` 的普通行，不是卡片
+- 内容区**不带内边距**——留给各视图自己加，这样分割线才能通到面板两侧边缘，而不是悬空一段
+
+各视图的分区手法：
+
+| 场景 | 手法 |
+|------|------|
+| 左右并列（翻译原文/译文、文档列表/预览） | 父级 `grid ... divide-x divide-border`，子 `<section>` 不带 border/bg |
+| 多列平铺（命名五写法） | `grid-cols-5 divide-x divide-border` |
+| 行表（收藏条目、提供商、热键、功能默认模型） | 容器 `divide-y divide-border`，行内只有内边距 |
+| 行表接在分节标题下 | 容器额外 `border-t border-border`（**不要 `border-y`**，底边会和 `SetSection` 的 `border-b` 撞成双线） |
+| 分节 | `SetSection` 的 `border-b border-border`（`settings-view.tsx:62`） |
+
+hover 反馈从「提亮边框」改为**提亮背景**（`hover:bg-accent/40`）——没有边框可提了，且这本来就是设计契约要求的方向（见 DESIGN.md §7 状态对比铁律）。
+
+例外：`provider-form.tsx` 这类内联展开的编辑区用 `border-y border-border` 界定上下范围，仍不套圆角卡片。
+
+**不要**为了「让区块看起来独立」而加回 `rounded-lg border border-border bg-background`。参考截图与本约定的核心就是取消这层嵌套。
 
 ## Tailwind 令牌
 

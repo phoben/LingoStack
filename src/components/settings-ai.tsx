@@ -123,16 +123,17 @@ export function SettingsAi() {
         title="LLM 提供商"
         desc="多提供商并存，按功能指定默认模型，全局默认兜底。仅使用你的 API Key，零内置计费。"
       >
-        <div className="flex flex-col gap-2">
+        {/* 提供商行表：行间浅线分隔，不逐条套卡片 */}
+        <div className="divide-y divide-border border-t border-border">
           {providers.length === 0 ? (
-            <p className="rounded-sm border border-dashed border-border px-3.5 py-5 text-center text-xs text-muted-foreground">
+            <p className="px-1 py-5 text-center text-xs text-muted-foreground">
               尚未配置提供商。添加一个（如 DeepSeek）即可开始翻译。
             </p>
           ) : (
             providers.map((p) => (
               <div
                 key={p.id}
-                className="flex items-center gap-3 rounded-lg border border-border bg-background px-3.5 py-3"
+                className="flex items-center gap-3 px-1 py-3 transition-colors duration-fast hover:bg-accent/40"
               >
                 <span className="min-w-[100px] text-sm font-semibold">
                   {p.name}
@@ -192,7 +193,7 @@ export function SettingsAi() {
           <p className="mb-2 text-xs text-muted-foreground">
             功能默认模型（未指定时回退到全局默认）
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="divide-y divide-border border-t border-border">
             {FUNC_ROWS.map((f) => {
               const current = config.models[f.field];
               const value = current
