@@ -12,6 +12,7 @@ import {
   putFavorite,
   putFavorites,
 } from "@/lib/favorites-db";
+import { stringifyError } from "@/lib/utils";
 
 interface FavoritesState {
   list: Favorite[];
@@ -71,7 +72,3 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     }
   },
 }));
-
-function stringifyError(e: unknown): string {
-  return typeof e === "string" ? e : e instanceof Error ? e.message : String(e);
-}

@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import type { AppConfig } from "@/lib/config-types";
 import { loadConfig, saveConfig } from "@/lib/ipc";
+import { stringifyError } from "@/lib/utils";
 
 interface ConfigState {
   config: AppConfig | null;
@@ -46,7 +47,3 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
     }
   },
 }));
-
-function stringifyError(e: unknown): string {
-  return typeof e === "string" ? e : String(e);
-}

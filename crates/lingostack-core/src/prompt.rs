@@ -100,9 +100,37 @@ mod tests {
         assert!(TRANSLATE_PROMPT.contains("{target_lang}"));
     }
 
+    /// 命名 Prompt 须产出「中性词组」而非某一种写法。
+    ///
+    /// 命名功能一次请求取回若干小写空格分隔的英文词组，五种写法在前端本地铺开
+    /// （见 `src/lib/case-convert.ts`），从而一次生成只花一次模型调用，且五列
+    /// 逐行对齐同一个词。故此 Prompt **不再**含 `{style}` 占位符——若有人把
+    /// 「按某规范输出」加回来，前端的写法转换会拿到已带修饰的输入。
     #[test]
-    fn naming_prompt_references_style_placeholder() {
-        assert!(NAMING_PROMPT.contains("{style}"));
+    fn naming_prompt_requires_neutral_word_groups() {
+        assert!(
+            !NAMING_PROMPT.contains("{style}"),
+            "命名 Prompt 不应再含 {{style}} 占位符——写法转换已移到前端"
+        );
+        assert!(
+            NAMING_PROMPT.contains("小写"),
+            "命名 Prompt 必须要求全小写，否则前端拆词会收到带写法修饰的输入"
+        );
+        assert!(
+            NAMING_PROMPT.contains("空格"),
+            "命名 Prompt 必须明示单词以空格分隔"
+        );
+        assert!(
+            NAMING_PROMPT.contains("5 个候选"),
+            "命名 Prompt 必须要求 5 个候选（界面每列固定五行）"
+        );
+        // 三类写法修饰都要显式排除，避免模型自行套用某种规范。
+        for forbidden in ["下划线", "连字符", "驼峰"] {
+            assert!(
+                NAMING_PROMPT.contains(forbidden),
+                "命名 Prompt 必须显式排除「{forbidden}」修饰"
+            );
+        }
     }
 
     #[test]

@@ -30,8 +30,11 @@ src/                            # 前端源码
     ui/                         #     原语：button / input / textarea / select / pill
     provider-form / settings-ai #     LLM 提供商表单与设置页 AI 子标签
   lib/                          #   config-types（Rust 类型 TS 镜像）/ ipc（invoke 封装）
-                                #   naming（候选解析）/ favorites(+db) / view-meta / utils
-  stores/                       #   zustand：app / theme / config / favorites
+                                #   naming（候选解析 + 五写法网格）/ case-convert（写法转换）
+                                #   favorites(+db) / view-meta / sidebar-layout
+                                #   utils（cn / stringifyError，错误文案唯一来源）
+  stores/                       #   zustand：app / theme / config / favorites / layout
+                                #   stream（流式任务态，跨视图存活——见下方说明）
   hooks/                        #   use-theme
 Cargo.toml                      # workspace 根；members = ["crates/*", "src-tauri"]
 src-tauri/                      # Tauri 入口 crate（package.name = "lingostack-app"）
@@ -70,6 +73,7 @@ docs/                           # 设计文档
 
 - **多窗口架构**：主窗口、翻译浮窗、划词工具栏、文档阅读器各自独立生命周期（见设计文档 §4.3）；窗口间通信走 Tauri events。
 - **状态管理统一用 Zustand**；收藏数据存 IndexedDB（仅 UI 层消费）。
+- **流式任务态必须放 `stores/stream-store`，不得留在视图组件的 `useState`**：主窗口六视图是条件渲染（`App.tsx`），切页面即卸载视图。任务态若在组件内，切走就随组件销毁，而后端 `chat_stream` 仍在推送——结果凭空丢失。新增 AI 功能（解释 / 文档翻译）接入同一 store，复用其 `seq` 迟到回调守卫。
 - **设计先行：先查原型**：在设计任何组件、页面、样式之前，必须先调用 `/lingostack-design` 技能熟悉项目既有的设计规范与原型稿，并优先按原型实现；原型未覆盖的场景才自行设计，且须与已有视觉规范保持一致。
 - **样式用 Tailwind + shadcn/ui**，遵循设计文档 §12 的视觉规范：中性灰蓝、单一蓝色强调色（`#2563eb` / `#3b82f6`）、圆角 10–14px、明暗主题+跟随系统。
 - **新增组件默认走 shadcn/ui**，避免手写重复样式。
