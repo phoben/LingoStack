@@ -46,6 +46,7 @@ jobs:
 
       # tauri::generate_context! 在编译期校验 frontendDist（../dist）存在，
       # 故 Rust 侧任何检查前都必须先产出前端构建物，否则 proc macro panic。
+      # 不指定 version：版本单一真源为 package.json 的 packageManager 字段。
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
@@ -70,7 +71,11 @@ jobs:
       - name: cargo build --workspace
         run: cargo build --workspace
 
+      # 显式指定 bash：Windows runner 默认 shell 是 pwsh，`if ...; then` 这类
+      # POSIX 语法会被 PowerShell 解析器拒绝（Missing '(' after 'if'）。
+      # Windows runner 自带 Git Bash，指定后三平台走同一份脚本。
       - name: lingostack-core 纯净性校验（禁止依赖 tauri）
+        shell: bash
         run: |
           if cargo tree -p lingostack-core | grep -iw tauri; then
             echo "::error::lingostack-core 依赖了 tauri，违反纯净约束（见 CLAUDE.md）"
