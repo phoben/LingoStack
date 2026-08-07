@@ -94,6 +94,11 @@ Signed-off-by: Your Name <you@example.com>
 
 CI 会校验 DCO（`.github/workflows/dco.yml`）。**没有 `Signed-off-by` 的 PR 无法合并。**
 
+两类 commit 例外：
+
+- **合并 commit**：由 GitHub 生成、无法附带签名，自动豁免。
+- **DCO 立项前的历史 commit**：已发布到共享分支、不可重写，在校验脚本的 `GRANDFATHERED` 列表中按 SHA 逐条豁免。该列表已封闭，**新 commit 一律不得加入**。
+
 ## 代码规范
 
 ### Rust

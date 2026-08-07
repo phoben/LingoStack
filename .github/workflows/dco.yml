@@ -23,8 +23,21 @@ jobs:
               pull_number: context.payload.pull_request.number,
               per_page: 100,
             });
+            // DCO 立项前的历史 commit：均由仓库作者本人提交，无第三方贡献归属问题，
+            // 逐条按 SHA 豁免（不可重写——已发布到 develop 等共享分支）。此列表只增不改，禁止用于新 commit。
+            const GRANDFATHERED = new Set([
+              "d49bf0fc4aafa35ae85fa9d76f5931314e2b2da9", // 初始化trellis spec
+            ]);
             const re = /^Signed-off-by: .+ <.+@.+>/m;
-            const offenders = commits.filter((c) => !re.test(c.commit.message));
+            const merges = commits.filter((c) => (c.parents?.length ?? 1) > 1);
+            const legacy = commits.filter(
+              (c) => !merges.includes(c) && GRANDFATHERED.has(c.sha)
+            );
+            // 合并 commit 由 GitHub 生成，message 中不含 Signed-off-by，按 DCO 惯例豁免。
+            const audited = commits.filter(
+              (c) => !merges.includes(c) && !legacy.includes(c)
+            );
+            const offenders = audited.filter((c) => !re.test(c.commit.message));
             if (offenders.length) {
               const list = offenders
                 .map((c) => `  - ${c.sha.slice(0, 8)} ${c.commit.message.split("\n")[0]}`)
@@ -33,5 +46,8 @@ jobs:
                 `以下 commit 缺少合规的 Signed-off-by（DCO 要求，详见 CONTRIBUTING）：\n${list}`
               );
             } else {
-              core.info(`✅ 全部 ${commits.length} 个 commit 均含 Signed-off-by`);
+              core.info(
+                `✅ 受检 ${audited.length} 个 commit 均含 Signed-off-by` +
+                  `（豁免 ${merges.length} 个合并 commit、${legacy.length} 个 DCO 立项前的历史 commit）`
+              );
             }
