@@ -3,192 +3,151 @@ import { Check, Copy, RotateCcw, Sparkles } from "lucide-react";
 import { ViewShell } from "@/components/view-shell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { chatStream, effectivePrompt } from "@/lib/ipc";
-import { NAMING_STYLE_LABEL, type NamingStyle } from "@/lib/config-types";
-import { parseCandidates } from "@/lib/naming";
-import { useConfigStore } from "@/stores/config-store";
+import { effectivePrompt } from "@/lib/ipc";
+import { NAMING_STYLE_LABEL } from "@/lib/config-types";
+import { GRID_STYLES, buildNamingGrid } from "@/lib/naming";
+import { useStreamStore } from "@/stores/stream-store";
 import { cn } from "@/lib/utils";
 
-const STYLES: NamingStyle[] = [
-  "camel_case",
-  "snake_case",
-  "pascal_case",
-  "kebab_case",
-  "constant_case",
-];
-
-type Status = "idle" | "streaming" | "done" | "error";
-
 /**
- * 命名视图（§3 场景 3，对齐原型命名 panel）：
- * 顶部操作卡片（中文描述 + 命名规范切换 + 生成按钮）+ 候选列表。
+ * 命名视图（§3 场景 3）：居中的描述输入 + 生成按钮，结果按五列平铺。
  *
- * 经 `effective_prompt("naming")` 取内置 Prompt（替换 {style} 占位符），
- * 再以 `chat_stream` 流式获取候选，累积后按行解析（见 parseCandidates）。
- * 切换规范不会自动重算——需显式点「生成」，避免误触发多次 LLM 调用。
+ * 一次生成只发一次模型请求，取回若干「中性候选词」（小写空格分隔的英文词组），
+ * 五种写法在本地铺开（见 lib/case-convert）。因此五列严格逐行对齐——同一行是
+ * 同一个词的五种形态，用户先横向挑词、再按当前语言取对应那一列。
+ *
+ * 任务态存在 stream-store 而非组件内：切到别的页面再回来，进行中的生成
+ * 不中断、已产出的内容不丢失。
  */
 export function NamingView() {
-  const config = useConfigStore((s) => s.config);
-  const [desc, setDesc] = useState("获取用户资料");
-  const [style, setStyle] = useState<NamingStyle>("camel_case");
-  const [raw, setRaw] = useState("");
-  const [status, setStatus] = useState<Status>("idle");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const task = useStreamStore((s) => s.tasks.naming);
+  const setInput = useStreamStore((s) => s.setInput);
+  const start = useStreamStore((s) => s.start);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const modelLabel = (() => {
-    const ref = config?.models.naming ?? config?.models.global_default;
-    if (!ref) return "未配置模型";
-    const provider = config?.providers.find((p) => p.id === ref.provider_id);
-    return provider ? `${provider.name} · ${ref.model}` : ref.model;
-  })();
+  const streaming = task.status === "streaming";
+  const grid = buildNamingGrid(task.output);
 
-  const candidates = parseCandidates(raw);
-
-  const generate = async () => {
-    if (!desc.trim() || status === "streaming") return;
-    setStatus("streaming");
-    setRaw("");
-    setErrorMsg(null);
-    try {
-      const tpl = await effectivePrompt("naming");
-      const system = tpl.replace(/\{style\}/g, NAMING_STYLE_LABEL[style]);
-      await chatStream(
-        "naming",
-        [
-          { role: "system", content: system },
-          { role: "user", content: desc },
-        ],
-        (event) => {
-          if (event.type === "chunk") {
-            setRaw((prev) => prev + event.delta);
-          } else if (event.type === "done") {
-            setStatus("done");
-          } else if (event.type === "error") {
-            setStatus("error");
-            setErrorMsg(event.message);
-          }
-        },
-      );
-    } catch (e) {
-      setStatus("error");
-      setErrorMsg(typeof e === "string" ? e : String(e));
-    }
+  const generate = () => {
+    void start("naming", task.input, async () => {
+      const system = await effectivePrompt("naming");
+      return [
+        { role: "system", content: system },
+        { role: "user", content: task.input },
+      ];
+    });
   };
 
-  const copy = (name: string) => {
+  // 复制反馈用「列+行」复合键：同一个词在不同列的按钮不会一起亮起。
+  const copy = (key: string, name: string) => {
     void navigator.clipboard.writeText(name);
-    setCopied(name);
+    setCopied(key);
     window.setTimeout(() => setCopied(null), 1500);
   };
 
   return (
     <ViewShell
       toolbar={
-        <>
+        <div className="mx-auto flex w-full max-w-xl items-center gap-2.5">
           <Input
-            id="nm-desc"
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
+            value={task.input}
+            onChange={(e) => setInput("naming", e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") void generate();
+              if (e.key === "Enter") generate();
             }}
             placeholder="用中文描述这个变量的用途"
             aria-label="变量用途描述"
-            className="h-8 min-w-[180px] flex-1 basis-[220px] text-xs"
+            className="h-8 flex-1 text-xs"
           />
-          <div className="flex flex-wrap items-center gap-1.5">
-            {STYLES.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStyle(s)}
-                aria-pressed={style === s}
-                className={cn(
-                  "rounded-full border px-3 py-1 font-mono text-[11px] transition-colors duration-fast ease-app",
-                  style === s
-                    ? "border-transparent bg-accent text-foreground"
-                    : "border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground",
-                )}
-              >
-                {NAMING_STYLE_LABEL[s]}
-              </button>
-            ))}
-          </div>
           <Button
             size="sm"
-            className="ml-auto"
             onClick={generate}
-            disabled={status === "streaming" || !desc.trim()}
+            disabled={streaming || !task.input.trim()}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            {status === "streaming" ? "生成中…" : "生成"}
+            {streaming ? "生成中…" : "生成"}
           </Button>
-        </>
+        </div>
       }
     >
-      <div className="mx-auto flex h-full max-w-2xl flex-col">
-        <div
-          aria-live="polite"
-          className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto"
-        >
-          {status === "idle" && candidates.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
-              输入用途描述并点「生成」，按所选规范产出候选标识符。
-            </p>
-          ) : null}
+      <div
+        aria-live="polite"
+        aria-busy={streaming}
+        className="flex h-full min-h-0 flex-col"
+      >
+        {grid.length === 0 && task.status !== "error" ? (
+          <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+            {streaming
+              ? "正在生成候选…"
+              : "输入用途描述并点「生成」，一次产出五种命名规范的候选。"}
+          </p>
+        ) : null}
 
-          {candidates.map((name) => (
-            <div
-              key={name}
-              className="flex items-center rounded-lg border border-border bg-background px-4 py-3 transition-colors duration-fast hover:border-foreground/15"
-            >
-              <span className="font-mono text-[15px] font-medium text-foreground">
-                {name}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="ml-auto"
-                onClick={() => copy(name)}
-                aria-label={`复制 ${name}`}
+        {grid.length > 0 ? (
+          <div className="grid min-h-0 grid-cols-5 gap-2.5 overflow-auto">
+            {GRID_STYLES.map((style) => (
+              <section
+                key={style}
+                className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-background"
               >
-                {copied === name ? (
-                  <Check className="h-3.5 w-3.5 text-success" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-                {copied === name ? "已复制" : "复制"}
-              </Button>
-            </div>
-          ))}
+                <h3 className="border-b border-border px-3 py-2 font-mono text-[11px] text-muted-foreground">
+                  {NAMING_STYLE_LABEL[style]}
+                </h3>
+                <div className="divide-y divide-border">
+                  {grid.map((row, i) => {
+                    const name = row[style];
+                    const key = `${style}:${i}`;
+                    return (
+                      <div
+                        key={key}
+                        className="flex items-center gap-1.5 px-3 py-2.5 transition-colors duration-fast hover:bg-accent/40"
+                      >
+                        <span className="min-w-0 flex-1 break-all font-mono text-[13px] font-medium text-foreground">
+                          {name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          title={copied === key ? "已复制" : `复制 ${name}`}
+                          aria-label={`复制 ${name}`}
+                          onClick={() => copy(key, name)}
+                        >
+                          {copied === key ? (
+                            <Check className="h-3 w-3 text-success" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : null}
 
-          {status === "streaming" ? (
-            <span className="inline-block h-[1.05em] w-0.5 animate-pulse bg-info align-middle" />
-          ) : null}
-
-          {status === "error" ? (
-            <div
-              role="alert"
-              className="flex items-center gap-2 rounded-lg border border-accent/30 px-4 py-3"
+        {task.status === "error" ? (
+          <div
+            role="alert"
+            className={cn(
+              "flex items-center gap-2 rounded-lg border border-accent/30 px-4 py-3",
+              grid.length > 0 && "mt-2.5",
+            )}
+          >
+            <span className="text-xs text-accent">{task.error}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto"
+              onClick={generate}
             >
-              <span className="text-xs text-accent">{errorMsg}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-auto"
-                onClick={generate}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                重试
-              </Button>
-            </div>
-          ) : null}
-        </div>
-
-        <p className="mt-2 shrink-0 font-mono text-[10px] text-muted-foreground">
-          {modelLabel}
-        </p>
+              <RotateCcw className="h-3.5 w-3.5" />
+              重试
+            </Button>
+          </div>
+        ) : null}
       </div>
     </ViewShell>
   );
