@@ -16,9 +16,24 @@ const SUBTABS: { id: Sub; label: string }[] = [
 ];
 
 const HOTKEYS = [
-  { label: "划词唤起", desc: "任意应用选中文本", keys: ["⌥", "Space"], conflict: false },
-  { label: "打开主窗口", desc: "已被系统占用", keys: ["⌘", "⇧", "L"], conflict: true },
-  { label: "翻译浮窗", desc: "全局唤起浮窗", keys: ["⌃", "⌥", "T"], conflict: false },
+  {
+    label: "划词唤起",
+    desc: "任意应用选中文本",
+    keys: ["⌥", "Space"],
+    conflict: false,
+  },
+  {
+    label: "打开主窗口",
+    desc: "已被系统占用",
+    keys: ["⌘", "⇧", "L"],
+    conflict: true,
+  },
+  {
+    label: "翻译浮窗",
+    desc: "全局唤起浮窗",
+    keys: ["⌃", "⌥", "T"],
+    conflict: false,
+  },
 ];
 
 const THEME_OPTIONS: { id: ThemeMode; label: string }[] = [
@@ -44,7 +59,7 @@ export function SetSection({
   children?: ReactNode;
 }) {
   return (
-    <section className="border-b border-border py-4 last:border-0 last:pb-0">
+    <section className="border-b border-border py-4 first:pt-0 last:border-0 last:pb-0">
       <h3 className="text-[15px] font-semibold">{title}</h3>
       {desc ? (
         <p className="mb-3.5 mt-0.5 text-xs text-muted-foreground">{desc}</p>
@@ -74,12 +89,11 @@ export function SettingsView() {
   const setMode = useThemeStore((s) => s.setMode);
 
   return (
-    <ViewShell view="settings">
-      <div className="flex h-full flex-col">
-        {/* 二级标签 */}
+    <ViewShell
+      toolbar={
         <nav
           aria-label="设置分组"
-          className="mb-5 flex w-fit shrink-0 gap-0.5 rounded-sm border border-border bg-muted/30 p-0.5"
+          className="flex flex-wrap items-center gap-0.5"
         >
           {SUBTABS.map((t) => (
             <button
@@ -98,7 +112,9 @@ export function SettingsView() {
             </button>
           ))}
         </nav>
-
+      }
+    >
+      <div className="flex h-full flex-col">
         <div className="min-h-0 flex-1 overflow-auto">
           {sub === "general" && (
             <div>

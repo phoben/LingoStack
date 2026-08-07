@@ -39,7 +39,7 @@ function WindowControl({
       title={label}
       aria-label={label}
       className={cn(
-        "flex h-10 w-[44px] items-center justify-center text-muted-foreground",
+        "flex h-11 w-[44px] items-center justify-center text-muted-foreground",
         danger
           ? "hover:bg-destructive hover:text-destructive-foreground"
           : "hover:bg-accent hover:text-foreground",
@@ -51,9 +51,9 @@ function WindowControl({
 }
 
 /**
- * 主窗口自定义标题栏：拖拽区 + 居中 mono 标识 + 主题切换 + 窗口控制。
+ * 主窗口自定义标题栏：左侧品牌标 + 产品名，右侧主题切换 + 窗口控制。
  * 配合 tauri.conf.json 的 decorations:false 实现沉浸式一体化外观。
- * 视觉对齐原型 .titlebar（居中细等宽标题），窗口控制保留 Windows 习惯。
+ * 无底部分隔线——标题栏与侧栏同底色，视觉上连成一体（右侧内容区为独立圆角面板）。
  */
 export function TitleBar() {
   const mode = useThemeStore((s) => s.mode);
@@ -82,18 +82,24 @@ export function TitleBar() {
   return (
     <header
       data-tauri-drag-region
-      className="relative flex h-10 shrink-0 select-none items-center justify-between border-b border-border bg-background"
+      className="relative flex h-11 shrink-0 select-none items-center justify-between"
     >
-      {/* 居中标识（对齐原型 mono title；pointer-events-none 让拖拽穿透） */}
-      <span
+      {/* 左：品牌标 + 产品名（pointer-events-none 让拖拽穿透） */}
+      <div
         data-tauri-drag-region
-        className="pointer-events-none absolute left-1/2 -translate-x-1/2 font-mono text-xs tracking-[0.04em] text-muted-foreground"
+        className="pointer-events-none flex items-center gap-2.5 pl-3.5"
       >
-        译栈 — LingoStack
-      </span>
-
-      {/* 左：拖拽占位 */}
-      <div data-tauri-drag-region className="pl-3" />
+        <span
+          className="brand-mark h-[22px] w-[22px] rounded-[6px]"
+          aria-hidden="true"
+        />
+        <span className="text-[13px] font-bold tracking-tight text-foreground">
+          译栈
+        </span>
+        <span className="font-mono text-[11px] tracking-[0.04em] text-muted-foreground">
+          LingoStack
+        </span>
+      </div>
 
       {/* 右：主题切换 + 窗口控制（stopPropagation 避免触发拖拽） */}
       <div

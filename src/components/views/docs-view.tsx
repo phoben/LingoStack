@@ -44,7 +44,13 @@ const DOCS: DocItem[] = [
       },
     ],
   },
-  { id: "rpc", name: "rpc-errors.md", meta: "1.2k 字 · 8 段", src: [], dst: [] },
+  {
+    id: "rpc",
+    name: "rpc-errors.md",
+    meta: "1.2k 字 · 8 段",
+    src: [],
+    dst: [],
+  },
   {
     id: "http",
     name: "http-status-codes.md",
@@ -63,7 +69,7 @@ const DOCS: DocItem[] = [
 
 /**
  * 文档视图（§3 场景 4，对齐原型文档 panel）：
- * 左栏文件历史 + 右栏原文 / 译文双栏预览（含保留词高亮）。
+ * 顶部操作卡片（上传 + 原文 / 译文切换）+ 左栏文件历史 + 右栏预览（含保留词高亮）。
  * 文档翻译为 P1 / V1.5 特性，此处用静态示例还原布局，业务能力留待后续。
  */
 export function DocsView() {
@@ -73,15 +79,67 @@ export function DocsView() {
   const hasContent = doc.src.length > 0;
 
   return (
-    <ViewShell view="docs">
+    <ViewShell
+      toolbar={
+        <>
+          <Button size="sm" title="V1 实装">
+            <Upload className="h-3.5 w-3.5" />
+            上传文件
+          </Button>
+          <div className="flex gap-0.5 rounded-sm border border-border bg-muted/30 p-0.5">
+            {(["src", "dst"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setVtab(t)}
+                aria-pressed={vtab === t}
+                className={cn(
+                  "rounded-[5px] px-3 py-1 text-xs font-medium transition-colors duration-fast",
+                  vtab === t
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t === "src" ? "原文" : "译文"}
+              </button>
+            ))}
+          </div>
+          <span className="truncate font-mono text-[11px] text-muted-foreground">
+            {doc.name}
+          </span>
+          <div className="ml-auto flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              title="V1 实装"
+              aria-label="复制"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="V1 实装"
+              aria-label="导出"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              title="V1 实装"
+              aria-label="删除"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </>
+      }
+    >
       <div className="grid h-full grid-cols-[220px_1fr] gap-3.5">
         {/* 文件历史 */}
         <aside className="flex min-h-0 flex-col gap-2.5 overflow-hidden rounded-lg border border-border bg-background p-3">
-          <Button variant="secondary" className="w-full" title="V1 实装">
-            <Upload className="h-4 w-4" />
-            上传文件
-          </Button>
-          <div className="px-0.5 pt-1 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+          <div className="px-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
             文件历史
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto">
@@ -124,40 +182,6 @@ export function DocsView() {
 
         {/* 查看器 */}
         <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-background">
-          <div className="flex items-center gap-3 border-b border-border bg-background/40 px-3 py-2">
-            <div className="flex gap-0.5 rounded-sm border border-border bg-muted/30 p-0.5">
-              {(["src", "dst"] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setVtab(t)}
-                  aria-pressed={vtab === t}
-                  className={cn(
-                    "rounded-[5px] px-3.5 py-1 text-sm font-medium transition-colors duration-fast",
-                    vtab === t
-                      ? "bg-accent text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {t === "src" ? "原文" : "译文"}
-                </button>
-              ))}
-            </div>
-            <span className="truncate font-mono text-xs text-muted-foreground">
-              {doc.name}
-            </span>
-            <div className="ml-auto flex gap-1">
-              <Button variant="ghost" size="icon" title="V1 实装" aria-label="复制">
-                <Copy className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" title="V1 实装" aria-label="导出">
-                <Download className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" title="V1 实装" aria-label="删除">
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
           <div className="flex min-h-0 flex-1 flex-col overflow-auto px-5 py-4">
             {hasContent ? (
               vtab === "src" ? (

@@ -25,7 +25,7 @@ function formatDate(ts: number): string {
 
 /**
  * 收藏视图（§3 场景 5，对齐原型收藏 panel）：
- * 搜索 + 类型过滤 + 列表 + 导入导出，数据存 IndexedDB。
+ * 顶部操作卡片（搜索 + 类型过滤 + 导入导出）+ 列表，数据存 IndexedDB。
  *
  * V1 为扁平列表（含时间与来源），分组 / 标签留 V1.5（§15 开放问题）。
  */
@@ -46,7 +46,10 @@ export function FavoritesView() {
     void load();
   }, [load]);
 
-  const shown = useMemo(() => filterFavorites(list, q, filter), [list, q, filter]);
+  const shown = useMemo(
+    () => filterFavorites(list, q, filter),
+    [list, q, filter],
+  );
 
   const exportJson = () => {
     const blob = new Blob([toExportJson(list)], { type: "application/json" });
@@ -71,8 +74,7 @@ export function FavoritesView() {
 
   return (
     <ViewShell
-      view="favorites"
-      actions={
+      toolbar={
         <>
           <input
             ref={fileRef}
@@ -85,37 +87,17 @@ export function FavoritesView() {
               e.target.value = "";
             }}
           />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fileRef.current?.click()}
-          >
-            导入 JSON
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={exportJson}
-            disabled={list.length === 0}
-          >
-            导出 JSON
-          </Button>
-        </>
-      }
-    >
-      <div className="flex h-full flex-col">
-        <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
-          <label className="flex min-w-[200px] flex-1 items-center gap-2 rounded-sm border border-input bg-background px-3 py-1.5 text-muted-foreground focus-within:border-transparent focus-within:ring-2 focus-within:ring-info/40">
-            <Search className="h-3.5 w-3.5" />
+          <label className="flex h-8 min-w-[160px] flex-1 basis-[200px] items-center gap-2 rounded-sm border border-input bg-background px-3 text-muted-foreground focus-within:border-transparent focus-within:ring-2 focus-within:ring-info/40">
+            <Search className="h-3.5 w-3.5 shrink-0" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="搜索词条或释义…"
               aria-label="搜索收藏"
-              className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+              className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground/60"
             />
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             {FILTERS.map((f) => (
               <button
                 key={f.id}
@@ -123,7 +105,7 @@ export function FavoritesView() {
                 onClick={() => setFilter(f.id)}
                 aria-pressed={filter === f.id}
                 className={cn(
-                  "rounded-full border px-3.5 py-1.5 font-mono text-xs transition-colors duration-fast",
+                  "rounded-full border px-3 py-1 font-mono text-[11px] transition-colors duration-fast",
                   filter === f.id
                     ? "border-transparent bg-accent text-foreground"
                     : "border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground",
@@ -133,13 +115,36 @@ export function FavoritesView() {
               </button>
             ))}
           </div>
-        </div>
-
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileRef.current?.click()}
+            >
+              导入 JSON
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportJson}
+              disabled={list.length === 0}
+            >
+              导出 JSON
+            </Button>
+          </div>
+        </>
+      }
+    >
+      <div className="flex h-full flex-col">
         {notice ? (
-          <p className="mb-2 shrink-0 text-xs text-info">{notice}</p>
+          <p aria-live="polite" className="mb-2 shrink-0 text-xs text-info">
+            {notice}
+          </p>
         ) : null}
         {error ? (
-          <p className="mb-2 shrink-0 text-xs text-accent">{error}</p>
+          <p role="alert" className="mb-2 shrink-0 text-xs text-accent">
+            {error}
+          </p>
         ) : null}
 
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto">

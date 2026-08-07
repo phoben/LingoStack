@@ -6,7 +6,18 @@ import { Pill } from "@/components/ui/pill";
  */
 export function AboutView() {
   return (
-    <ViewShell view="about" actions={<Pill>v1.0.0 · MIT</Pill>}>
+    <ViewShell
+      toolbar={
+        <>
+          <span
+            className="brand-mark h-6 w-6 rounded-[7px]"
+            aria-hidden="true"
+          />
+          <span className="text-sm font-semibold">译栈 LingoStack</span>
+          <Pill className="ml-auto">v1.0.0 · MIT</Pill>
+        </>
+      }
+    >
       <div className="max-w-2xl text-xs leading-7 text-muted-foreground">
         <p>译栈 LingoStack · v1.0.0 · MIT License</p>
         <p>零遥测：所有请求直连你配置的提供商，不经任何中间服务器。</p>

@@ -1,5 +1,12 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { Bookmark, Copy, RotateCcw, Sparkles, Volume2 } from "lucide-react";
+import {
+  ArrowRight,
+  Bookmark,
+  Copy,
+  RotateCcw,
+  Sparkles,
+  Volume2,
+} from "lucide-react";
 import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -40,18 +47,28 @@ function PaneFoot({ children }: { children: ReactNode }) {
   );
 }
 
-const STATUS_STYLE: Record<Status, { dot: string; text: string; cls: string }> = {
-  idle: { dot: "bg-muted-foreground/40", text: "待翻译", cls: "text-muted-foreground" },
-  streaming: { dot: "animate-pulse bg-info", text: "流式", cls: "text-info" },
-  done: { dot: "bg-success", text: "已完成", cls: "text-success" },
-  error: { dot: "bg-accent", text: "错误", cls: "text-accent" },
-};
+const STATUS_STYLE: Record<Status, { dot: string; text: string; cls: string }> =
+  {
+    idle: {
+      dot: "bg-muted-foreground/40",
+      text: "待翻译",
+      cls: "text-muted-foreground",
+    },
+    streaming: { dot: "animate-pulse bg-info", text: "流式", cls: "text-info" },
+    done: { dot: "bg-success", text: "已完成", cls: "text-success" },
+    error: { dot: "bg-accent", text: "错误", cls: "text-accent" },
+  };
 
 /** 状态点 + 文案（译文面板右上）。 */
 function StatusBadge({ status }: { status: Status }) {
   const s = STATUS_STYLE[status];
   return (
-    <span className={cn("inline-flex items-center gap-1 font-mono text-[10px]", s.cls)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 font-mono text-[10px]",
+        s.cls,
+      )}
+    >
       <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
       {s.text}
     </span>
@@ -60,7 +77,7 @@ function StatusBadge({ status }: { status: Status }) {
 
 /**
  * 翻译视图（§3 场景 2，对齐原型翻译 panel）：
- * 双 pane（原文 / 译文）+ 语言对 + 真实流式 SSE。
+ * 顶部操作卡片（语言对 + 翻译按钮）+ 双 pane（原文 / 译文）+ 真实流式 SSE。
  *
  * 经 `effective_prompt` 取内置 Prompt（替换 {source_lang}/{target_lang} 占位符），
  * 再以 `chat_stream` 发起流式聊天，增量经 Channel 回填译文面板。
@@ -148,24 +165,56 @@ export function TranslateView() {
   };
 
   return (
-    <ViewShell view="translate">
+    <ViewShell
+      toolbar={
+        <>
+          <Select
+            aria-label="源语言"
+            value={sourceLang}
+            onChange={(e) => setSourceLang(e.target.value)}
+            className="h-8 w-[124px] text-xs"
+          >
+            <option value="auto">自动检测</option>
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+            <option value="ja">日本語</option>
+          </Select>
+          <ArrowRight
+            className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <Select
+            aria-label="目标语言"
+            value={targetLang}
+            onChange={(e) => setTargetLang(e.target.value)}
+            className="h-8 w-[110px] text-xs"
+          >
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+          </Select>
+          <StatusBadge status={status} />
+          <Button
+            size="sm"
+            className="ml-auto"
+            onClick={() => void translate()}
+            disabled={status === "streaming" || !source.trim()}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {status === "streaming" ? "翻译中…" : "翻译"}
+          </Button>
+        </>
+      }
+    >
       <div className="grid h-full grid-cols-2 gap-3.5">
         {/* 原文 */}
         <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-background">
           <PaneLabel>
             <span>原文</span>
             <span className="flex-1" aria-hidden="true" />
-            <Select
-              aria-label="源语言"
-              value={sourceLang}
-              onChange={(e) => setSourceLang(e.target.value)}
-              className="h-8 w-[124px] text-xs"
-            >
-              <option value="auto">自动检测</option>
-              <option value="en">English</option>
-              <option value="zh">中文</option>
-              <option value="ja">日本語</option>
-            </Select>
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {source.length} 字符
+            </span>
           </PaneLabel>
           <textarea
             value={source}
@@ -173,15 +222,6 @@ export function TranslateView() {
             placeholder="输入或粘贴要翻译的文本"
             className="min-h-0 flex-1 resize-none bg-transparent px-3.5 py-3.5 text-sm leading-7 text-foreground outline-none placeholder:text-muted-foreground/60"
           />
-          <PaneFoot>
-            <span className="font-mono text-[10px] text-muted-foreground">
-              {source.length} 字符
-            </span>
-            <Button size="sm" onClick={() => void translate()} disabled={status === "streaming"}>
-              <Sparkles className="h-3.5 w-3.5" />
-              {status === "streaming" ? "翻译中…" : "翻译"}
-            </Button>
-          </PaneFoot>
         </section>
 
         {/* 译文 */}
@@ -189,27 +229,26 @@ export function TranslateView() {
           <PaneLabel>
             <span>译文</span>
             <span className="flex-1" aria-hidden="true" />
-            <StatusBadge status={status} />
-            <Select
-              aria-label="目标语言"
-              value={targetLang}
-              onChange={(e) => setTargetLang(e.target.value)}
-              className="h-8 w-[110px] text-xs"
-            >
-              <option value="zh">中文</option>
-              <option value="en">English</option>
-              <option value="ja">日本語</option>
-            </Select>
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {modelLabel}
+            </span>
           </PaneLabel>
-          <div className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words px-3.5 py-3.5 text-sm leading-7 text-foreground">
+          <div
+            aria-live="polite"
+            className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words px-3.5 py-3.5 text-sm leading-7 text-foreground"
+          >
             {target}
             {status === "streaming" ? (
               <span className="ml-px inline-block h-[1.05em] w-0.5 animate-pulse bg-info align-middle" />
             ) : null}
             {status === "error" ? (
-              <div className="mt-2 flex items-center gap-2">
+              <div role="alert" className="mt-2 flex items-center gap-2">
                 <span className="text-xs text-accent">{errorMsg}</span>
-                <Button variant="ghost" size="sm" onClick={() => void translate()}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void translate()}
+                >
                   <RotateCcw className="h-3.5 w-3.5" />
                   重试
                 </Button>
@@ -217,10 +256,7 @@ export function TranslateView() {
             ) : null}
           </div>
           <PaneFoot>
-            <span className="font-mono text-[10px] text-muted-foreground">
-              {modelLabel}
-            </span>
-            <div className="flex items-center gap-1">
+            <div className="ml-auto flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="icon"

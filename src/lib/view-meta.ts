@@ -13,13 +13,13 @@ type IconType = ComponentType<{ className?: string }>;
 
 /**
  * 视图标签页元数据（设计文档 §12.4 / §3，对齐原型 main-window.html）。
- * 侧边栏导航与各视图标题共用，确保文案与图标单一来源。
+ * 侧边栏导航消费，确保标签文案与图标单一来源。
  */
 export interface ViewMeta {
   id: AppView;
   /** 侧边栏 / 标题栏展示名。 */
   label: string;
-  /** 一句话职责描述，用于视图头部与无障碍说明。 */
+  /** 一句话职责描述，用于侧边栏导航项的悬浮提示。 */
   description: string;
   icon: IconType;
 }
