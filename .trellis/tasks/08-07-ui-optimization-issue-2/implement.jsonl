@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/lingostack-app/frontend/index.md", "reason": "前端总规范与开发前检查清单；本任务全部界面改动都落在 src/ 前端侧"}
+{"file": ".trellis/spec/lingostack-app/frontend/state-management.md", "reason": "新增 stream-store 需遵循既有 Zustand 写法、选择器约定与失败处理策略（两个既有 store 策略相反，不可照抄）"}
+{"file": ".trellis/spec/lingostack-app/frontend/components-and-styling.md", "reason": "命名页五列卡片与翻译页按钮重排需用手写 ui/ 原语与 Tailwind 令牌，非 shadcn 生成物"}
+{"file": ".trellis/spec/lingostack-core/backend/prompt-templates.md", "reason": "命名内置指令改为产出中性候选词，须按既有 Prompt 快照机制改文本并同步断言"}
+{"file": ".trellis/spec/guides/rust-conventions.md", "reason": "prompt.rs 断言调整需符合 Rust 测试与 clippy 零警告约定"}

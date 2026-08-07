@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/lingostack-app/frontend/testing-and-a11y.md", "reason": "验收 AC9 需按既有 Vitest + RTL 模式与 mock 边界写测试；异步区域的 aria-live 是全站既有缺口，本任务改动的两个视图正是异步区域"}
+{"file": ".trellis/spec/lingostack-app/frontend/index.md", "reason": "门禁口径：pnpm lint 零警告、tsc 严格模式、src/ 下 any 计数须保持为 0、新增 eslint-disable 必须附理由"}
+{"file": ".trellis/spec/lingostack-core/backend/prompt-templates.md", "reason": "复核命名指令改动是否守住风格约束，防止开发行业语言规范回归"}
+{"file": ".trellis/spec/guides/ipc-contract-guide.md", "reason": "确认本任务未改 IPC 契约——stream-store 只是复用既有 chatStream 封装，不新增命令或字段"}
