@@ -32,15 +32,6 @@ function PaneLabel({ children }: { children: ReactNode }) {
   );
 }
 
-/** 面板底栏（原型 .pane-foot）。 */
-function PaneFoot({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-2.5 border-t border-border bg-background/40 px-3 py-2">
-      {children}
-    </div>
-  );
-}
-
 const STATUS_STYLE: Record<
   StreamStatus,
   { dot: string; text: string; cls: string }
@@ -139,6 +130,9 @@ function PaneActions({
 /**
  * 翻译视图（§3 场景 2，对齐原型翻译 panel）：
  * 顶部操作卡片（语言对 + 状态 + 翻译按钮）+ 双 pane（原文 / 译文）。
+ *
+ * 两个面板结构完全对称：标题栏（名称 + 朗读/收藏/复制）+ 内容区，无底栏。
+ * 动作按钮位置左右一致，避免同一组操作在两侧高度不同造成的视觉割裂。
  *
  * 经 `effective_prompt` 取内置 Prompt（替换 {source_lang}/{target_lang} 占位符），
  * 再由 stream-store 发起流式聊天。任务态存在 store 而非组件内：切到别的页面
@@ -264,6 +258,14 @@ export function TranslateView() {
         <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-background">
           <PaneLabel>
             <span>译文</span>
+            <span className="flex-1" aria-hidden="true" />
+            <PaneActions
+              text={target}
+              onFavorite={favoriteAction}
+              favorited={saved}
+              label="译文"
+              streaming={streaming}
+            />
           </PaneLabel>
           <div
             aria-live="polite"
@@ -281,15 +283,6 @@ export function TranslateView() {
               </div>
             ) : null}
           </div>
-          <PaneFoot>
-            <PaneActions
-              text={target}
-              onFavorite={favoriteAction}
-              favorited={saved}
-              label="译文"
-              streaming={streaming}
-            />
-          </PaneFoot>
         </section>
       </div>
     </ViewShell>
