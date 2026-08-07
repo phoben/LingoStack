@@ -28,13 +28,14 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      # libappindicator3-dev 与 libayatana-appindicator3-dev 互斥（Conflicts），
+      # 同时安装会导致 apt 报 broken packages。Tauri 2 用 ayatana 分支，故只装它。
       - name: 安装 Tauri 所需 Linux 系统依赖
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
             librsvg2-dev \
             patchelf \
             libglib2.0-dev \
@@ -42,6 +43,20 @@ jobs:
             libayatana-appindicator3-dev
 
       - uses: Swatinem/rust-cache@v2
+
+      # tauri::generate_context! 在编译期校验 frontendDist（../dist）存在，
+      # 故 Rust 侧任何检查前都必须先产出前端构建物，否则 proc macro panic。
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 构建前端产物（dist/）
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
 
       - name: cargo fmt
         run: cargo fmt --all --check
@@ -70,9 +85,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 不指定 version：由 package.json 的 packageManager 字段决定版本。
+      # 两处同时声明会触发 action 的版本冲突检查而直接失败。
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:

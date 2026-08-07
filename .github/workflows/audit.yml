@@ -46,9 +46,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 不指定 version：由 package.json 的 packageManager 字段决定版本。
+      # 两处同时声明会触发 action 的版本冲突检查而直接失败。
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
