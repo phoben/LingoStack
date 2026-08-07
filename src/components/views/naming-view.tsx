@@ -10,7 +10,8 @@ import { useStreamStore } from "@/stores/stream-store";
 import { cn } from "@/lib/utils";
 
 /**
- * 命名视图（§3 场景 3）：居中的描述输入 + 生成按钮，结果按五列平铺。
+ * 命名视图（§3 场景 3）：顶部描述输入 + 生成按钮，结果按五列平铺。
+ * 五列靠竖向分割线分隔、行间靠横线分隔，不各自成卡片——全页只有主面板一层容器。
  *
  * 一次生成只发一次模型请求，取回若干「中性候选词」（小写空格分隔的英文词组），
  * 五种写法在本地铺开（见 lib/case-convert）。因此五列严格逐行对齐——同一行是
@@ -48,7 +49,7 @@ export function NamingView() {
   return (
     <ViewShell
       toolbar={
-        <div className="mx-auto flex w-full max-w-xl items-center gap-2.5">
+        <div className="flex w-full items-center gap-2.5">
           <Input
             value={task.input}
             onChange={(e) => setInput("naming", e.target.value)}
@@ -76,7 +77,7 @@ export function NamingView() {
         className="flex h-full min-h-0 flex-col"
       >
         {grid.length === 0 && task.status !== "error" ? (
-          <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+          <p className="px-4 py-8 text-center text-xs text-muted-foreground">
             {streaming
               ? "正在生成候选…"
               : "输入用途描述并点「生成」，一次产出五种命名规范的候选。"}
@@ -84,12 +85,9 @@ export function NamingView() {
         ) : null}
 
         {grid.length > 0 ? (
-          <div className="grid min-h-0 grid-cols-5 gap-2.5 overflow-auto">
+          <div className="grid min-h-0 grid-cols-5 divide-x divide-border overflow-auto">
             {GRID_STYLES.map((style) => (
-              <section
-                key={style}
-                className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-background"
-              >
+              <section key={style} className="flex min-w-0 flex-col">
                 <h3 className="border-b border-border px-3 py-2 font-mono text-[11px] text-muted-foreground">
                   {NAMING_STYLE_LABEL[style]}
                 </h3>
@@ -132,8 +130,8 @@ export function NamingView() {
           <div
             role="alert"
             className={cn(
-              "flex items-center gap-2 rounded-lg border border-accent/30 px-4 py-3",
-              grid.length > 0 && "mt-2.5",
+              "flex items-center gap-2 px-4 py-3",
+              grid.length > 0 && "border-t border-border",
             )}
           >
             <span className="text-xs text-accent">{task.error}</span>

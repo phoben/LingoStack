@@ -69,7 +69,8 @@ const DOCS: DocItem[] = [
 
 /**
  * 文档视图（§3 场景 4，对齐原型文档 panel）：
- * 顶部操作卡片（上传 + 原文 / 译文切换）+ 左栏文件历史 + 右栏预览（含保留词高亮）。
+ * 顶部操作行（上传 + 原文 / 译文切换）+ 左栏文件历史 + 右栏预览（含保留词高亮）。
+ * 全页只有主面板一层容器，左右两栏靠竖向分割线分隔，不各自套卡片。
  * 文档翻译为 P1 / V1.5 特性，此处用静态示例还原布局，业务能力留待后续。
  */
 export function DocsView() {
@@ -136,13 +137,14 @@ export function DocsView() {
         </>
       }
     >
-      <div className="grid h-full grid-cols-[220px_1fr] gap-3.5">
+      {/* 文件列表与预览靠一条竖向分割线分隔，不各自成卡片 */}
+      <div className="grid h-full grid-cols-[220px_1fr] divide-x divide-border">
         {/* 文件历史 */}
-        <aside className="flex min-h-0 flex-col gap-2.5 overflow-hidden rounded-lg border border-border bg-background p-3">
-          <div className="px-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+        <aside className="flex min-h-0 flex-col overflow-hidden">
+          <div className="border-b border-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
             文件历史
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto">
+          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto p-2">
             {DOCS.map((d) => {
               const active = d.id === activeDoc;
               return (
@@ -158,7 +160,7 @@ export function DocsView() {
                       : "border-transparent hover:bg-accent/60",
                   )}
                 >
-                  <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md border border-border bg-background text-info">
+                  <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md border border-border text-info">
                     <FileText className="h-3.5 w-3.5" />
                   </span>
                   <span className="flex min-w-0 flex-col">
@@ -181,7 +183,7 @@ export function DocsView() {
         </aside>
 
         {/* 查看器 */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-background">
+        <section className="flex min-h-0 flex-col overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col overflow-auto px-5 py-4">
             {hasContent ? (
               vtab === "src" ? (

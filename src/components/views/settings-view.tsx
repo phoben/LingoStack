@@ -59,20 +59,23 @@ export function SetSection({
   children?: ReactNode;
 }) {
   return (
-    <section className="border-b border-border py-4 first:pt-0 last:border-0 last:pb-0">
+    <section className="border-b border-border py-5 first:pt-3 last:border-0">
       <h3 className="text-[15px] font-semibold">{title}</h3>
       {desc ? (
-        <p className="mb-3.5 mt-0.5 text-xs text-muted-foreground">{desc}</p>
+        <p className="mb-3 mt-0.5 text-xs text-muted-foreground">{desc}</p>
       ) : null}
       {children}
     </section>
   );
 }
 
-/** 通用单元格：左标签 + 右内容/操作（原型 .func-cell）。 */
+/**
+ * 通用单元格：左标签 + 右内容/操作（原型 .func-cell）。
+ * 无描边无底色——同类单元格之间靠父级的分割线区分，避免卡片套卡片。
+ */
 export function FuncCell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-sm border border-border bg-background px-3.5 py-2.5">
+    <div className="flex items-center justify-between gap-3 py-2">
       {children}
     </div>
   );
@@ -115,14 +118,14 @@ export function SettingsView() {
       }
     >
       <div className="flex h-full flex-col">
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div className="min-h-0 flex-1 overflow-auto px-4 py-1">
           {sub === "general" && (
             <div>
               <SetSection
                 title="语言映射"
                 desc="命中映射用映射目标；原文等于界面语言时改为英文；全部未命中用全局默认。"
               >
-                <div className="grid grid-cols-2 gap-3">
+                <div className="divide-y divide-border border-t border-border">
                   <FuncCell>
                     <span className="text-sm text-muted-foreground">
                       English → 中文
@@ -190,15 +193,14 @@ export function SettingsView() {
                 title="热键管理"
                 desc="注册失败即视为冲突，浮窗提示并在设置页标红。点击热键重新捕获。"
               >
-                <div className="flex flex-col gap-2">
+                <div className="divide-y divide-border border-y border-border">
+                  {/* 热键行表：行间浅线分隔，冲突行仅用底色标记，不套描边卡片 */}
                   {HOTKEYS.map((h) => (
                     <div
                       key={h.label}
                       className={cn(
-                        "flex items-center gap-3 rounded-sm border bg-background px-3.5 py-2.5",
-                        h.conflict
-                          ? "border-destructive/40 bg-destructive/5"
-                          : "border-border",
+                        "flex items-center gap-3 px-1 py-2.5",
+                        h.conflict && "bg-destructive/5",
                       )}
                     >
                       <span className="min-w-[130px] text-sm text-muted-foreground">

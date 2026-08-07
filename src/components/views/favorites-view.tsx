@@ -25,7 +25,8 @@ function formatDate(ts: number): string {
 
 /**
  * 收藏视图（§3 场景 5，对齐原型收藏 panel）：
- * 顶部操作卡片（搜索 + 类型过滤 + 导入导出）+ 列表，数据存 IndexedDB。
+ * 顶部操作行（搜索 + 类型过滤 + 导入导出）+ 列表，数据存 IndexedDB。
+ * 列表为分割线行表——条目之间只隔一条浅色线，不逐条套卡片。
  *
  * V1 为扁平列表（含时间与来源），分组 / 标签留 V1.5（§15 开放问题）。
  */
@@ -137,21 +138,27 @@ export function FavoritesView() {
     >
       <div className="flex h-full flex-col">
         {notice ? (
-          <p aria-live="polite" className="mb-2 shrink-0 text-xs text-info">
+          <p
+            aria-live="polite"
+            className="shrink-0 border-b border-border px-4 py-2 text-xs text-info"
+          >
             {notice}
           </p>
         ) : null}
         {error ? (
-          <p role="alert" className="mb-2 shrink-0 text-xs text-accent">
+          <p
+            role="alert"
+            className="shrink-0 border-b border-border px-4 py-2 text-xs text-accent"
+          >
             {error}
           </p>
         ) : null}
 
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto">
+        <div className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-auto">
           {loading ? (
-            <p className="text-xs text-muted-foreground">加载中…</p>
+            <p className="px-4 py-3 text-xs text-muted-foreground">加载中…</p>
           ) : shown.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-muted-foreground">
                 <Bookmark className="h-5 w-5" />
               </span>
@@ -168,7 +175,7 @@ export function FavoritesView() {
             shown.map((f) => (
               <div
                 key={f.id}
-                className="flex items-center gap-3.5 rounded-lg border border-border bg-background px-4 py-3 transition-colors duration-fast hover:border-foreground/15"
+                className="flex shrink-0 items-center gap-3.5 px-4 py-3 transition-colors duration-fast hover:bg-accent/40"
               >
                 <span className="min-w-[160px] font-mono text-sm font-medium text-foreground">
                   {f.term}

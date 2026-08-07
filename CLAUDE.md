@@ -49,7 +49,7 @@ crates/                         # Rust workspace（纯后端能力，跨平台 /
   lingostack-llm/               #   LLM 适配层：LlmProvider trait + chat_stream()（OpenAI 兼容 / Anthropic / Gemini / Ollama）
   lingostack-selection/         #   系统取词（Win UIA / macOS Accessibility / Linux AT-SPI，按 target 分文件）
   lingostack-hook/              #   全局热键、托盘、单实例锁
-  lingostack-tts/               #   系统 TTS（Windows tts crate / macOS AVSpeechSynthesizer）
+  lingostack-tts/               #   系统 TTS（Windows SAPI 直调 + 专用朗读线程 / macOS AVSpeechSynthesizer）
   lingostack-docparse/          #   Markdown / PDF(文本版) / DOCX 提取、分块、结构骨架
 docs/                           # 设计文档
 .github/                        # CI / Dependabot / Issue 与 PR 模板
