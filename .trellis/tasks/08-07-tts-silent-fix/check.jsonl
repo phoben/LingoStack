@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/lingostack-tts/backend/index.md", "reason": "验收须确认「测试的天花板」一节仍被尊重（不断言真的出声），且被推翻的关键约束已按 design.md §8 改写，未留下自相矛盾的规范"}
+{"file": ".trellis/spec/guides/platform-isolation-guide.md", "reason": "复核 macOS / Linux 占位实现与其 Unsupported 断言测试零改动（AC6），平台隔离未被线程模型破坏"}
+{"file": ".trellis/spec/guides/rust-conventions.md", "reason": "门禁口径：cargo fmt / clippy -D warnings / test --workspace 全绿，unsafe 块各带 SAFETY 注释，无新增 allow"}
+{"file": ".trellis/spec/lingostack-app/backend/ipc-commands.md", "reason": "复核 IPC 契约零改动、src-tauri 与 src 前端零 diff（AC6）"}

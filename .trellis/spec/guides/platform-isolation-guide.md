@@ -50,15 +50,21 @@ macOS / Linux 目前是占位。它们**返回类型化错误，绝不 panic、�
 
 ### COM 初始化
 
-两个 crate 都用 `CoInitializeEx(None, COINIT_APARTMENTTHREADED)` 且**忽略返回值**（`selection/src/windows.rs:74`、`tts/src/windows.rs:37-41`）——已初始化时返回 `RPC_E_CHANGED_MODE` 属正常，不要去改动已有 apartment。
+两个 crate 都用 `CoInitializeEx(None, COINIT_APARTMENTTHREADED)` 且**忽略返回值**（`selection/src/windows.rs:74`、`tts/src/windows.rs:64-74`）——已初始化时返回 `RPC_E_CHANGED_MODE` 属正常，不要去改动已有 apartment。
 
 全仓库**没有 `CoUninitialize`**，刻意如此。
 
-### TTS 不缓存 voice 实例
+两者的调用频次不同：selection 每次取词都初始化；TTS 的 `create_voice()` 只在专用朗读线程内调用，全进程仅一次（见下节）。
 
-`ISpVoice` 绑定 apartment，不是 `Send+Sync`，而 `Speaker` trait 要求 `Send+Sync`。所以每次 `speak`/`stop` 重新 `CoCreateInstance`（`tts/src/windows.rs:37-41`，理由见 `:1-6`）。用户点击触发的频率下这个开销可接受。
+### TTS 的 voice 实例常驻专用线程
 
-**不要**为了「优化」把 voice 缓存进 struct——会直接违反 trait 约束。
+`ISpVoice` 绑定 apartment，不是 `Send+Sync`，而 `Speaker` trait 要求 `Send+Sync`——所以 `WindowsSpeaker` **不能持有** voice 实例。
+
+但也**不能在 `speak()` 里就地创建**：朗读走 `SPF_ASYNC` 立即返回，函数返回即 drop，朗读随实例被销毁（曾导致 issue #2「点了没声音」，实测产出 46 字节静音）。
+
+现行解法是把实例关进一条进程内单例的朗读线程，`WindowsSpeaker` 无字段、只往通道递指令（`tts/src/windows.rs:1-11` 有完整推导）。单实例同时是 `SPF_PURGEBEFORESPEAK` 生效的前提——跨实例 purge **互不打断**，已实测。
+
+改动前先读 [`lingostack-tts` 规范](../lingostack-tts/backend/index.md) 的「关键约束」一节。**别把 voice 塞进 struct，也别为「简化」退回每次新建实例。**
 
 ### unsafe 与错误转换
 
@@ -79,7 +85,7 @@ macOS / Linux 目前是占位。它们**返回类型化错误，绝不 panic、�
 含真实系统调用的测试只能断言「不 panic / 结果自洽」，无法断言功能正确——结果取决于运行环境有没有真实选中文本或音频设备（`selection/src/windows.rs:129-132` 注释写明）。
 
 - `selection/src/windows.rs:119-161`：4 个测试，均为不 panic 级
-- `tts/src/windows.rs:77-117`：含一个 `Send+Sync` 编译期断言测试（`:112-116`），值得照抄
+- `tts/src/windows.rs:184-286`：含一个 `Send+Sync` 编译期断言测试（`:220-223`），值得照抄；另有三条守线程模型的结构性断言（耗时上界 / 不死锁 / 线程复用），均在环境无引擎时提前返回
 
 CI 三平台矩阵都跑 `cargo test --workspace`（`.github/workflows/ci.yml:22`），所以占位实现的 `Unsupported` 测试确实在各平台执行了——但那不代表功能被验证过。
 

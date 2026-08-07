@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/lingostack-tts/backend/index.md", "reason": "本任务唯一改动的 crate 规范；其中「关键约束：不缓存 voice 实例」正是本次要推翻并改写的条目，必须先读懂原始理由再动手"}
+{"file": ".trellis/spec/guides/platform-isolation-guide.md", "reason": "朗读实现按 target 分文件隔离，改 windows.rs 不得破坏 trait 抽象边界或在调用侧引入平台分支"}
+{"file": ".trellis/spec/guides/rust-conventions.md", "reason": "unsafe/SAFETY 注释风格、错误保留 HRESULT、clippy 零警告、测试写法均须遵循既有 Rust 约定"}
+{"file": ".trellis/spec/lingostack-app/backend/ipc-commands.md", "reason": "确认 speak / stop_speaking 命令契约保持零改动（prd.md R5），线程模型改动不外溢到 IPC 层"}
