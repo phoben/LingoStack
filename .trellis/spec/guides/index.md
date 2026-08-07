@@ -1,97 +1,68 @@
-# Thinking Guides
+# 跨包思考指南
 
-> **Purpose**: Expand your thinking to catch things you might not have considered.
+> 这些指南针对 LingoStack 真实存在的跨边界风险。只在触发条件命中时读，不必通读。
 
----
+## 本仓库的三条真实断裂线
 
-## Why Thinking Guides?
+LingoStack 的 bug 风险不是均匀分布的。以下三处是「改一边、另一边静默失效」的地方，全部有实据：
 
-**Most bugs and tech debt come from "didn't think of that"**, not from lack of skill:
+| 指南 | 覆盖的断裂线 | 何时读 |
+|------|-------------|--------|
+| [IPC 契约指南](./ipc-contract-guide.md) | Rust serde 类型 ↔ TS 手写镜像 ↔ IPC 传输。无代码生成、无编译期校验，改名只在运行时炸 | 增删改任何跨 IPC 的字段、枚举变体、命令、事件 |
+| [平台隔离指南](./platform-isolation-guide.md) | `lingostack-selection` / `lingostack-tts` 的 Windows 实现 vs macOS/Linux 占位 | 动取词、朗读、热键，或新增任何含平台差异的能力 |
+| [Rust 通用约定](./rust-conventions.md) | 错误类型、内联测试、serde 属性在 7 个 crate 间的一致写法 | 新增 crate、新增错误变体、写测试 |
 
-- Didn't think about what happens at layer boundaries → cross-layer bugs
-- Didn't think about code patterns repeating → duplicated code everywhere
-- Didn't think about edge cases → runtime errors
-- Didn't think about future maintainers → unreadable code
+## 触发清单
 
-These guides help you **ask the right questions before coding**.
+### 该读 IPC 契约指南
 
----
+- [ ] 改了 `crates/lingostack-core/src/config.rs` 里任何 `pub` 字段或枚举变体
+- [ ] 新增 / 改名 `#[tauri::command]`
+- [ ] 改了 `ChatEvent` 或任何带 `#[serde(tag = ...)]` 的类型
+- [ ] 改了 `AppConfig::default()` 或任何 `default_*()` 函数的返回值
+- [ ] 动了 Prompt 文本里的 `{source_lang}` / `{target_lang}` / `{style}` 占位符
+- [ ] 改了 `index.html` 里的主题预加载脚本，或 `theme-store.ts` 的 storage key
 
-## Available Guides
+### 该读平台隔离指南
 
-| Guide | Purpose | When to Use |
-|-------|---------|-------------|
-| [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
-| [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
+- [ ] 在调用侧写下了 `if cfg!(windows)` 或 `#[cfg(target_os)]` 分支
+- [ ] 给 `SelectionProvider` / `Speaker` trait 加了方法
+- [ ] 实装 macOS / Linux 占位实现
+- [ ] 用到了 `windows` crate、COM、`unsafe`
 
----
+### 该读 Rust 通用约定
 
-## Quick Reference: Thinking Triggers
+- [ ] 新建 crate，或给现有 crate 加错误变体
+- [ ] 拿不准测试放哪、怎么命名
+- [ ] 给 serde 类型加字段，不确定用哪套 `#[serde(...)]` 属性
 
-### When to Think About Cross-Layer Issues
+## 改值之前先搜
 
-- [ ] Feature touches 3+ layers (API, Service, Component, Database)
-- [ ] Data format changes between layers
-- [ ] Multiple consumers need the same data
-- [ ] You're not sure where to put some logic
-- [ ] You are adding an event kind, JSONL record, RPC payload, or config field
-- [ ] UI / command code starts casting raw payload fields directly
-
-→ Read [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md)
-
-### When to Think About Code Reuse
-
-- [ ] You're writing similar code to something that exists
-- [ ] You see the same pattern repeated 3+ times
-- [ ] You're adding a new field to multiple places
-- [ ] **You're modifying any constant or config**
-- [ ] **You're creating a new utility/helper function** ← Search first!
-- [ ] Two files read the same untyped payload field with local casts
-- [ ] Multiple branches update the same derived state from `kind` / `action`
-
-→ Read [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md)
-
-### When Verifying AI Cross-Review Results
-
-- [ ] Reviewer claims "user input can be malicious" → Check the actual data source (internal manifest? user config? external API?)
-- [ ] Reviewer flags "missing validation" → Is the data from a trusted internal source?
-- [ ] Reviewer says "behavior change" → Read the code comments — is it intentional design?
-- [ ] Reviewer identifies a "bug" in test → Mentally delete the feature being tested — does the test still pass? If yes → tautological test
-
-**Common AI reviewer false-positive patterns**:
-1. **Trust boundary confusion**: Treating internal data (bundled JSON manifests) as untrusted external input
-2. **Ignoring design comments**: Flagging intentional behavior documented in code comments as bugs
-3. **Variable misreading**: Not tracing a variable to its actual definition (e.g., Map keyed by path vs name)
-
-**Verification rule**: Every CRITICAL/WARNING finding must be verified against the actual code before prioritizing. Budget ~35% false-positive rate for AI reviews.
-
----
-
-## Pre-Modification Rule (CRITICAL)
-
-> **Before changing ANY value, ALWAYS search first!**
+本仓库有多处「同一个值写在两个地方、靠注释同步」的位置（详见 IPC 契约指南）。改任何常量、默认值、字段名之前：
 
 ```bash
-# Search for the value you're about to change
-grep -r "value_to_change" .
+rg "要改的值" --glob '!target' --glob '!node_modules'
 ```
 
-This single habit prevents most "forgot to update X" bugs.
+这一个习惯能挡掉本仓库最常见的一类缺陷：Rust 侧改了、TS 镜像忘了改，编译全绿，运行时 IPC 反序列化失败。
 
----
+## 验证 AI 评审结论时
 
-## How to Use This Directory
+本仓库有大量**刻意为之**的写法，会被评审误判为缺陷。判定前先读代码注释——以下几处都在源码里写明了理由：
 
-1. **Before coding**: Skim the relevant thinking guide
-2. **During coding**: If something feels repetitive or complex, check the guides
-3. **After bugs**: Add new insights to the relevant guide (learn from mistakes)
+1. **三个 provider 大段重复**（`ensure_success`、超时映射、客户端构造）—— 刻意保持每个协议文件自洽可独读，不是漏抽象。
+2. **UIA 取词丢弃全部 HRESULT**（`crates/lingostack-selection/src/windows.rs:76-86` 用 `.ok()?`）—— 刻意静默降级到剪贴板，见同文件 63-66 行注释。
+3. **配置保存失败不回滚**（`src/stores/config-store.ts:14-16`）—— 刻意只记 error。注意 `favorites-store.ts` 相反，它**会**回滚。
+4. **手写 bitfield 而非 bitflags crate**（`crates/lingostack-core/src/hotkey.rs:7`）—— 刻意不引依赖。
+5. **`Language::default()` 是 `En`，但配置里 UI 语言默认 `Zh`** —— 刻意分离，见 [IPC 契约指南](./ipc-contract-guide.md)。
 
----
+**判定规则**：每条评审结论先回到源码验证，尤其先看有没有解释性注释。
 
-## Contributing
+## 反过来说，这些是真缺口
 
-Found a new "didn't think of that" moment? Add it to the relevant guide.
+不要把它们当成「刻意设计」而放过：
 
----
-
-**Core Principle**: 30 minutes of thinking saves 3 hours of debugging.
+- `LlmError::is_retryable()` / `is_rate_limited()` 已实现且有测试，但**生产代码零调用**——CLAUDE.md 声称的自动重试 / 429 降并发**并不存在**。
+- 配置文件 0600 权限**只在 Unix 生效**，Windows 分支是空操作（`src-tauri/src/config.rs:59-62`），而该文件存着 API Key。
+- 前端所有异步状态区域**没有一处 `aria-live`**，屏幕阅读器听不到流式翻译结果。
+- `favorites-db.ts`、`favorites-store.ts`、全部 `components/views/`、全部 `ui/` 原语**零测试**。
