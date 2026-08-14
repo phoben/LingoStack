@@ -238,6 +238,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn preserves_translation_envelope_after_anthropic_normalization() {
+        let server = MockServer::start().await;
+        let envelope = "译文\n<<<LINGOSTACK_TERMS_V1>>>\n[]";
+        let stream = format!(
+            "data: {}\n\n",
+            serde_json::json!({"type":"content_block_delta","delta":{"text": envelope}})
+        );
+        Mock::given(method("POST"))
+            .and(path("/v1/messages"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(stream, "text/event-stream"))
+            .mount(&server)
+            .await;
+        let provider = AnthropicProvider::new(server.uri(), "sk-ant-test").unwrap();
+        let output: String = provider
+            .chat_stream(&request())
+            .filter_map(|result| async move { result.ok() })
+            .map(|chunk| chunk.delta)
+            .collect::<Vec<_>>()
+            .await
+            .concat();
+        assert_eq!(output, envelope);
+    }
+
+    #[tokio::test]
     async fn skips_non_delta_events() {
         // 只有两个 content_block_delta 产出 chunk，其余 5 个事件被忽略。
         let server = MockServer::start().await;

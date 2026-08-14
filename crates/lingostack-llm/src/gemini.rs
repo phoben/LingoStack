@@ -266,6 +266,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn preserves_translation_envelope_after_gemini_normalization() {
+        let server = MockServer::start().await;
+        let envelope = "译文\n<<<LINGOSTACK_TERMS_V1>>>\n[]";
+        let stream = serde_json::json!([
+            {"candidates":[{"content":{"parts":[{"text": envelope}]}}]}
+        ])
+        .to_string();
+        Mock::given(method("POST"))
+            .and(path(ENDPOINT_PATH))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(stream, "application/json"))
+            .mount(&server)
+            .await;
+        let output = deltas_of(&server, &request()).await.concat();
+        assert_eq!(output, envelope);
+    }
+
+    #[tokio::test]
     async fn body_uses_contents_parts_and_system_instruction() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))

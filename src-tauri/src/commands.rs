@@ -1,8 +1,13 @@
 //! Tauri IPC commands：配置读写、Prompt 查询、流式聊天。
 
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
 use futures::StreamExt;
 use lingostack_core::config::{AppConfig, Feature, ProviderConfig, ProviderKind};
-use lingostack_llm::{ChatMessage, ChatRequest, LlmProvider};
+use lingostack_core::lang::{Language, TranslationPlan};
+use lingostack_core::prompt::compose_translation_prompt;
+use lingostack_llm::{ChatMessage, ChatRequest, LlmError, LlmProvider};
 use tauri::ipc::Channel;
 use tauri::State;
 
@@ -59,12 +64,49 @@ pub fn effective_prompt(feature: Feature, state: State<'_, AppState>) -> Result<
     Ok(prompt.to_string())
 }
 
+/// 按 core 的四级规则解析一次翻译将使用的语言对。
+#[tauri::command]
+pub fn translation_plan(
+    text: String,
+    source_override: Option<Language>,
+    target_override: Option<Language>,
+    state: State<'_, AppState>,
+) -> Result<TranslationPlan, String> {
+    let cfg = config_store::load(&state.config_path).map_err(|e| e.to_string())?;
+    Ok(TranslationPlan::resolve(
+        &text,
+        source_override,
+        target_override,
+        &cfg.pair_mappings,
+        cfg.ui_language,
+        cfg.global_default_target,
+    ))
+}
+
+/// 返回替换语言占位符并追加强制术语协议后的翻译 Prompt。
+#[tauri::command]
+pub fn effective_translation_prompt(
+    source: Language,
+    target: Language,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let cfg = config_store::load(&state.config_path).map_err(|e| e.to_string())?;
+    let base = cfg
+        .prompt_overrides
+        .translate()
+        .replace("{source_lang}", source.display_name())
+        .replace("{target_lang}", target.display_name());
+    Ok(compose_translation_prompt(&base, source))
+}
+
 /// [`chat_stream`] 经 Channel 推回前端的流式事件。
 #[derive(serde::Serialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ChatEvent {
     /// 一个增量文本片段。
     Chunk { delta: String },
+    /// 仍在处理但需要告知用户的临时状态（例如共享限流冷却）。
+    Status { message: String },
     /// 流正常结束。
     Done,
     /// 流中段出错（已渲染部分保留，前端可「重试」，见 §9）。
@@ -81,26 +123,82 @@ pub async fn chat_stream(
 ) -> Result<(), String> {
     let cfg = config_store::load(&state.config_path).map_err(|e| e.to_string())?;
     let (provider_cfg, model_ref) = cfg.resolve_model(feature).map_err(|e| e.to_string())?;
-    let provider = build_provider(provider_cfg)?;
     let request = ChatRequest::new(model_ref.model.clone(), messages);
-    let mut stream = provider.chat_stream(&request);
-    while let Some(result) = stream.next().await {
-        match result {
-            Ok(chunk) => on_event
-                .send(ChatEvent::Chunk { delta: chunk.delta })
-                .map_err(|e| e.to_string())?,
-            Err(e) => {
-                on_event
-                    .send(ChatEvent::Error {
-                        message: e.to_string(),
-                    })
-                    .ok();
-                return Err(e.to_string());
+    let mut retried = false;
+    loop {
+        if let Some(delay) = shared_cooldown_delay(&state.rate_limit_until, Instant::now()) {
+            on_event
+                .send(ChatEvent::Status {
+                    message: "服务繁忙，正在短暂等待后重试…".into(),
+                })
+                .map_err(|e| e.to_string())?;
+            tokio::time::sleep(delay).await;
+        }
+        let provider = build_provider(provider_cfg)?;
+        let mut stream = provider.chat_stream(&request);
+        let mut sent_chunk = false;
+        let mut retry_error: Option<LlmError> = None;
+        while let Some(result) = stream.next().await {
+            match result {
+                Ok(chunk) => {
+                    sent_chunk = true;
+                    on_event
+                        .send(ChatEvent::Chunk { delta: chunk.delta })
+                        .map_err(|e| e.to_string())?;
+                }
+                Err(e) if should_retry(sent_chunk, retried, &e) => {
+                    retry_error = Some(e);
+                    break;
+                }
+                Err(e) => {
+                    on_event
+                        .send(ChatEvent::Error {
+                            message: e.to_string(),
+                        })
+                        .ok();
+                    return Err(e.to_string());
+                }
             }
         }
+        if let Some(error) = retry_error {
+            retried = true;
+            if error.is_rate_limited() {
+                extend_shared_cooldown(
+                    &state.rate_limit_until,
+                    Instant::now(),
+                    Duration::from_secs(1),
+                );
+            } else {
+                tokio::time::sleep(Duration::from_millis(250)).await;
+            }
+            continue;
+        }
+        break;
     }
     on_event.send(ChatEvent::Done).ok();
     Ok(())
+}
+
+fn should_retry(sent_chunk: bool, retried: bool, error: &LlmError) -> bool {
+    !sent_chunk && !retried && error.is_retryable()
+}
+
+/// 返回所有请求都必须遵守的限流剩余时间，不在锁内等待。
+fn shared_cooldown_delay(cooldown: &Mutex<Option<Instant>>, now: Instant) -> Option<Duration> {
+    cooldown
+        .lock()
+        .ok()
+        .and_then(|until| until.and_then(|deadline| deadline.checked_duration_since(now)))
+}
+
+/// 429 只会延长而不会缩短现有冷却，保证并发请求共享同一个节流边界。
+fn extend_shared_cooldown(cooldown: &Mutex<Option<Instant>>, now: Instant, duration: Duration) {
+    if let Ok(mut until) = cooldown.lock() {
+        let next = now + duration;
+        if until.map_or(true, |current| current < next) {
+            *until = Some(next);
+        }
+    }
 }
 
 /// 由 [`ProviderConfig`] 构造具体 LLM 提供商实例。
@@ -188,5 +286,44 @@ mod tests {
         p.kind = ProviderKind::Ollama;
         p.base_url = "http://localhost:11434".into();
         assert!(build_provider(&p).is_ok());
+    }
+
+    #[test]
+    fn retry_policy_only_retries_zero_output_retryable_errors() {
+        assert!(should_retry(false, false, &LlmError::Timeout));
+        assert!(!should_retry(true, false, &LlmError::Timeout));
+        assert!(!should_retry(false, true, &LlmError::Timeout));
+        assert!(!should_retry(
+            false,
+            false,
+            &LlmError::Stream("bad envelope".into())
+        ));
+    }
+
+    #[test]
+    fn rate_limit_cooldown_is_shared_and_only_extends() {
+        let cooldown = Mutex::new(None);
+        let now = Instant::now();
+        extend_shared_cooldown(&cooldown, now, Duration::from_secs(1));
+        assert!(shared_cooldown_delay(&cooldown, now + Duration::from_millis(500)).is_some());
+        extend_shared_cooldown(
+            &cooldown,
+            now + Duration::from_millis(100),
+            Duration::from_millis(100),
+        );
+        assert!(shared_cooldown_delay(&cooldown, now + Duration::from_millis(500)).is_some());
+        assert!(shared_cooldown_delay(&cooldown, now + Duration::from_secs(2)).is_none());
+    }
+
+    #[test]
+    fn status_event_serializes_for_the_typescript_ipc_mirror() {
+        let json = serde_json::to_string(&ChatEvent::Status {
+            message: "服务繁忙，正在短暂等待后重试…".into(),
+        })
+        .unwrap();
+        assert_eq!(
+            json,
+            "{\"type\":\"status\",\"message\":\"服务繁忙，正在短暂等待后重试…\"}"
+        );
     }
 }

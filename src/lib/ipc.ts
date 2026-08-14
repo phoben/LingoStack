@@ -6,7 +6,7 @@
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
-import type { AppConfig, ChatEvent, ChatMessage, Feature } from "./config-types";
+import type { AppConfig, ChatEvent, ChatMessage, Feature, Language, TranslationPlan } from "./config-types";
 
 /** 取词来源：辅助 API 直读，或降级自剪贴板。 */
 export type SelectionSource = "accessibility" | "clipboard";
@@ -44,6 +44,18 @@ export function saveConfig(cfg: AppConfig): Promise<void> {
 /** 取某功能当前生效的 Prompt（用户覆盖优先；含占位符，前端替换）。 */
 export function effectivePrompt(feature: Feature): Promise<string> {
   return invoke<string>("effective_prompt", { feature });
+}
+
+export function translationPlan(
+  text: string,
+  sourceOverride?: Language,
+  targetOverride?: Language,
+): Promise<TranslationPlan> {
+  return invoke<TranslationPlan>("translation_plan", { text, sourceOverride, targetOverride });
+}
+
+export function effectiveTranslationPrompt(source: Language, target: Language): Promise<string> {
+  return invoke<string>("effective_translation_prompt", { source, target });
 }
 
 /**

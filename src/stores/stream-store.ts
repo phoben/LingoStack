@@ -3,6 +3,7 @@ import { create } from "zustand";
 import type { ChatMessage, Feature } from "@/lib/config-types";
 import { chatStream } from "@/lib/ipc";
 import { stringifyError } from "@/lib/utils";
+import { TranslationEnvelopeParser, type TranslationTerm } from "@/lib/translation-envelope";
 
 /**
  * 流式任务状态（跨视图存活）。
@@ -24,6 +25,9 @@ export interface StreamTask {
   error: string | null;
   /** 本次任务的输入（原文 / 描述）。也在此存放，否则切回页面后输入框空白却有输出。 */
   input: string;
+  terms: TranslationTerm[];
+  diagnostic: string | null;
+  parser: TranslationEnvelopeParser | null;
   /**
    * 任务序号。回调先比对序号，不等则丢弃——避免用户连点两次生成时，
    * 上一条流的迟到增量污染新结果。Tauri Channel 无 abort 语义，这是最小可行守卫。
@@ -44,7 +48,7 @@ const SAMPLE_INPUT: Record<StreamFeature, string> = {
 };
 
 function emptyTask(input = ""): StreamTask {
-  return { status: "idle", output: "", error: null, input, seq: 0 };
+  return { status: "idle", output: "", error: null, input, terms: [], diagnostic: null, parser: null, seq: 0 };
 }
 
 function initialTasks(): Record<StreamFeature, StreamTask> {
@@ -102,6 +106,9 @@ export const useStreamStore = create<StreamState>((set, get) => ({
           output: "",
           error: null,
           input,
+          terms: [],
+          diagnostic: null,
+          parser: feature === "translate" ? new TranslationEnvelopeParser() : null,
           seq,
         },
       },
@@ -120,21 +127,33 @@ export const useStreamStore = create<StreamState>((set, get) => ({
       const messages = await buildMessages(input);
       await chatStream(feature, messages, (event) => {
         if (event.type === "chunk") {
-          patch((task) => ({ output: task.output + event.delta }));
+          patch((task) => task.parser
+            ? { output: task.parser.push(event.delta) }
+            : { output: task.output + event.delta });
+        } else if (event.type === "status") {
+          patch(() => ({ diagnostic: event.message }));
         } else if (event.type === "done") {
-          patch(() => ({ status: "done" }));
+          patch((task) => task.parser
+            ? { status: "done", ...task.parser.finish(task.input), parser: null }
+            : { status: "done" });
         } else {
-          patch(() => ({ status: "error", error: event.message }));
+          patch((task) => task.parser
+            ? { status: "error", error: event.message, ...task.parser.finish(task.input, true), parser: null }
+            : { status: "error", error: event.message });
         }
       });
       // 兜底：调用已返回却没收到 done / error 时收尾。否则状态永久停在
       // streaming，后续 start 会被「进行中」判定挡掉，按钮形同失效。
       patch((task) =>
-        task.status === "streaming" ? { status: "done" } : {},
+        task.status === "streaming" ? (task.parser
+          ? { status: "done", ...task.parser.finish(task.input), parser: null }
+          : { status: "done" }) : {},
       );
     } catch (e) {
       // 已累积的输出保留，用户可「重试」（设计文档 §9）。
-      patch(() => ({ status: "error", error: stringifyError(e) }));
+      patch((task) => task.parser
+        ? { status: "error", error: stringifyError(e), ...task.parser.finish(task.input, true), parser: null }
+        : { status: "error", error: stringifyError(e) });
     }
   },
 }));

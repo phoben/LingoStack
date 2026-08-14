@@ -6,6 +6,7 @@
  */
 
 export type Language = "zh" | "en" | "ja";
+export interface TranslationPlan { source: Language; target: Language; }
 
 /** LLM 提供商协议（serde `rename_all = "snake_case"`）。 */
 export type ProviderKind =
@@ -96,6 +97,7 @@ export interface ChatMessage {
 /** `chat_stream` 经 Channel 推回的事件（Rust `ChatEvent`，tag=type, snake_case）。 */
 export type ChatEvent =
   | { type: "chunk"; delta: string }
+  | { type: "status"; message: string }
   | { type: "done" }
   | { type: "error"; message: string };
 

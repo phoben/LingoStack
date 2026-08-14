@@ -85,6 +85,22 @@ describe("stream-store", () => {
     expect(task().output).toBe("半句");
   });
 
+  it("status 事件在冷却期间保留流式状态并显示非阻塞诊断", async () => {
+    const live = captureEmit();
+    const running = useStreamStore.getState().start("translate", "hi", messages);
+    await live.ready;
+    live.emit({ type: "status", message: "服务繁忙，正在短暂等待后重试…" });
+    expect(task().status).toBe("streaming");
+    expect(task().diagnostic).toBe("服务繁忙，正在短暂等待后重试…");
+    live.emit({ type: "chunk", delta: "译文" });
+    live.emit({ type: "done" });
+    live.settle();
+    await running;
+    expect(task().status).toBe("done");
+    expect(task().output).toBe("译文");
+    expect(task().diagnostic).toBeNull();
+  });
+
   it("发起失败（取 Prompt 抛错）记为错误", async () => {
     vi.mocked(chatStream).mockResolvedValue(undefined);
     await useStreamStore.getState().start("translate", "hi", () => {

@@ -10,18 +10,54 @@ import {
 import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { effectivePrompt, speak } from "@/lib/ipc";
+import { effectiveTranslationPrompt, speak, translationPlan } from "@/lib/ipc";
+import type { TranslationTerm } from "@/lib/translation-envelope";
 import { useAppStore } from "@/stores/app-store";
 import { useFavoritesStore } from "@/stores/favorites-store";
 import { type StreamStatus, useStreamStore } from "@/stores/stream-store";
 import { cn } from "@/lib/utils";
 
-const LANG_NAME: Record<string, string> = {
-  auto: "自动检测",
-  zh: "中文",
-  en: "English",
-  ja: "日本語",
-};
+export function TermTags({ terms }: { terms: TranslationTerm[] }) {
+  const [open, setOpen] = useState<number | null>(null);
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(null);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, []);
+  if (terms.length === 0) return null;
+  return (
+    <section className="mt-4 border-t border-border pt-3" aria-label="上下文术语">
+      <p className="mb-2 text-xs text-muted-foreground">上下文术语</p>
+      <div className="flex flex-wrap gap-2">
+        {terms.map((term, index) => {
+          const id = `term-explanation-${index}`;
+          return (
+            <span key={`${term.category}:${term.term}`} className="relative">
+              <button
+                type="button"
+                className="rounded-md border border-border px-2 py-1 text-xs text-foreground transition-colors duration-fast hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-info/40"
+                aria-describedby={open === index ? id : undefined}
+                onMouseEnter={() => setOpen(index)}
+                onMouseLeave={() => setOpen(null)}
+                onFocus={() => setOpen(index)}
+                onBlur={() => setOpen(null)}
+              >
+                {term.term}
+              </button>
+              {open === index ? (
+                <span id={id} role="tooltip" className="absolute left-0 top-full z-10 mt-1 w-56 border border-border bg-surface px-2 py-1.5 text-xs text-foreground shadow-ring">
+                  {term.explanation}
+                </span>
+              ) : null}
+            </span>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 /** 面板标签栏（原型 .pane-label）：与正文之间只隔一条浅色线。 */
 function PaneLabel({ children }: { children: ReactNode }) {
@@ -152,7 +188,7 @@ export function TranslateView() {
   const start = useStreamStore((s) => s.start);
   const [saved, setSaved] = useState(false);
   const [sourceLang, setSourceLang] = useState("auto");
-  const [targetLang, setTargetLang] = useState("zh");
+  const [targetLang, setTargetLang] = useState("auto");
 
   const streaming = task.status === "streaming";
   const source = task.input;
@@ -161,10 +197,12 @@ export function TranslateView() {
   const translate = (override?: string) => {
     const src = override ?? source;
     void start("translate", src, async () => {
-      const tpl = await effectivePrompt("translate");
-      const system = tpl
-        .replace(/\{source_lang\}/g, LANG_NAME[sourceLang] ?? "自动检测")
-        .replace(/\{target_lang\}/g, LANG_NAME[targetLang] ?? "中文");
+      const plan = await translationPlan(
+        src,
+        sourceLang === "auto" ? undefined : sourceLang as "zh" | "en" | "ja",
+        targetLang === "auto" ? undefined : targetLang as "zh" | "en" | "ja",
+      );
+      const system = await effectiveTranslationPrompt(plan.source, plan.target);
       return [
         { role: "system", content: system },
         { role: "user", content: src },
@@ -218,6 +256,7 @@ export function TranslateView() {
             onChange={(e) => setTargetLang(e.target.value)}
             className="h-8 w-[110px] text-xs"
           >
+            <option value="auto">按语言规则</option>
             <option value="zh">中文</option>
             <option value="en">English</option>
             <option value="ja">日本語</option>
@@ -277,6 +316,8 @@ export function TranslateView() {
             className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words px-4 py-3.5 text-sm leading-7 text-foreground"
           >
             {target}
+            <TermTags terms={task.terms} />
+            {task.diagnostic ? <p className="mt-2 text-xs text-muted-foreground">{task.diagnostic}</p> : null}
             {task.status === "error" ? (
               <div role="alert" className="mt-2 flex items-center gap-2">
                 <span className="text-xs text-accent">{task.error}</span>

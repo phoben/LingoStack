@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { effectivePrompt } from "@/lib/ipc";
 import { NAMING_STYLE_LABEL } from "@/lib/config-types";
-import { GRID_STYLES, buildNamingGrid } from "@/lib/naming";
+import { GRID_ROWS, GRID_STYLES, buildNamingGrid } from "@/lib/naming";
 import { useStreamStore } from "@/stores/stream-store";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,7 @@ export function NamingView() {
 
   const streaming = task.status === "streaming";
   const grid = buildNamingGrid(task.output);
+  const rows = Array.from({ length: GRID_ROWS }, (_, index) => grid[index]);
 
   const generate = () => {
     void start("naming", task.input, async () => {
@@ -92,8 +93,8 @@ export function NamingView() {
                   {NAMING_STYLE_LABEL[style]}
                 </h3>
                 <div className="divide-y divide-border">
-                  {grid.map((row, i) => {
-                    const name = row[style];
+                  {rows.map((row, i) => {
+                    const name = row?.[style];
                     const key = `${style}:${i}`;
                     return (
                       <div
@@ -101,15 +102,16 @@ export function NamingView() {
                         className="flex items-center gap-1.5 px-3 py-2.5 transition-colors duration-fast hover:bg-accent/40"
                       >
                         <span className="min-w-0 flex-1 break-all font-mono text-[13px] font-medium text-foreground">
-                          {name}
+                          {name ?? "—"}
                         </span>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 shrink-0"
-                          title={copied === key ? "已复制" : `复制 ${name}`}
-                          aria-label={`复制 ${name}`}
-                          onClick={() => copy(key, name)}
+                          title={copied === key ? "已复制" : `复制 ${name ?? "候选"}`}
+                          aria-label={`复制 ${name ?? "候选"}`}
+                          onClick={() => name && copy(key, name)}
+                          disabled={!name}
                         >
                           {copied === key ? (
                             <Check className="h-3 w-3 text-success" />
@@ -124,6 +126,12 @@ export function NamingView() {
               </section>
             ))}
           </div>
+        ) : null}
+
+        {task.status === "done" && grid.length > 0 && grid.length < GRID_ROWS ? (
+          <p className="border-t border-border px-4 py-2 text-xs text-accent">
+            仅生成 {grid.length} 个有效候选，未完整生成 5 个候选。
+          </p>
         ) : null}
 
         {task.status === "error" ? (

@@ -27,7 +27,7 @@ pub enum ResolveError {
 
 `PartialEq, Eq` 按需加：`ResolveError` 加了，测试就能直接 `assert_eq!` 比对错误（`config.rs:326-331`）；`LlmError` 没加，因为它含 `Status { body: String }`。
 
-分类谓词方法可以有（`LlmError::is_retryable()` / `is_rate_limited()`，`llm/src/lib.rs:118-131`）——但注意**这两个当前生产代码零调用**，见 [IPC 契约指南](./ipc-contract-guide.md) 与 `lingostack-llm` 的 spec。
+分类谓词方法可以有（`LlmError::is_retryable()` / `is_rate_limited()`，`llm/src/lib.rs`）；当前由 Tauri 应用层 `chat_stream` 消费以实现零输出单次重试与共享 429 冷却，见 [IPC 契约指南](./ipc-contract-guide.md) 与 `lingostack-llm` 的 spec。
 
 ## 测试
 

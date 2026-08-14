@@ -29,20 +29,20 @@ pub enum LlmError {
 
 超时与网络的区分在调用点做，不在解析层——三个 provider 各有一份相同闭包（`openai.rs:130-136`、`anthropic.rs:166-172`、`gemini.rs:190-198`）。
 
-## 重试：当前不存在
+## 重试：应用层负责
 
 `lib.rs:118-131` 有两个分类谓词：
 
 - `is_rate_limited()` → 仅 `Status { status: 429 }`
 - `is_retryable()` → `Network`、`Timeout`、`Status` 中 429 或 ≥500
 
-**这两个方法在生产代码里零调用**，只有自己的单元测试引用（`lib.rs:151-171`）。
+这两个方法由 `src-tauri/src/commands.rs` 的 `chat_stream` 消费；provider 保持一次请求对应一次普通文本流。
 
-实际行为：`src-tauri/src/commands.rs:76-104` 的 `chat_stream` 用朴素 `while let Some(result) = stream.next().await` 驱动，遇 `Err` 立即转发给前端并返回。**没有重试循环、没有指数退避、没有 429 降并发**。workspace 的 `tokio` 只启用了 `["macros", "rt-multi-thread"]`，连 `tokio::time::sleep` 都不可用。
+实际行为：`src-tauri/src/commands.rs` 只在零输出且 `is_retryable()` 时重建一次 provider stream；网络/超时/5xx 等待短退避，429 延长进程共享冷却并通知进入冷却的请求。已有部分输出、401/403 与协议解析错误立即转发，避免重复内容和重复计费。workspace 的 `tokio` 已启用 `time`。
 
-前端的「重试」是**用户手点按钮**（`src/lib/ipc.ts:53`、`translate-view.tsx:67,214`、`naming-view.tsx:183`），不是自动重试。
+前端的「重试」仍可由用户手点触发，用于自动重试结束后的失败（`src/lib/ipc.ts`、翻译/命名视图）。
 
-**结论**：本 crate 只提供可重试性的**判定原语**，调用层预期要消费它但目前没有。要实装自动重试，需要（1）给 `tokio` 加 `time` feature，（2）在 `src-tauri` 的驱动循环里做，（3）补测试。别在写别的需求时假设它已经在了。
+**结论**：本 crate 只提供可重试性的**判定原语**；自动重试和共享冷却只能在 `src-tauri` 驱动层实现并测试，不能复制进三个 provider。
 
 ## 密钥防泄漏
 

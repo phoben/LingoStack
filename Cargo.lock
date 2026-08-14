@@ -2100,6 +2100,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tempfile",
  "thiserror 2.0.19",
+ "tokio",
 ]
 
 [[package]]

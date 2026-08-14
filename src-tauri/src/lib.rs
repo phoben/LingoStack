@@ -8,12 +8,16 @@ mod config;
 mod hotkeys;
 
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use tauri::Manager;
 
 /// 应用全局状态：持有配置文件路径，供 IPC commands 共享。
 struct AppState {
     config_path: PathBuf,
+    /// 所有请求共用的限流截止时间；429 后避免并发请求立即再次撞限流。
+    rate_limit_until: Arc<Mutex<Option<Instant>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -34,12 +38,15 @@ pub fn run() {
     builder
         .manage(AppState {
             config_path: config::config_path(),
+            rate_limit_until: Arc::new(Mutex::new(None)),
         })
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::load_config,
             commands::save_config,
             commands::effective_prompt,
+            commands::translation_plan,
+            commands::effective_translation_prompt,
             commands::chat_stream,
             commands::get_selection,
             commands::speak,

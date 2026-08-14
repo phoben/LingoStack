@@ -27,7 +27,7 @@ Tauri 只会 camelCase 化**命令参数名**，不动 struct 字段。所以 TS
 | `#[serde(rename_all = "snake_case")]` 枚举 | snake_case 字符串字面量联合 | `ProviderKind` → `"open_ai_compatible" \| "anthropic" \| "gemini" \| "ollama"`（`config-types.ts:11-15`） |
 | struct 字段 | 原样 snake_case | `base_url` / `api_key` 两侧同名（`config.rs:44-49` ↔ `config-types.ts:41-42`） |
 | `Language`（例外，用 `lowercase`） | `"zh" \| "en" \| "ja"` | `lang.rs:12` ↔ `config-types.ts:8` |
-| `#[serde(tag = "type")]` 标签枚举 | 可辨识联合 | `ChatEvent` → `{type:"chunk";delta:string} \| {type:"done"} \| {type:"error";message:string}`（`commands.rs:63-72` ↔ `config-types.ts:97-100`） |
+| `#[serde(tag = "type")]` 标签枚举 | 可辨识联合 | `ChatEvent` → `{type:"chunk";delta:string} \| {type:"status";message:string} \| {type:"done"} \| {type:"error";message:string}`（`commands.rs` ↔ `config-types.ts`） |
 
 **`Language` 用 `lowercase` 而其余枚举用 `snake_case` 是刻意的**（变体都是单词，且对齐 ISO 语言码）。不要「统一」成 snake_case，会破坏磁盘上已有配置的 `"zh"/"en"/"ja"`。
 

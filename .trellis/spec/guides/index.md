@@ -62,7 +62,7 @@ rg "要改的值" --glob '!target' --glob '!node_modules'
 
 不要把它们当成「刻意设计」而放过：
 
-- `LlmError::is_retryable()` / `is_rate_limited()` 已实现且有测试，但**生产代码零调用**——CLAUDE.md 声称的自动重试 / 429 降并发**并不存在**。
+- `LlmError::is_retryable()` / `is_rate_limited()` 由 `lingostack-app` 的 `chat_stream` 消费；自动重试只限零输出，429 使用进程共享冷却，provider 不自行重试。
 - 配置文件 0600 权限**只在 Unix 生效**，Windows 分支是空操作（`src-tauri/src/config.rs:59-62`），而该文件存着 API Key。
 - 前端所有异步状态区域**没有一处 `aria-live`**，屏幕阅读器听不到流式翻译结果。
 - `favorites-db.ts`、`favorites-store.ts`、全部 `components/views/`、全部 `ui/` 原语**零测试**。

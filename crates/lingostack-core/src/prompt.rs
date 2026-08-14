@@ -16,6 +16,7 @@
 //!
 //! 修改 Prompt 时请在 PR 中说明动机——风格回归很难在事后察觉。
 
+use crate::lang::Language;
 use serde::{Deserialize, Serialize};
 
 /// 翻译内置 Prompt。`{source_lang}` / `{target_lang}` 由功能层替换。
@@ -26,6 +27,19 @@ pub const NAMING_PROMPT: &str = include_str!("prompts/naming.txt");
 
 /// 词条解释内置 Prompt。`{target_lang}` 由功能层替换。
 pub const EXPLAIN_PROMPT: &str = include_str!("prompts/explain.txt");
+
+/// 翻译结果中术语元数据的保留行。该文本永远不能显示给最终用户。
+pub const TRANSLATION_TERMS_SENTINEL: &str = "<<<LINGOSTACK_TERMS_V1>>>";
+
+/// 把用户可选的翻译风格与不可覆盖的机器协议组合。
+#[must_use]
+pub fn compose_translation_prompt(base: &str, source: Language) -> String {
+    format!(
+        "{base}\n\n输出协议（不可替换）：先仅输出译文正文；随后单独一行输出 {sentinel}；紧接着输出 JSON 数组。JSON 每项只能为 {{\"term\":\"…\",\"category\":\"technology|programming|product\",\"explanation\":\"…\"}}。仅提取上下文相关的专业 IT 概念、编程/技术栈术语或产品名，普通词一律省略；最多 5 项，无法确定时输出 []。term 必须出现在原文或译文中，去重。explanation 必须用 {source} 简洁说明。不要输出 Markdown、代码围栏或任何其他元数据。",
+        sentinel = TRANSLATION_TERMS_SENTINEL,
+        source = source.display_name(),
+    )
+}
 
 /// 用户自定义 Prompt 覆盖；任一字段留空（`None`）即回退到内置。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -170,5 +184,14 @@ mod tests {
     fn translate_prompt_declares_both_language_placeholders() {
         assert!(TRANSLATE_PROMPT.contains("{source_lang}"));
         assert!(TRANSLATE_PROMPT.contains("{target_lang}"));
+    }
+
+    #[test]
+    fn translation_protocol_is_appended_even_for_conflicting_custom_prompt() {
+        let prompt = compose_translation_prompt("只输出 XML", Language::En);
+        assert!(prompt.starts_with("只输出 XML"));
+        assert!(prompt.contains(TRANSLATION_TERMS_SENTINEL));
+        assert!(prompt.contains("technology|programming|product"));
+        assert!(prompt.contains("English"));
     }
 }

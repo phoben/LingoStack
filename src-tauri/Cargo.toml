@@ -25,6 +25,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 dirs = { workspace = true }
 futures = { workspace = true }
+tokio = { workspace = true }
 
 # Tauri 插件
 tauri-plugin-single-instance = { workspace = true }

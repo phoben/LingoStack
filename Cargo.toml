@@ -36,7 +36,7 @@ thiserror = "2"
 futures = "0.3"
 async-stream = "0.3"
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls", "charset", "http2"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 
 # Tauri（仅 lingostack-app / lingostack-hook 使用）
 tauri = { version = "2", features = ["tray-icon"] }

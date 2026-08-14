@@ -17,6 +17,32 @@ pub enum Language {
     Ja,
 }
 
+/// 翻译入口使用的已解析语言对。前端只消费结果，不复制探测/映射规则。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TranslationPlan {
+    pub source: Language,
+    pub target: Language,
+}
+
+impl TranslationPlan {
+    /// 从文本、配置规则与本次显式选择得到最终语言对。
+    #[must_use]
+    pub fn resolve(
+        text: &str,
+        source_override: Option<Language>,
+        target_override: Option<Language>,
+        pair_mapping: &[(Language, Language)],
+        ui_language: Language,
+        global_default: Language,
+    ) -> Self {
+        let source = source_override.unwrap_or_else(|| Language::detect(text));
+        let target = target_override.unwrap_or_else(|| {
+            resolve_target_language(source, pair_mapping, ui_language, global_default)
+        });
+        Self { source, target }
+    }
+}
+
 impl Language {
     /// ISO 短码，用于持久化与 UI 字幕。
     #[must_use]
@@ -164,5 +190,19 @@ mod tests {
     fn resolve_english_to_english_uses_global_default() {
         let target = resolve_target_language(Language::En, &[], Language::En, Language::Zh);
         assert_eq!(target, Language::Zh);
+    }
+
+    #[test]
+    fn plan_honors_explicit_choices_before_configuration_rules() {
+        let plan = TranslationPlan::resolve(
+            "hello",
+            Some(Language::Ja),
+            Some(Language::Zh),
+            &[(Language::Ja, Language::En)],
+            Language::En,
+            Language::Ja,
+        );
+        assert_eq!(plan.source, Language::Ja);
+        assert_eq!(plan.target, Language::Zh);
     }
 }
