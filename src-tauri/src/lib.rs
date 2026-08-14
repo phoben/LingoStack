@@ -35,6 +35,17 @@ pub fn run() {
         }));
     }
 
+    // WDIO plugins are test-only: the `e2e` feature is enabled exclusively by
+    // the E2E build wrapper, never by the normal or release build.
+    #[cfg(feature = "e2e")]
+    {
+        builder = builder
+            .plugin(tauri_plugin_wdio::init())
+            .plugin(tauri_plugin_wdio_webdriver::init());
+    }
+
+    let config_path = config::config_path();
+
     builder
         // 主窗口关闭（包括 Alt+F4）只隐藏到托盘。真正退出只能由托盘的
         // “退出”动作触发；这样托盘始终能重新显示同一个窗口。
@@ -47,7 +58,7 @@ pub fn run() {
             }
         })
         .manage(AppState {
-            config_path: config::config_path(),
+            config_path: config_path.clone(),
             rate_limit_until: Arc::new(Mutex::new(None)),
         })
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -63,11 +74,11 @@ pub fn run() {
             commands::stop_speaking,
             commands::register_hotkeys,
         ])
-        .setup(|app| {
+        .setup(move |app| {
             let handle = app.handle();
             lingostack_hook::setup_tray(handle)?;
             // 按配置注册全局热键；失败逐条上报前端（设置页标红），不中断启动。
-            let cfg = config::load(&config::config_path()).unwrap_or_default();
+            let cfg = config::load(&config_path).unwrap_or_default();
             hotkeys::register_and_report(handle, &cfg.hotkeys);
             Ok(())
         })

@@ -39,37 +39,37 @@
 
 ## ✨ 特性路线
 
-| 状态 | 特性 | 说明 |
-| :---: | --- | --- |
-| 🚧 V1 | **划词翻译** | 任意应用选中文本 → PopClip 式动作条（翻译 / 解释 / 朗读 / 收藏 / 复制）→ 流式译文浮窗 |
-| 🚧 V1 | **文本翻译** | 主窗口翻译标签页，流式渲染，源 / 目标语言映射 |
-| 🚧 V1 | **变量名生成** | 中文描述 → `camelCase` / `snake_case` / `PascalCase` 候选 |
-| 🚧 V1 | **词条解释** | 词义、词性、例句、开发语境用法 |
-| 🚧 V1 | **收藏管理** | 搜索、分组、JSON 导入导出 |
-| 🚧 V1 | **多 LLM 配置** | 多提供商并存、按功能指定默认模型、全局兜底 |
-| 🚧 V1 | **托盘 + 全局热键** | 系统托盘常驻、自定义热键、冲突检测 |
-| 📋 V1.5 | **文档翻译** | Markdown / PDF / DOCX 双栏对照阅读 + 导出 |
-| 📋 V2 | **PDF 扫描版 OCR** / **WebDAV 同步** | |
+|  状态   | 特性                                 | 说明                                                                                  |
+| :-----: | ------------------------------------ | ------------------------------------------------------------------------------------- |
+|  🚧 V1  | **划词翻译**                         | 任意应用选中文本 → PopClip 式动作条（翻译 / 解释 / 朗读 / 收藏 / 复制）→ 流式译文浮窗 |
+|  🚧 V1  | **文本翻译**                         | 主窗口翻译标签页，流式渲染，源 / 目标语言映射                                         |
+|  🚧 V1  | **变量名生成**                       | 中文描述 → `camelCase` / `snake_case` / `PascalCase` 候选                             |
+|  🚧 V1  | **词条解释**                         | 词义、词性、例句、开发语境用法                                                        |
+|  🚧 V1  | **收藏管理**                         | 搜索、分组、JSON 导入导出                                                             |
+|  🚧 V1  | **多 LLM 配置**                      | 多提供商并存、按功能指定默认模型、全局兜底                                            |
+|  🚧 V1  | **托盘 + 全局热键**                  | 系统托盘常驻、自定义热键、冲突检测                                                    |
+| 📋 V1.5 | **文档翻译**                         | Markdown / PDF / DOCX 双栏对照阅读 + 导出                                             |
+|  📋 V2  | **PDF 扫描版 OCR** / **WebDAV 同步** |                                                                                       |
 
 完整产品设计见 [`docs/lingostack-design.md`](docs/lingostack-design.md)。
 
 ## 🛠 技术栈
 
-| 层 | 选型 |
-| --- | --- |
-| 框架 | [Tauri 2](https://tauri.app)（Rust 后端 + 系统 WebView 前端） |
+| 层   | 选型                                                                         |
+| ---- | ---------------------------------------------------------------------------- |
+| 框架 | [Tauri 2](https://tauri.app)（Rust 后端 + 系统 WebView 前端）                |
 | 前端 | React 18 · TypeScript（严格模式）· Vite · Tailwind CSS · shadcn/ui · Zustand |
-| 后端 | Rust（Cargo workspace，多 crate） |
-| 平台 | Windows · macOS · Linux |
+| 后端 | Rust（Cargo workspace，多 crate）                                            |
+| 平台 | Windows · macOS · Linux                                                      |
 
 ## 🚀 快速开始
 
 ### 环境要求
 
-| 依赖 | 版本 | 说明 |
-| --- | --- | --- |
-| [Node.js](https://nodejs.org/) | ≥ 20 | 前端运行时 |
-| [pnpm](https://pnpm.io/) | ≥ 10 | 包管理器（`corepack enable` 启用） |
+| 依赖                               | 版本   | 说明                                                    |
+| ---------------------------------- | ------ | ------------------------------------------------------- |
+| [Node.js](https://nodejs.org/)     | ≥ 20   | 前端运行时                                              |
+| [pnpm](https://pnpm.io/)           | ≥ 10   | 包管理器（`corepack enable` 启用）                      |
 | [Rust](https://www.rust-lang.org/) | stable | 经 [rustup](https://rustup.rs) 安装；仓库已固定 channel |
 
 **平台原生依赖**（Tauri 构建所需）：
@@ -102,6 +102,8 @@ pnpm dev                       # 仅前端（浏览器预览 UI，不启 Rust）
 
 # 测试
 pnpm test                      # 前端单元测试（Vitest + jsdom）
+pnpm test:e2e                  # 真实 Tauri 主窗口 E2E（无 API Key / 外网）
+pnpm test:production-isolation # 验证 WDIO 不会进入生产构建
 cargo test --workspace         # Rust 全 workspace 测试
 cargo test -p lingostack-core  # 单个 crate 测试
 
@@ -116,6 +118,8 @@ pnpm build                     # tsc 类型检查 + Vite 打包
 # 打包
 pnpm tauri build               # 生成各平台安装包
 ```
+
+桌面 E2E 的依赖、诊断工件、CI 行为、生产隔离与 Windows 系统级手工验收边界见 [自动化测试文档](docs/testing.md)。
 
 ### 项目结构
 

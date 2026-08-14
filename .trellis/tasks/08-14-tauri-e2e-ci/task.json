@@ -1,0 +1,28 @@
+{
+  "id": "tauri-e2e-ci",
+  "name": "tauri-e2e-ci",
+  "title": "Tauri E2E and CI infrastructure",
+  "description": "Add isolated WebdriverIO Tauri desktop E2E infrastructure and Windows CI gate",
+  "status": "in_progress",
+  "dev_type": "feature",
+  "scope": "lingostack-app frontend E2E CI docs",
+  "package": "lingostack-app",
+  "priority": "P2",
+  "creator": "codex",
+  "assignee": "codex",
+  "createdAt": "2026-08-14",
+  "completedAt": null,
+  "branch": "phoben/tauri-e2e-ci",
+  "base_branch": "develop",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "description": "Add isolated WebdriverIO Tauri desktop E2E infrastructure and Windows CI gate"
+  }
+}

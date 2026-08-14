@@ -46,9 +46,7 @@ export function SettingsAi() {
   const update = useConfigStore((s) => s.update);
   const error = useConfigStore((s) => s.error);
   const [editing, setEditing] = useState<
-    | { mode: "add" }
-    | { mode: "edit"; provider: ProviderConfig }
-    | null
+    { mode: "add" } | { mode: "edit"; provider: ProviderConfig } | null
   >(null);
 
   if (!config) {
@@ -195,12 +193,19 @@ export function SettingsAi() {
               const value = current
                 ? `${current.provider_id}::${current.model}`
                 : "";
+              const label =
+                field === "translate"
+                  ? t("translate")
+                  : field === "naming"
+                    ? t("naming")
+                    : t("globalDefault");
               return (
                 <FuncCell key={field}>
                   <span className="text-sm text-muted-foreground">
-                    {field === "translate" ? t("translate") : field === "naming" ? t("naming") : t("globalDefault")}
+                    {label}
                   </span>
                   <Select
+                    aria-label={`${label}默认模型`}
                     value={value}
                     onChange={(e) => setFeatureModel(field, e.target.value)}
                     className="h-8 min-w-[180px] text-xs"

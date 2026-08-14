@@ -30,6 +30,8 @@ tokio = { workspace = true }
 # Tauri 插件
 tauri-plugin-single-instance = { workspace = true }
 tauri-plugin-global-shortcut = { workspace = true }
+tauri-plugin-wdio = { workspace = true, optional = true }
+tauri-plugin-wdio-webdriver = { workspace = true, optional = true }
 
 # 内部 crate
 lingostack-core = { workspace = true }
@@ -44,3 +46,4 @@ tempfile = { workspace = true }
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+e2e = ["dep:tauri-plugin-wdio", "dep:tauri-plugin-wdio-webdriver"]

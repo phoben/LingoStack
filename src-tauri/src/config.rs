@@ -21,6 +21,11 @@ pub enum ConfigError {
 /// 配置文件标准路径：`<config_dir>/lingostack/config.json`。
 #[must_use]
 pub fn config_path() -> PathBuf {
+    #[cfg(feature = "e2e")]
+    if let Some(path) = std::env::var_os("LINGOSTACK_E2E_CONFIG_PATH") {
+        return PathBuf::from(path);
+    }
+
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("lingostack")
@@ -120,5 +125,16 @@ mod tests {
         let path = dir.path().join("config.json");
         fs::write(&path, "{ not json").unwrap();
         assert!(matches!(load(&path).err(), Some(ConfigError::Json(_))));
+    }
+
+    #[cfg(feature = "e2e")]
+    #[test]
+    fn config_path_uses_e2e_override_when_feature_is_enabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let expected = dir.path().join("isolated.json");
+        // Tests run in one process; restore the variable before returning.
+        std::env::set_var("LINGOSTACK_E2E_CONFIG_PATH", &expected);
+        assert_eq!(config_path(), expected);
+        std::env::remove_var("LINGOSTACK_E2E_CONFIG_PATH");
     }
 }

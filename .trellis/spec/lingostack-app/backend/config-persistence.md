@@ -40,7 +40,9 @@ dirs::config_dir()  /  "lingostack"  /  "config.json"
 
 ## 测试
 
-配置 IO 测试用 `tempfile::tempdir()` 覆盖读写往返、文件缺失、损坏 JSON；热键迁移与规范化的纯规则由 `lingostack-core` 测试覆盖。
+配置 IO 测试用 `tempfile::tempdir()` 覆盖读写往返、文件缺失、损坏 JSON；旧热键动作名的迁移规则由 `lingostack-core` 测试覆盖（见 `hotkey.rs` 的 `legacy_popup_deserializes_as_selection_and_reserializes_new_name`）。
+
+**`normalize_hotkeys`（去重合并）本身没有任何测试**——不要假设它已被覆盖，改这个函数前先补测试。
 
 **`restrict_permissions` 完全未测**——Unix 的 0600 路径也没测。改这个函数时要自己建测试，别指望现有测试拦住回归。
 

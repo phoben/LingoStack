@@ -10,14 +10,15 @@
 - [ ] 改的是跨 IPC 的类型？→ 必读 [IPC 契约指南](../../guides/ipc-contract-guide.md)，前端有手写镜像要同步
 - [ ] 要新增的逻辑**不需要**任何系统能力（无文件 IO、无 tauri、无平台 API）？需要就该放别的 crate
 - [ ] 加配置字段？→ 记住有**两份**默认值清单要同步（字段属性 + `impl Default`）
+- [ ] 已按 [全仓测试策略](../../lingostack-app/backend/testing-strategy.md) 判定快速反馈与最终门禁
 
 ## 具体规范
 
-| 文档 | 内容 |
-|------|------|
-| [模块职责](./module-responsibilities.md) | 5 个模块各管什么、边界在哪、什么不该放进来 |
-| [配置模型](./config-model.md) | serde 属性选型、双份默认值、模型解析、密钥脱敏 |
-| [Prompt 模板](./prompt-templates.md) | 外置文本 + 编译期嵌入、快照守护的真实机制、改动纪律 |
+| 文档                                     | 内容                                                |
+| ---------------------------------------- | --------------------------------------------------- |
+| [模块职责](./module-responsibilities.md) | 5 个模块各管什么、边界在哪、什么不该放进来          |
+| [配置模型](./config-model.md)            | serde 属性选型、双份默认值、模型解析、密钥脱敏      |
+| [Prompt 模板](./prompt-templates.md)     | 外置文本 + 编译期嵌入、快照守护的真实机制、改动纪律 |
 
 ## 纯净性约束
 
@@ -38,7 +39,7 @@ CI 在 ubuntu / windows / macos 三平台强制（`.github/workflows/ci.yml:58-6
 ```bash
 cargo fmt --all --check
 cargo clippy --all-targets -- -D warnings
-cargo test -p lingostack-core      # 现有 34 个测试
+cargo test -p lingostack-core
 cargo tree -p lingostack-core | grep tauri
 ```
 

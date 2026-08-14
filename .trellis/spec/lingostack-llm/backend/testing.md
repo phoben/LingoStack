@@ -1,15 +1,12 @@
 # 测试规范
 
-37 个测试，全部内联在各源文件底部的 `#[cfg(test)] mod tests`。无 `tests/` 目录。
+测试全部内联在各源文件底部的 `#[cfg(test)] mod tests`，无 `tests/` 目录。不要把当前测试数量写成契约；下面约束的是场景和断言，新增测试后无需维护数字清单。
 
-| 文件 | 数量 | 手段 |
-|------|------|------|
-| `openai.rs` | 5 | wiremock |
-| `anthropic.rs` | 8 | wiremock |
-| `gemini.rs` | 7 | wiremock |
-| `sse.rs` | 4 | 手工分片 |
-| `json_array_stream.rs` | 10 | 手工分片 |
-| `lib.rs` | 3 | 纯同步 |
+| 文件                                       | 手段           |
+| ------------------------------------------ | -------------- |
+| `openai.rs` / `anthropic.rs` / `gemini.rs` | wiremock       |
+| `sse.rs` / `json_array_stream.rs`          | 手工分片       |
+| `lib.rs`                                   | 纯同步错误分类 |
 
 异步测试用 `#[tokio::test]`；纯逻辑用 `#[test]`。
 

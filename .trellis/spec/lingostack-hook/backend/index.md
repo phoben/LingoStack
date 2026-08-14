@@ -10,24 +10,25 @@
 - [ ] 热键的**冲突检测规则**改动 → 那在 `lingostack-core/src/hotkey.rs`，不在这里
 - [ ] 热键的**实际注册与上报**改动 → 那在 `src-tauri/src/hotkeys.rs`，不在这里
 - [ ] 新增纯函数就写测试；碰到需要 `AppHandle` 的代码要知道那部分测不了
+- [ ] 已按 [全仓测试策略](../../lingostack-app/backend/testing-strategy.md) 判定 package test、桌面 E2E 与手工热键验收边界
 
 ## 结构
 
-| 文件 | 内容 |
-|------|------|
-| `src/lib.rs` | 模块声明 + 再导出 |
+| 文件                 | 内容                                  |
+| -------------------- | ------------------------------------- |
+| `src/lib.rs`         | 模块声明 + 再导出                     |
 | `src/accelerator.rs` | `KeyCombo` → 加速器字符串；有效性校验 |
-| `src/tray.rs` | 托盘菜单与图标构建、点击/菜单事件分派 |
+| `src/tray.rs`        | 托盘菜单与图标构建、点击/菜单事件分派 |
 
 ## 三段式分工
 
 热键这条链路跨三个 crate，改动前先定位：
 
-| 关注点 | 位置 |
-|--------|------|
-| 冲突检测规则（纯逻辑） | `lingostack-core/src/hotkey.rs` 的 `detect_conflicts()` |
-| 加速器字符串渲染 | **本 crate** `accelerator.rs` |
-| 注册、失败上报、窗口动作执行 | `src-tauri/src/hotkeys.rs` |
+| 关注点                       | 位置                                                    |
+| ---------------------------- | ------------------------------------------------------- |
+| 冲突检测规则（纯逻辑）       | `lingostack-core/src/hotkey.rs` 的 `detect_conflicts()` |
+| 加速器字符串渲染             | **本 crate** `accelerator.rs`                           |
+| 注册、失败上报、窗口动作执行 | `src-tauri/src/hotkeys.rs`                              |
 
 ## 加速器渲染
 
@@ -35,7 +36,7 @@
 
 `is_valid(&KeyCombo) -> bool`（`accelerator.rs:44`）：要求非空主键**且至少一个修饰键**（`:45`）——没有修饰键的裸键会劫持正常输入（理由见 `:40-42`）。
 
-加速器单测覆盖渲染顺序、大写、两个默认热键和有效性规则。改渲染逻辑必须同步这批测试，禁止恢复已移除的独立翻译浮窗动作。
+现有测试覆盖渲染顺序、大写、两个默认热键和有效性规则。改渲染逻辑必须同步这些场景，禁止恢复已移除的独立翻译浮窗动作，也不要以测试数量代替覆盖契约。
 
 ## 托盘
 
@@ -57,8 +58,8 @@ CI 的纯净性检查只针对 `lingostack-core`（`.github/workflows/ci.yml:58-
 
 ## 测试现状
 
-- `accelerator.rs` — 覆盖渲染顺序、两个默认绑定与裸键非法规则
-- `tray.rs` — 4 个 `toggle_action` 测试，并以 `tray_menu_ids_cover_the_five_v1_actions` 锁定五项菜单 id 到业务动作的映射。`setup_tray` / 原生菜单点击 / `apply_window_action` 仍需活的 `AppHandle` 或 Windows 手工验证
+- `accelerator.rs` — 测试覆盖渲染顺序、大小写无关性、两个默认绑定与裸键非法规则，覆盖充分
+- `tray.rs` — `toggle_action` 系列测试覆盖纯函数逻辑，并以 `tray_menu_ids_cover_the_five_v1_actions` 锁定五项菜单 id 到业务动作的映射。`setup_tray` / `handle_tray_event` / `handle_menu_event` / `apply_window_action` 仍需活的 `AppHandle`，零单测覆盖，靠 Windows 手工验证
 - `lib.rs:12-18` — `assert_eq!(1+1, 2)` 占位烟雾测试，没测任何东西，可以在下次动这个文件时替换成真实断言
 
 ## 质量检查

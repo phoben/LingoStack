@@ -2,15 +2,16 @@
 
 > 这些指南针对 LingoStack 真实存在的跨边界风险。只在触发条件命中时读，不必通读。
 
-## 本仓库的三条真实断裂线
+## 本仓库的四条真实断裂线
 
 LingoStack 的 bug 风险不是均匀分布的。以下三处是「改一边、另一边静默失效」的地方，全部有实据：
 
-| 指南 | 覆盖的断裂线 | 何时读 |
-|------|-------------|--------|
-| [IPC 契约指南](./ipc-contract-guide.md) | Rust serde 类型 ↔ TS 手写镜像 ↔ IPC 传输。无代码生成、无编译期校验，改名只在运行时炸 | 增删改任何跨 IPC 的字段、枚举变体、命令、事件 |
-| [平台隔离指南](./platform-isolation-guide.md) | `lingostack-selection` / `lingostack-tts` 的 Windows 实现 vs macOS/Linux 占位 | 动取词、朗读、热键，或新增任何含平台差异的能力 |
-| [Rust 通用约定](./rust-conventions.md) | 错误类型、内联测试、serde 属性在 7 个 crate 间的一致写法 | 新增 crate、新增错误变体、写测试 |
+| 指南                                          | 覆盖的断裂线                                                                         | 何时读                                         |
+| --------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| [IPC 契约指南](./ipc-contract-guide.md)       | Rust serde 类型 ↔ TS 手写镜像 ↔ IPC 传输。无代码生成、无编译期校验，改名只在运行时炸 | 增删改任何跨 IPC 的字段、枚举变体、命令、事件  |
+| [平台隔离指南](./platform-isolation-guide.md) | `lingostack-selection` / `lingostack-tts` 的 Windows 实现 vs macOS/Linux 占位        | 动取词、朗读、热键，或新增任何含平台差异的能力 |
+| [Rust 通用约定](./rust-conventions.md)        | 错误类型、内联测试、serde 属性在 7 个 crate 间的一致写法                             | 新增 crate、新增错误变体、写测试               |
+| [测试选择指南](./testing-strategy-guide.md)   | 单元/协议/构建/E2E/系统验收与证据等级之间的边界                                      | 修改代码、测试、依赖、构建、CI 或准备交付      |
 
 ## 触发清单
 
@@ -35,6 +36,13 @@ LingoStack 的 bug 风险不是均匀分布的。以下三处是「改一边、�
 - [ ] 新建 crate，或给现有 crate 加错误变体
 - [ ] 拿不准测试放哪、怎么命名
 - [ ] 给 serde 类型加字段，不确定用哪套 `#[serde(...)]` 属性
+
+### 该读测试选择指南
+
+- [ ] 要判断这次改动最少跑哪些检查
+- [ ] 改了 IPC、Tauri config/capability、Cargo feature 或关键桌面流程
+- [ ] 要汇报 CI/平台/系统能力是否真正运行
+- [ ] 不确定单元测试、E2E 与手工验收能分别证明什么
 
 ## 改值之前先搜
 
@@ -64,5 +72,5 @@ rg "要改的值" --glob '!target' --glob '!node_modules'
 
 - `LlmError::is_retryable()` / `is_rate_limited()` 由 `lingostack-app` 的 `chat_stream` 消费；自动重试只限零输出，429 使用进程共享冷却，provider 不自行重试。
 - 配置文件 0600 权限**只在 Unix 生效**，Windows 分支是空操作（`src-tauri/src/config.rs:59-62`），而该文件存着 API Key。
-- 前端所有异步状态区域**没有一处 `aria-live`**，屏幕阅读器听不到流式翻译结果。
-- `favorites-db.ts`、`favorites-store.ts`、全部 `components/views/`、全部 `ui/` 原语**零测试**。
+- 设置加载/保存、提供商表单等异步文本仍未统一 live region；翻译、命名与收藏已有 `aria-live`，不要把局部缺口夸大成全站缺失。
+- `favorites-db.ts`、`favorites-store.ts` 与部分 views/ui 原语仍缺直接 Vitest；真实桌面 E2E 只补关键链路，不替代这些单元/组件测试。

@@ -321,6 +321,7 @@ export function TranslateView() {
           <Button
             size="sm"
             className="ml-auto"
+            aria-label="执行翻译"
             onClick={() => translate()}
             disabled={streaming || !source.trim()}
           >

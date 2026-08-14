@@ -11,15 +11,16 @@
 - [ ] 在调用侧写平台分支了吗？不允许，走 trait + 工厂函数
 - [ ] 改 Windows 原生调用？确认 COM、`unsafe`、剪贴板清理三条约定
 - [ ] 动 macOS / Linux？在结论里标注「需在目标平台验证」
+- [ ] 已按 [全仓测试策略](../../lingostack-app/backend/testing-strategy.md) 区分结构测试、目标平台运行与人工系统证据
 
 ## 结构
 
-| 文件 | 内容 |
-|------|------|
-| `src/lib.rs` | `Selection` 类型、`SelectionError`、`SelectionProvider` trait（`:30-36`）、`#[cfg]` 模块声明与工厂函数（`:55-81`） |
-| `src/windows.rs` | 唯一真实实现：UIA 取词 + 剪贴板降级 |
-| `src/macos.rs` | 占位，返回 `SelectionError::Unsupported`。需 `AXUIElementCopyAttributeValue` 读 `kAXSelectedTextAttribute`（`:1-8`） |
-| `src/linux.rs` | 占位。需 AT-SPI / D-Bus，完善列为 V2（`:1-7`） |
+| 文件             | 内容                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `src/lib.rs`     | `Selection` 类型、`SelectionError`、`SelectionProvider` trait（`:30-36`）、`#[cfg]` 模块声明与工厂函数（`:55-81`）   |
+| `src/windows.rs` | 唯一真实实现：UIA 取词 + 剪贴板降级                                                                                  |
+| `src/macos.rs`   | 占位，返回 `SelectionError::Unsupported`。需 `AXUIElementCopyAttributeValue` 读 `kAXSelectedTextAttribute`（`:1-8`） |
+| `src/linux.rs`   | 占位。需 AT-SPI / D-Bus，完善列为 V2（`:1-7`）                                                                       |
 
 工厂函数返回 `Box<dyn SelectionProvider>`，调用侧（`src-tauri/src/commands.rs:15-20`）只认 trait。
 
@@ -43,9 +44,9 @@ Windows 实现的核心行为，改动时必须保留：
 
 ## 测试的天花板
 
-`windows.rs:119-161` 4 个测试只能断言「不 panic / 结果自洽」——结果取决于运行环境有没有真实选中文本（`:129-132` 注释写明）。这是这类代码的固有上限，别为了「提高覆盖率」写出断言不了正确性的假测试。
+`windows.rs:119-161` 的现有测试只能断言「不 panic / 结果自洽」——结果取决于运行环境有没有真实选中文本（`:129-132` 注释写明）。这是这类代码的固有上限，别为了「提高覆盖率」写出断言不了正确性的假测试。
 
-占位实现各 1 个测试，断言返回 `Unsupported`（如 `macos.rs:38-44`）。
+占位实现都有测试，断言返回 `Unsupported`（如 `macos.rs:38-44`）。
 
 **实装某平台时删掉占位测试并补真实测试**——否则占位测试继续通过，给出虚假信心。
 

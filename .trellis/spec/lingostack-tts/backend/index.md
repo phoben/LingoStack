@@ -11,15 +11,16 @@
 - [ ] 想让 `WindowsSpeaker` 直接持有 voice 实例？先看下面「voice 常驻朗读线程」那节，那会违反 trait 约束
 - [ ] 想在 `speak()` 里等播完？也看那节——曾因实例提前释放导致「点了没声音」
 - [ ] 动 macOS / Linux？在结论里标注「需在目标平台验证」
+- [ ] 已按 [全仓测试策略](../../lingostack-app/backend/testing-strategy.md) 区分线程结构测试、目标平台运行与真实播音验收
 
 ## 结构
 
-| 文件 | 内容 |
-|------|------|
-| `src/lib.rs` | `TtsError`、`Speaker` trait（`:10-19`）、`#[cfg]` 模块声明与 `speaker()` 工厂（`:35-60`） |
-| `src/windows.rs` | SAPI 实现 + 专用朗读线程（见下节） |
-| `src/macos.rs` | 占位。需 `AVSpeechSynthesizer`（经 objc 绑定），见 `:1-7` |
-| `src/linux.rs` | 占位。需 speech-dispatcher / `spd-say`，见 `:1-6` |
+| 文件             | 内容                                                                                      |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| `src/lib.rs`     | `TtsError`、`Speaker` trait（`:10-19`）、`#[cfg]` 模块声明与 `speaker()` 工厂（`:35-60`） |
+| `src/windows.rs` | SAPI 实现 + 专用朗读线程（见下节）                                                        |
+| `src/macos.rs`   | 占位。需 `AVSpeechSynthesizer`（经 objc 绑定），见 `:1-7`                                 |
+| `src/linux.rs`   | 占位。需 speech-dispatcher / `spd-say`，见 `:1-6`                                         |
 
 与 `lingostack-selection` 同构，两个 crate 的 `lib.rs` 可互相参照。
 
@@ -31,12 +32,12 @@
 
 现行结构（`windows.rs:1-11` 有完整推导）：
 
-| 角色 | 位置 | 说明 |
-|------|------|------|
-| `WindowsSpeaker` | `:48` | **无字段**，故天然 `Send + Sync` |
-| 指令通道 | `VOICE_TX`（`:42`） | `Mutex<Option<Sender<Cmd>>>`，进程内单例，惰性启动 |
-| 朗读线程 | `voice_loop()`（`:92`） | COM 初始化 + 建实例各一次，实例**常驻此线程且从不越出** |
-| 指令投递 | `dispatch()`（`:151`） | 递一条指令 + 等一次回执，回执只表示「引擎已受理」，不等播完 |
+| 角色             | 位置                    | 说明                                                        |
+| ---------------- | ----------------------- | ----------------------------------------------------------- |
+| `WindowsSpeaker` | `:48`                   | **无字段**，故天然 `Send + Sync`                            |
+| 指令通道         | `VOICE_TX`（`:42`）     | `Mutex<Option<Sender<Cmd>>>`，进程内单例，惰性启动          |
+| 朗读线程         | `voice_loop()`（`:92`） | COM 初始化 + 建实例各一次，实例**常驻此线程且从不越出**     |
+| 指令投递         | `dispatch()`（`:151`）  | 递一条指令 + 等一次回执，回执只表示「引擎已受理」，不等播完 |
 
 **单实例是「打断上一句」的前提，不是优化。** `SPF_PURGEBEFORESPEAK` 只在同一实例内生效——两个独立实例各自 purge **互不打断**（已实测）。所以若改回「每次调用新建实例」，`lib.rs:12-14` 承诺的「打断上一句」会失效，用户连点两次朗读听到两句重叠。
 
@@ -56,7 +57,7 @@
 
 ## 占位实现
 
-macOS / Linux 返回 `Err(TtsError::Unsupported)`（`macos.rs:27-34`、`linux.rs:26-33`），绝不 panic、绝不静默成功。各带 1 个断言 `Unsupported` 的测试。
+macOS / Linux 返回 `Err(TtsError::Unsupported)`（`macos.rs:27-34`、`linux.rs:26-33`），绝不 panic、绝不静默成功。占位模块都有断言 `Unsupported` 的测试。
 
 实装时删占位测试、补真实测试。
 

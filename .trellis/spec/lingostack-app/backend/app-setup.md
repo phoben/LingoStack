@@ -8,15 +8,19 @@
 
 1. `tauri::Builder::default()`（`:21`）
 2. **单实例插件**（`:24-32`，`#[cfg(desktop)]` 门控）——回调里显示并聚焦已有的 `"main"` 窗口
-3. `.manage(AppState { config_path })`（`:35-37`）
-4. **全局热键插件**（`:38`）——必须在 `setup()` 注册热键之前
-5. `.invoke_handler(generate_handler![...])` 注册 7 个命令（`:39-47`）
-6. `.setup(...)`（`:48-55`）：先建托盘 `lingostack_hook::setup_tray(handle)?`，再 `config::load()`，再 `hotkeys::register_and_report(handle, &cfg.hotkeys)`
-7. `.run(generate_context!())` 带 `.expect(...)`（`:56-57`）
+3. `feature=e2e` 时条件注册两个 WDIO 插件；默认/发行构建无此步骤
+4. 只解析一次 `config_path`，clone 给 `AppState`，原值 move 进 setup，保证两处读取同一文件
+5. `.manage(AppState { config_path })`
+6. **全局热键插件**——必须在 `setup()` 注册热键之前
+7. `.invoke_handler(generate_handler![...])` 注册 7 个命令
+8. `.setup(...)`：先建托盘，再用同一个 `config_path` 加载配置，最后注册热键
+9. `.run(generate_context!())` 带 `.expect(...)`
 
-第 7 步的 `.expect` 是全 crate 唯一可接受 panic 的地方——启动失败属致命错误。**其他地方不要用 `unwrap` / `expect`。**
+第 9 步的 `.expect` 是全 crate 唯一可接受 panic 的地方——启动失败属致命错误。**其他地方不要用 `unwrap` / `expect`。**
 
 新增插件加在第 4 步附近；新增需要 `AppHandle` 的初始化加在 `setup()` 里，注意它在托盘之后。
+
+WDIO 插件、E2E config/capability 与 build-script codegen 的完整隔离规则见 [真实桌面 E2E 契约](./e2e-testing.md)。不要为测试方便在生产 `tauri.conf.json` 启用 `withGlobalTauri`。
 
 ## 热键注册与冲突上报
 
