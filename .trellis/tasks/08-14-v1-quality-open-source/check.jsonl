@@ -1,0 +1,5 @@
+{"file":".trellis/tasks/08-14-implement-v1-core-mvp/research/v1-gap-audit.md","reason":"Verify full V1 acceptance, test gaps, native evidence, and notices delivery"}
+{"file":".trellis/spec/guides/rust-conventions.md","reason":"Verify full Rust quality, secrets, dependencies, and core purity"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"Verify contract tests and live Tauri round-trip evidence"}
+{"file":".trellis/spec/guides/platform-isolation-guide.md","reason":"Verify cross-platform compile and typed Unsupported claims"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"Verify test semantics and accessible async UI"}

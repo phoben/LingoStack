@@ -1,0 +1,6 @@
+{"file":".trellis/tasks/08-14-implement-v1-core-mvp/research/v1-gap-audit.md","reason":"Fused one-request translation-term protocol, fallback matrix, and current gaps"}
+{"file":".trellis/spec/lingostack-core/backend/index.md","reason":"Core language, configuration, and prompt boundaries"}
+{"file":".trellis/spec/lingostack-llm/backend/index.md","reason":"Provider-neutral streaming and error behavior"}
+{"file":".trellis/spec/lingostack-app/backend/ipc-commands.md","reason":"Channel and command contract for language planning and streaming"}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"Zustand async task and failure-handling conventions"}
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"Translation result layout and interaction contract"}

@@ -1,0 +1,6 @@
+{"file":".trellis/tasks/08-14-implement-v1-core-mvp/research/v1-gap-audit.md","reason":"Evidence for selection feedback, tray routing, TTS stop, and favorites tests"}
+{"file":".trellis/spec/guides/platform-isolation-guide.md","reason":"Preserve trait factories, Windows native constraints, and typed placeholders"}
+{"file":".trellis/spec/lingostack-selection/backend/index.md","reason":"Preserve UIA to clipboard fallback and native test limits"}
+{"file":".trellis/spec/lingostack-hook/backend/index.md","reason":"Tray and hotkey responsibility/behavior contract"}
+{"file":".trellis/spec/lingostack-tts/backend/index.md","reason":"Preserve single voice thread, interruption, and Send Sync constraints"}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"Favorites rollback and async store conventions"}

@@ -1,0 +1,6 @@
+{"file":".trellis/tasks/08-14-implement-v1-core-mvp/research/v1-gap-audit.md","reason":"Cross-check every confirmed V1 gap and avoid restoring superseded popup/explain flows"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"Verify Rust serde and hand-written TypeScript mirrors plus Channel/event use"}
+{"file":".trellis/spec/guides/platform-isolation-guide.md","reason":"Verify Windows runtime boundary and typed macOS/Linux Unsupported behavior"}
+{"file":".trellis/spec/guides/rust-conventions.md","reason":"Verify errors, tests, secret handling, dependency direction, and core purity"}
+{"file":".trellis/spec/lingostack-llm/backend/testing.md","reason":"Verify provider and stream parsing test coverage without real keys"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"Verify async semantics, keyboard access, and frontend coverage"}

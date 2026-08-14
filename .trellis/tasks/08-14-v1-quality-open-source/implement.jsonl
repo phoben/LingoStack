@@ -1,0 +1,5 @@
+{"file":".trellis/tasks/08-14-implement-v1-core-mvp/research/v1-gap-audit.md","reason":"Test inventory, IPC gaps, E2E absence, native evidence limits, and notices gap"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"Design cross-language contract regression coverage"}
+{"file":".trellis/spec/guides/platform-isolation-guide.md","reason":"Separate automated compile evidence from native runtime evidence"}
+{"file":".trellis/spec/lingostack-llm/backend/testing.md","reason":"Keep provider tests mock-only and secret-safe"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"Target known frontend coverage and accessibility gaps"}

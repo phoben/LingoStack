@@ -1,0 +1,5 @@
+{"file":".trellis/tasks/08-14-implement-v1-core-mvp/research/v1-gap-audit.md","reason":"Verify protocol parsing, custom Prompt, retry, naming, and tag acceptance matrix"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"Verify Rust/TS contract and placeholder synchronization"}
+{"file":".trellis/spec/guides/rust-conventions.md","reason":"Verify pure-core placement, errors, and tests"}
+{"file":".trellis/spec/lingostack-llm/backend/testing.md","reason":"Verify wiremock and worst-split stream cases"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"Verify live regions and keyboard-accessible term disclosure"}

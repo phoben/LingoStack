@@ -1,0 +1,5 @@
+{"file":".trellis/tasks/08-14-implement-v1-core-mvp/research/v1-gap-audit.md","reason":"Verify every settings, localization, theme, and hotkey gap is closed"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"Verify config/hotkey migrations and TS mirrors"}
+{"file":".trellis/spec/lingostack-hook/backend/index.md","reason":"Verify hotkey responsibility split and accelerator validity"}
+{"file":".trellis/spec/lingostack-app/frontend/components-and-styling.md","reason":"Verify existing hand-written primitives and view composition"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"Verify settings async feedback, roles, focus, and tests"}

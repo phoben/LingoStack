@@ -1,0 +1,5 @@
+{"file":".trellis/tasks/08-14-implement-v1-core-mvp/research/v1-gap-audit.md","reason":"Verify desktop and result-action gaps plus evidence boundaries"}
+{"file":".trellis/spec/guides/platform-isolation-guide.md","reason":"Verify no caller-side platform branches and no native regressions"}
+{"file":".trellis/spec/lingostack-selection/backend/index.md","reason":"Verify selection fallback semantics"}
+{"file":".trellis/spec/lingostack-tts/backend/index.md","reason":"Verify TTS thread lifetime and stop behavior"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"Verify TTS/fallback/favorites accessible feedback and tests"}

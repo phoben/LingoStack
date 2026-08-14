@@ -1,0 +1,31 @@
+{
+  "id": "implement-v1-core-mvp",
+  "name": "implement-v1-core-mvp",
+  "title": "实施 V1 核心 MVP",
+  "description": "按已确认的 Windows V1 边界补齐核心翻译、设置、桌面闭环、质量与开源门禁。",
+  "status": "planning",
+  "dev_type": null,
+  "scope": "cross-package",
+  "package": null,
+  "priority": "P0",
+  "creator": "phoben",
+  "assignee": "phoben",
+  "createdAt": "2026-08-14",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "develop",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "08-14-v1-translation-intelligence",
+    "08-14-v1-settings-localization-hotkeys",
+    "08-14-v1-desktop-result-actions",
+    "08-14-v1-quality-open-source"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

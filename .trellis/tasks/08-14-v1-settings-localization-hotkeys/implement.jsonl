@@ -1,0 +1,6 @@
+{"file":".trellis/tasks/08-14-implement-v1-core-mvp/research/v1-gap-audit.md","reason":"Evidence for settings placeholders, hotkey status gap, popup migration, and theme split"}
+{"file":".trellis/spec/lingostack-core/backend/config-model.md","reason":"Config defaults, serde migration, and TypeScript mirror constraints"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"Hotkey status, config fields, and command/event synchronization"}
+{"file":".trellis/spec/lingostack-app/backend/app-setup.md","reason":"Startup registration order and hotkey reporting behavior"}
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"Settings layout, semantics, and current UI priority"}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"Config-store persistence and theme state conventions"}

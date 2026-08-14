@@ -1,0 +1,6 @@
+{"file":".trellis/tasks/08-14-implement-v1-core-mvp/research/v1-gap-audit.md","reason":"V1 current-state gap evidence, confirmed scope, dependency order, and fused translation-term contract"}
+{"file":".trellis/spec/guides/index.md","reason":"Cross-package risk routing for IPC, platform isolation, and Rust conventions"}
+{"file":".trellis/spec/lingostack-core/backend/index.md","reason":"Core configuration, language, hotkey, and prompt boundaries"}
+{"file":".trellis/spec/lingostack-llm/backend/index.md","reason":"Provider-neutral streaming, error, retry, and mock-test constraints"}
+{"file":".trellis/spec/lingostack-app/backend/index.md","reason":"Tauri IPC, persistence, hotkey, and application setup boundaries"}
+{"file":".trellis/spec/lingostack-app/frontend/index.md","reason":"Current frontend architecture, state, UI, testing, and accessibility contract"}
