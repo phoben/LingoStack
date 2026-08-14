@@ -97,7 +97,7 @@ Prompt 模板文本在 Rust（`include_str!` 编译期嵌入，`prompt.rs:22-28`
 别混用：
 
 - **请求作用域流式** → `tauri::ipc::Channel<ChatEvent>`（`commands.rs:6,75`）。前端 `new Channel()` 后赋 `onmessage`（`ipc.ts:55-63`），无显式退订，`invoke` 结束即回收。
-- **全局广播** → `AppHandle::emit()`。事件名 `"hotkey-status"`（`hotkeys.rs:28`）、`"translate-selection"`（`hotkeys.rs:129`）。前端用 `listen()` 且**必须退订**（`App.tsx:47-49` 返回清理函数）。
+- **全局广播** → `AppHandle::emit()`。事件名 `"hotkey-status"`、`"translate-selection"`、`"navigate-view"`。前端用 `listen()` 且**必须退订**。热键的 `translate-selection` 载荷为 `{ selection?: Selection, error?: string }`，并且必须在显示/聚焦主窗口前捕获；托盘的空载荷由 App 调用 `get_selection` 走既有降级。不要把这两种来源混为“先聚焦后前端取词”，否则 UIA 会读取 LingoStack 自身焦点。
 
 ## 提交前自检
 

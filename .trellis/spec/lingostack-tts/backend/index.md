@@ -81,6 +81,69 @@ cargo clippy --all-targets -- -D warnings
 cargo test -p lingostack-tts
 ```
 
-## 前端接入现状
+## Scenario：前端朗读状态与停止
 
-`speak` 已接通，但 `stop_speaking` 在前端已导出却**无调用点**（`src/lib/ipc.ts:30-32`）——要么补「停止朗读」入口，要么删掉这个导出。
+### 1. Scope / Trigger
+
+- Trigger：翻译页或收藏页提交朗读、切换文本、快速连点或主动停止；状态跨 React、Zustand、Tauri IPC 和 SAPI 常驻线程。
+
+### 2. Signatures
+
+```ts
+type TtsStatus = "idle" | "submitting" | "speaking" | "error";
+start(text: string, utteranceKey: string): Promise<void>;
+stop(): Promise<void>;
+```
+
+```rust
+speak(text: String) -> Result<(), String>
+stop_speaking() -> Result<(), String>
+```
+
+### 3. Contracts
+
+- `useTtsStore` 是翻译页与收藏页的共享状态源；同一时间只有一个 active utterance。
+- `speak` 成功只表示 SAPI 引擎已受理，不代表播放完成；前端保持 `speaking`，直到用户停止、另一句取代或错误发生。
+- 每次 start/stop 递增请求代次；旧 Promise 晚到时不得覆盖新请求状态。
+- 翻译流仍在输出时，只要已有 active utterance，停止按钮必须保持可用。
+- 错误和 Unsupported 进入可读的 alert；空文本不提交 IPC。
+
+### 4. Validation & Error Matrix
+
+| 条件 | 行为 |
+|------|------|
+| 空白文本 | 不调用 `speak`，保持 idle |
+| `speak` 拒绝 | 状态 error，展示可读错误 |
+| stop 成功 | 清空 active utterance，回到 idle |
+| stop 拒绝 | 状态 error，不伪装已停止 |
+| start A 后 start B，A 的 Promise 最后完成 | 忽略 A 的过期完成，只保留 B 状态 |
+| 非 Windows Unsupported | 展示错误，不静默成功 |
+
+### 5. Good/Base/Bad Cases
+
+- Good：点击朗读后按钮变为“停止朗读”，点击停止后恢复；快速切换句子只保留最新状态。
+- Base：没有可朗读文本时按钮禁用或不提交。
+- Bad：把 IPC resolve 当成“播放结束”立即回 idle，或让旧请求完成覆盖新请求，会造成用户无法停止或状态跳回。
+
+### 6. Tests Required
+
+- store：提交、成功、失败、停止、过期 Promise 完成与多句切换。
+- RTL：朗读/停止标签切换、错误 `role=alert`、翻译 streaming 时停止仍可用。
+- Rust：常驻线程复用、非阻塞提交、重复 speak/stop 无死锁。
+- Windows 真实边界：记录按钮状态与 stop 往返；实际可听声音必须由人工确认，自动化不得冒充听感证据。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+await speak(text);
+set({ status: "idle" }); // resolve 仅表示已受理
+```
+
+#### Correct
+
+```ts
+await speak(text);
+if (requestIsCurrent()) set({ status: "speaking", activeKey });
+```

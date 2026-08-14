@@ -39,7 +39,7 @@
 
 ## 托盘
 
-`tray.rs` 构建 3 项菜单（主窗口 / 设置 / 退出，`:46-53`）与 `TrayIconBuilder`（`:55-62`）。
+`tray.rs` 构建 V1 固定 5 项菜单（主窗口 / 划词翻译 / 收藏 / 设置 / 退出）与 `TrayIconBuilder`。菜单只导航既有 `main` 窗口，不创建翻译浮窗；收藏、设置走 `navigate-view`，划词翻译走 `translate-selection`。
 
 事件分派：`handle_tray_event`（左键点击切换显示，双击总是显示）、`handle_menu_event`（按菜单 id 字符串分派）。
 
@@ -58,7 +58,7 @@ CI 的纯净性检查只针对 `lingostack-core`（`.github/workflows/ci.yml:58-
 ## 测试现状
 
 - `accelerator.rs` — 覆盖渲染顺序、两个默认绑定与裸键非法规则
-- `tray.rs:127-151` — 4 个测试，**只测纯函数 `toggle_action`**。`setup_tray` / `handle_tray_event` / `handle_menu_event` / `apply_window_action` 零覆盖（需要活的 `AppHandle`）
+- `tray.rs` — 4 个 `toggle_action` 测试，并以 `tray_menu_ids_cover_the_five_v1_actions` 锁定五项菜单 id 到业务动作的映射。`setup_tray` / 原生菜单点击 / `apply_window_action` 仍需活的 `AppHandle` 或 Windows 手工验证
 - `lib.rs:12-18` — `assert_eq!(1+1, 2)` 占位烟雾测试，没测任何东西，可以在下次动这个文件时替换成真实断言
 
 ## 质量检查

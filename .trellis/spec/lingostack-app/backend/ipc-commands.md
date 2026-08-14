@@ -19,7 +19,7 @@
 | `speak` | `text: String` | `()` | `:23-28` |
 | `stop_speaking` | 无 | `()` | `:31-34` |
 
-`stop_speaking` 在前端已导出但**无调用点**（`src/lib/ipc.ts:30-32`）——要么补上「停止朗读」入口，要么删掉。
+`speak` / `stop_speaking` 由共享 `tts-store` 调用，翻译页与收藏页复用同一 active utterance 状态。
 
 ## 错误一律拍平为 String
 
@@ -45,7 +45,7 @@ enum ChatEvent {
 
 `.send()` 的失败用 `.ok()` 静默丢弃（`:93-97,102`）——前端通道已关闭时通知不到也不报错。改这段时留意这个既有行为。
 
-**全局广播** → `AppHandle::emit()`，事件名 `"hotkey-status"`（`hotkeys.rs:28`）、`"translate-selection"`（`hotkeys.rs:129`）。前端用 `listen()` 且**必须退订**。
+**全局广播** → `AppHandle::emit()`，事件名 `"hotkey-status"`、`"translate-selection"`、`"navigate-view"`。前端用 `listen()` 且**必须退订**。热键发出的 `translate-selection` 带预捕获的 `{ selection?: Selection, error?: string }`；托盘动作可发空载荷并由前端调用 `get_selection` 走既有降级。
 
 新增能力时按这个标准选：一次请求对应一条流用 `Channel`；不定时的系统事件用 `emit`。
 
@@ -205,6 +205,78 @@ const statuses = await registerHotkeys(hotkeys);
 setHotkeyStatuses(statuses); // 保存、重注册与可观察结果是一个业务动作
 ```
 
+## Scenario：划词捕获、主窗口路由与关闭到托盘
+
+### 1. Scope / Trigger
+
+- Trigger：用户在其他应用按“划词翻译”热键，或通过托盘/第二实例显示既有主窗口；该链路跨 Windows UIA、Rust 热键回调、Tauri event、React store 与窗口 ACL。
+
+### 2. Signatures
+
+```rust
+struct TranslateSelectionPayload {
+    selection: Option<Selection>,
+    error: Option<String>,
+}
+
+fn apply_effect(app: &AppHandle, effect: HotkeyEffect)
+```
+
+```ts
+listen<TranslateSelectionPayload | undefined>("translate-selection", handler)
+listen<AppView>("navigate-view", handler)
+```
+
+### 3. Contracts
+
+- 热键路径必须在原应用仍是前台、LingoStack 尚未 `show/set_focus` 时同步调用 selection provider，再显示主窗口并 emit 载荷。
+- `selection.source=accessibility` 直接注入且不显示降级提示；`clipboard` 注入并显示非阻塞提示；`error` 显示手动粘贴恢复建议。
+- 所有导航复用 label=`main` 的窗口，不创建翻译浮窗；事件监听卸载时必须退订。
+- 标题栏关闭与原生 CloseRequested 都隐藏窗口，不退出进程；只有托盘“退出”调用 `app.exit(0)`。
+- `capabilities/default.json` 必须包含 `core:window:allow-hide`；只有 React 调用了 `window.hide()` 而未授权会在运行时静默失败，编译与 mock 测试捕获不到。
+- 第二实例只能唤醒既有实例并自行退出；默认 `Alt+Space` 可重新显示隐藏窗口。
+
+### 4. Validation & Error Matrix
+
+| 条件 | 行为 |
+|------|------|
+| UIA 有非空选区 | 载荷 source=accessibility，注入原文并自动翻译 |
+| UIA 无选区、剪贴板有文本 | source=clipboard，显示降级提示 |
+| 两级均失败 | error 提示手动粘贴，不无声清空现有输入 |
+| 先聚焦主窗口再调用 `get_selection` | 禁止；会读取 LingoStack 自身焦点并误降级 |
+| 标题栏关闭 / Alt+F4 | main 隐藏，进程和托盘保留 |
+| 第二实例启动 | 新进程短时退出，常驻实例数仍为 1 |
+
+### 5. Good/Base/Bad Cases
+
+- Good：外部 WPF/Win32 文本选区按热键后原样进入主窗口，无剪贴板提示。
+- Base：不支持 UIA 的应用从剪贴板取词，用户明确知道发生了降级。
+- Bad：`show → set_focus → get_selection` 会稳定读取错误窗口；遗漏 hide ACL 会让关闭按钮看似可点但窗口不消失。
+
+### 6. Tests Required
+
+- Rust：动作映射、payload serde、托盘五项 id、关闭事件注册与单实例回调代码路径。
+- RTL：预捕获 UIA payload 不再调用 `getSelection`；空载荷覆盖剪贴板降级；错误包含手动粘贴建议；事件卸载退订。
+- 权限/构建：`pnpm tauri build` 或 `cargo build -p lingostack-app` 解析 capability。
+- Windows 真实边界：WPF/Notepad 选区热键、受控剪贴板降级、标题栏关闭、Alt+F4、Alt+Space 唤回与第二实例计数。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```rust
+window.set_focus();
+app.emit("translate-selection", ()); // 前端此时再取词，焦点已经丢失
+```
+
+#### Correct
+
+```rust
+let payload = capture_selection();
+window.set_focus();
+app.emit("translate-selection", payload);
+```
+
 ## 提供商工厂
 
 `build_provider(&ProviderConfig) -> Result<Box<dyn LlmProvider>, String>`（`:109-132`）按 `p.kind` 分派。`OpenAiCompatible` 与 `Ollama` **共用一个分支**（Ollama 同协议，`:108` 注释写明）。
@@ -225,6 +297,6 @@ setHotkeyStatuses(statuses); // 保存、重注册与可观察结果是一个业
 
 ## ACL
 
-`capabilities/default.json` 只作用于 `"main"` 窗口，声明 `core:default`、四个窗口控制权限（minimize / toggle-maximize / is-maximized / start-dragging / close）、`core:event:default`。
+`capabilities/default.json` 只作用于 `"main"` 窗口，声明 `core:default`、窗口控制权限（minimize / toggle-maximize / is-maximized / start-dragging / **hide** / close）与 `core:event:default`。
 
 自定义 `#[tauri::command]` **不需要** ACL 条目——那里只管插件权限。加自定义命令时不用动这个文件；要用新的窗口 API 或插件能力时才需要。

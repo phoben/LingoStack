@@ -15,7 +15,7 @@ vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: ... }));
 
 新测试把 `vi.mock` 写在相应模块 import 前（Vitest 会提升该调用）；现有窗口控制测试可参照 `title-bar.test.tsx` 的 `getCurrentWindow` mock。RTL 查询优先 `getByRole("button", { name })`，断言 `aria-current`、`aria-pressed`、`aria-busy` 等语义，而非实现类名。effect 有异步 promise 时用 `findByRole` 等待，以避免 `act(...)` 警告；模块加载期行为用 `vi.resetModules()` 加动态 import，参照 `theme-store.test.ts`。
 
-当前覆盖有 `lib/utils`、`lib/naming`、`lib/favorites`、app/theme/config stores、`use-theme`、`Sidebar`、`TitleBar`。`favorites-db.ts`、favorites store、所有 views、`provider-form.tsx`、`settings-ai.tsx`、所有 `ui/` 原语、`App.tsx`、`view-shell.tsx` 仍无覆盖。新功能必须随功能补测试；视图难测时先将纯逻辑抽到 `lib/`。
+当前覆盖包含 `lib/utils`、`lib/naming`、`lib/favorites`、`favorites-db`、app/theme/config/favorites/tts stores、`use-theme`、`Sidebar`、`TitleBar` 与 `App` 桌面事件。IndexedDB 测试用 `fake-indexeddb`，并必须清理数据库与 store 状态以避免用例串扰。各业务 views、`provider-form.tsx`、`settings-ai.tsx`、所有 `ui/` 原语和 `view-shell.tsx` 尚未完整覆盖；新功能必须随功能补测试，视图难测时先将纯逻辑抽到 `lib/`。
 
 ## 已有语义契约
 
@@ -33,6 +33,8 @@ vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: ... }));
 | 翻译译文区（`translate-view.tsx:275-284`）     | `aria-live="polite"`、`aria-busy`；错误 `role="alert"` |
 | 命名生成区（`naming-view.tsx:73-145`）         | `aria-live`、`aria-busy`；错误 `role="alert"`          |
 | 收藏通知与错误（`favorites-view.tsx:140-154`） | 通知 `aria-live`；错误 `role="alert"`                  |
+| 划词来源/失败（翻译页）                       | 剪贴板降级 `aria-live`；最终失败给手动粘贴建议         |
+| TTS 错误（翻译/收藏页）                       | `role="alert"`；朗读与停止按钮名称随状态变化          |
 
 新增会异步更新、但不必打断用户的结果或进度区域：在稳定容器上设置 `aria-live="polite"`，请求期间同步 `aria-busy`，完成后清除。需要立即打断的失败信息使用 `role="alert"`，不要同时把同一错误重复置入 polite region。测试至少断言忙碌、成功或空态、错误三种语义和文案变化。
 

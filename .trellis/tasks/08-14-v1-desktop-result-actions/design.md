@@ -2,7 +2,7 @@
 
 ## Event routing
 
-全局系统事件统一携带主窗口目标视图/动作，而不是创建新窗口。`translate-selection` 触发显示/聚焦，再由 App 取词并把 `{text, source}` 注入 translate store；托盘收藏/设置事件只切换 `activeView`。
+全局系统事件统一携带主窗口目标视图/动作，而不是创建新窗口。热键 `translate-selection` 必须先在原应用仍处于前台时取词，再显示/聚焦主窗口，并发送 `{ selection?, error? }`；App 将有效 `{text, source}` 注入 translate store。托盘“划词翻译”保留空载荷，App 才调用 `get_selection` 走既有降级；托盘收藏/设置事件只切换 `activeView`。
 
 取词反馈进入 app/translation 状态：`accessibility` 无额外提示，`clipboard` 显示可关闭的 polite notice，错误显示 alert 和手动粘贴提示。不得吞掉最终错误。
 

@@ -3,7 +3,7 @@
   "name": "v1-desktop-result-actions",
   "title": "V1 桌面集成与结果操作",
   "description": "补齐划词降级反馈、托盘导航、朗读停止/错误与结果操作闭环。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": "selection-hook-tts-app",
   "package": null,

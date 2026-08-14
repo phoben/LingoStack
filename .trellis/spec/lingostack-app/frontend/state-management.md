@@ -1,6 +1,6 @@
 # 状态管理
 
-Zustand，4 个 store。**无中间件**——没有 `persist`、没有 `devtools`、没有 `subscribeWithSelector`。
+Zustand，5 个 store（app / config / favorites / theme / tts）。**无中间件**——没有 `persist`、没有 `devtools`、没有 `subscribeWithSelector`。
 
 ## 写法
 
@@ -67,6 +67,8 @@ const { activeView } = useAppStore();                    // 错，全站零例
 | `config-store` | **不回滚**，只记 `error` | `config-store.ts:14-16` 注释写明是刻意的 |
 | `favorites-store` | **乐观更新 + 失败回滚**，catch 里恢复 `prev` | `favorites-store.ts:46-52`、`:55-61` |
 
+`tts-store` 是跨翻译页与收藏页的瞬时设备状态，不持久化。它用请求代次忽略过期 async 完成，避免“停止后旧 speak resolve 又变回 speaking”；完整契约见 [lingostack-tts 规范](../../lingostack-tts/backend/index.md#scenario前端朗读状态与停止)。
+
 新增动作时先想清楚属于哪种：配置保存失败保留用户输入更友好；收藏增删失败必须回滚否则列表与库不一致。
 
 `config-store.update()` 会先 `structuredClone` 再改（`:40`），避免污染调用方引用——有测试守护（`config-store.test.ts:54-72`）。改这个函数别把克隆去掉。
@@ -101,4 +103,6 @@ DB 层要点：`DB_NAME = "lingostack"`、`DB_VERSION = 1`、`STORE = "favorites
 
 **改 schema 必须升 `DB_VERSION` 并在 `onupgradeneeded` 里写迁移**——目前只有 v1，没有任何迁移代码可参照，是首次要面对的问题。
 
-新增业务规则优先放 `favorites.ts`（纯函数、可测），别塞进 DB 层或 store。`favorites-db.ts` 与 `favorites-store.ts` **当前零测试**（jsdom 无 IndexedDB 实现），所以纯逻辑下沉得越多，覆盖率越真实。
+新增业务规则优先放 `favorites.ts`（纯函数、可测），别塞进 DB 层或 store。测试环境用 `fake-indexeddb` 注入标准 IndexedDB 边界，覆盖 DB/store 的增删查、导入、回滚与视图刷新。
+
+`putFavorites` 的批量 `put` 必须原子：循环中任何同步 enqueue 异常都要立刻 `tx.abort()` 并 reject，禁止已经入队的前半批在异常后继续提交。测试至少断言“中途失败后旧列表与 DB 均不变”。
