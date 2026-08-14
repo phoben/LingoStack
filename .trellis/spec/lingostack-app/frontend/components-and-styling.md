@@ -1,105 +1,33 @@
 # 组件与样式
 
-> 写任何组件、页面、样式前，先调用 `/lingostack-design` 技能熟悉设计规范与原型稿，优先按原型实现；原型未覆盖的场景才自行设计，且须与既有视觉规范一致。
+视觉效果、布局层级、状态与窗口边界以 [UI 设计主契约](./ui-design.md) 为准；本文只规定其 React/Tailwind 实现方式。发生冲突时，先回到当前 `src/`、`src/index.css`、`tailwind.config.ts`，不按旧原型回退。
 
 ## `ui/` 原语是手写的，不是 shadcn 生成物
 
-`components.json` 存在，但 `src/components/ui/` 下的原语**全部手写**：
+`src/components/ui/` 的 `Button`、`Input`、`Textarea`、`Select`、`Pill` 都是手写实现；没有 `@radix-ui/*` 与 `class-variance-authority`。不要直接 `npx shadcn add`，否则会在当前项目并存两套原语模式。需要新原语时延续手写模式；若要迁移，应单独决策并整体规划。
 
-- 无 `@radix-ui/*` 依赖
-- 无 `class-variance-authority`
-- 各文件注释写明是过渡实现（`button.tsx:9`、`input.tsx:5-7`、`textarea.tsx:5-7`：「V1 引入 shadcn 完整组件时可平滑替换」）
+`Button` / `Input` / `Textarea` / `Select` 均应：
 
-**直接 `npx shadcn add <component>` 会引入 Radix + cva 风格的组件，与现有手写原语两套模式并存。** 需要新原语时先决定：跟随现有手写风格，还是启动一次整体迁移（那是独立技术决策）。
+- `forwardRef`，继承对应原生 HTML 属性，保留并展开 `{...props}`；
+- 单独取出 `className`，用 `cn()` 合并；`cn()` 是 `src/lib/utils.ts:5-7` 的 `twMerge(clsx(inputs))`；
+- 使用 `tailwind.config.ts` 的语义 token，例如 `border-border`、`focus-visible:ring-info/40`，不散落主题色。
 
-CLAUDE.md 里「新增组件默认走 shadcn/ui」是目标状态，与当前代码不一致——按本文档的实际情况办。
+`Pill` 是状态文本的 `<span>`，不是按钮或表单控件；不要用它承载可点击操作。`Select` 刻意保留原生 `<select>` 的键盘和表单语义，不能以自绘下拉替换。
 
-## 原语写法
+`Button` 的变体和尺寸继续使用穷尽的手写查表（`button.tsx:19-34`）：`Record<ButtonVariant, string>` 与 `Record<ButtonSize, string>`。当前有 5 个变体、4 个尺寸；主操作用默认变体，图标操作用 `ghost` + `icon` 或局部缩小尺寸。
 
-表单类原语（`Button` / `Input` / `Textarea` / `Select`）统一：`forwardRef` + 直接继承原生 HTML 属性接口 + 展开 `{...props}` + `className` 单独取出交 `cn()` 合并。
+## 页面组合与复用边界
 
-`Pill` 是 `<span>`，非表单控件，用普通函数组件、无 `forwardRef`（`pill.tsx:22-27`）。
+先用 `ViewShell` 组合视图：其可选 `toolbar` 是顶部操作行，内容区默认无内边距（`src/components/view-shell.tsx:3-31`）。工具条、分栏、行表、分节的视觉规则见 UI 主契约；实施时优先复用已有原语和分割线类，例如 `divide-x divide-border`、`divide-y divide-border`、`border-b border-border`。
 
-变体用**手写查表**，不用 cva（`button.tsx:19-34`）：
+抽为共享原语的条件：相同语义、交互和状态规则被两个以上位置稳定复用，且能由原生属性表达。保留页面局部组件的条件：只服务一个视图的业务结构、数据或编辑流程，例如 `provider-form.tsx` 的内联提供商编辑。不要为视觉独立而包装第二层 `rounded + border + bg-*` 卡片。
 
-```ts
-const VARIANT: Record<ButtonVariant, string> = {
-  default: "bg-primary text-primary-foreground hover:bg-primary/90",
-  // ...
-};
-const SIZE: Record<ButtonSize, string> = { sm: "...", md: "...", lg: "...", icon: "..." };
-// 组合：cn(baseClasses, VARIANT[variant], SIZE[size], className)
-```
+视图路由无路由库：`AppView` / `activeView` 在 `stores/app-store.ts`；`src/lib/view-meta.ts` 的 `VIEW_ORDER` 与 `VIEW_META` 是顺序、标签、说明和图标的唯一真源；`App.tsx` 条件挂载视图。新增视图依次更新：`AppView`、`VIEW_ORDER`、`VIEW_META`、`App.tsx` 的条件渲染，并使用 `<ViewShell toolbar={...}>`。
 
-`Record<Variant, string>` 保证加变体时不会漏——类型会报错。加新原语照这个形状写。
+设置页二级导航是 `settings-view.tsx` 内的局部状态，不进入 app store 或 view-meta，也不是可复制到其他视图的通用 tabs。
 
-`cn()` 在 `src/lib/utils.ts:5-7`，就是 `twMerge(clsx(inputs))`。**所有拼类名的地方都用它**，不要手工拼字符串。
+## 主题接线与动效实现
 
-`Select` 刻意用原生 `<select>` 而非自绘列表（`select.tsx:6-7`：桌面端保留键盘与表单语义）。不要替换成自定义下拉。
+`tailwind.config.ts` 使用 `darkMode: ["class"]`；`useApplyTheme()` 在 `App.tsx` 根部调用，根据 store 的 `mode` 切换 `<html>` 的 `.dark`，system 模式监听 `matchMedia`。`index.html:7-19` 在 React 挂载前用同一 localStorage key 预置主题，避免闪烁；`lingostack.theme` 同时写在 `index.html` 与 `theme-store.ts`，修改必须同步。
 
-## 视图路由
-
-无路由库，纯状态驱动。
-
-- `AppView` 联合类型与 `activeView` 在 `stores/app-store.ts:7-13`
-- **`lib/view-meta.ts` 是视图元信息的唯一真源**：`VIEW_ORDER`（展示顺序，`:31-38`）+ `VIEW_META`（`id`/`label`/`description`/`icon`，`:40-77`）
-- `Sidebar` 与 `ViewShell` 都从这里读，标签不重复定义
-- `App.tsx:57-64` 用一串 `activeView === "x" ? <XView /> : null` 渲染，未命中的视图返回 `null`（不是隐藏，是不挂载）
-- 六个视图全部静态 import，无懒加载
-
-**加视图的动作**：`AppView` 加成员 → `VIEW_ORDER` 加顺序 → `VIEW_META` 加元信息 → `App.tsx` 加一行条件渲染 → 视图组件用 `<ViewShell toolbar={...}>` 包裹。
-
-`ViewShell`（`view-shell.tsx`）提供每个视图的统一外壳：一个 `toolbar` 插槽（顶部操作行，用法见 `favorites-view.tsx:78-138`）+ 内容区。**无标题与描述**——页面身份由侧栏选中态表达，不从 `VIEW_META` 取文案。分区规则见下方「内容区分区」。
-
-设置页有**自己的二级标签**，是组件内 `useState`，不进 app store、不进 view-meta（`settings-view.tsx:9-16,72`）。这套二级机制不可复用，别照抄到其他视图。
-
-## 内容区分区：分割线，不是嵌套卡片
-
-**视图区只有一层容器**：`App.tsx:59` 的圆角主面板。面板内部一律用 1px 浅色分割线分区，**不再套第二层圆角卡片**。
-
-`ViewShell`（`view-shell.tsx`）为此做了两件事：
-
-- 顶部操作行是一条 `border-b border-border` 的普通行，不是卡片
-- 内容区**不带内边距**——留给各视图自己加，这样分割线才能通到面板两侧边缘，而不是悬空一段
-
-各视图的分区手法：
-
-| 场景 | 手法 |
-|------|------|
-| 左右并列（翻译原文/译文、文档列表/预览） | 父级 `grid ... divide-x divide-border`，子 `<section>` 不带 border/bg |
-| 多列平铺（命名五写法） | `grid-cols-5 divide-x divide-border` |
-| 行表（收藏条目、提供商、热键、功能默认模型） | 容器 `divide-y divide-border`，行内只有内边距 |
-| 行表接在分节标题下 | 容器额外 `border-t border-border`（**不要 `border-y`**，底边会和 `SetSection` 的 `border-b` 撞成双线） |
-| 分节 | `SetSection` 的 `border-b border-border`（`settings-view.tsx:62`） |
-
-hover 反馈从「提亮边框」改为**提亮背景**（`hover:bg-accent/40`）——没有边框可提了，且这本来就是设计契约要求的方向（见 DESIGN.md §7 状态对比铁律）。
-
-例外：`provider-form.tsx` 这类内联展开的编辑区用 `border-y border-border` 界定上下范围，仍不套圆角卡片。
-
-**不要**为了「让区块看起来独立」而加回 `rounded-lg border border-border bg-background`。参考截图与本约定的核心就是取消这层嵌套。
-
-## Tailwind 令牌
-
-`tailwind.config.ts`。颜色全部走 `hsl(var(--token))` 间接层（`:32-84`）。除 shadcn 标准令牌外的自定义语义色：
-
-- `surface` / `surface-2`（`:68-71`）
-- `info`（`:73-76`）—— 原型的主交互色，用于焦点、链接、流式态、保留词高亮
-- `success` / `warning`（`:77-84`）
-
-圆角从单一 `--radius`（12px，`index.css:48`）派生：`sm` = −6px、`md` = −2px、`lg` = 基准、`xl` = +2px（`:86-92`）。
-
-**动效用自定义令牌，不用 Tailwind 原生的**（`:100-108`）：`ease-app`、`duration-fast`（150ms）、`duration-base`（220ms）。写法见 `button.tsx:51` 的 `transition-colors duration-fast ease-app`。
-
-自定义阴影 `ring` / `focus` / `sm` / `md`（`:94-99`），其中 `ring`/`focus` 解析到随主题变化的 CSS 变量（暗色下是双层 ring，见 `index.css:92-93`）。
-
-`panel-in` 动画（淡入 + 轻微上移）由 `ViewShell` 在每次切视图时用（`view-shell.tsx:21`）。
-
-## 主题
-
-`darkMode: ["class"]`，靠 `<html>` 上的 `.dark` 类切换。
-
-`hooks/use-theme.ts` 的 `useApplyTheme()` 在应用根调用一次（`App.tsx:25`），订阅 store 的 `mode`，在 effect 里 `classList.toggle("dark", ...)`（`:29`）。`mode === "system"` 时额外挂 `matchMedia` 的 `change` 监听以跟随系统实时切换（`:35-37`），卸载时清理。
-
-**防闪烁**：`index.html:7-19` 有一段 React 挂载前执行的同步内联脚本，读同一个 localStorage key 提前加 `.dark`。
-
-`lingostack.theme` 这个 key 写在两处（`index.html:9,12` 与 `theme-store.ts:10`），靠注释同步。改一处必须改另一处。
+使用 `transition-colors duration-fast ease-app`（见 `button.tsx`），而非原生 duration/easing；视图切换由 `ViewShell` 的 `animate-panel-in` 完成。令牌细节、字体回退及状态可访问性见主契约和测试规范。
