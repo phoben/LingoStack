@@ -47,7 +47,7 @@ jobs:
       # tauri::generate_context! 在编译期校验 frontendDist（../dist）存在，
       # 故 Rust 侧任何检查前都必须先产出前端构建物，否则 proc macro panic。
       # 不指定 version：版本单一真源为 package.json 的 packageManager 字段。
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -92,7 +92,7 @@ jobs:
 
       # 不指定 version：由 package.json 的 packageManager 字段决定版本。
       # 两处同时声明会触发 action 的版本冲突检查而直接失败。
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -117,7 +117,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v4
         with:
