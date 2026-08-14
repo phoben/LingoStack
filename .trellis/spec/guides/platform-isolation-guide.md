@@ -84,7 +84,7 @@ macOS / Linux 目前是占位。它们**返回类型化错误，绝不 panic、�
 
 含真实系统调用的测试只能断言「不 panic / 结果自洽」，无法断言功能正确——结果取决于运行环境有没有真实选中文本或音频设备（`selection/src/windows.rs:129-132` 注释写明）。
 
-- `selection/src/windows.rs:119-161`：4 个测试，均为不 panic 级
+- `selection/src/windows.rs:119-161`：现有测试均为不 panic 级
 - `tts/src/windows.rs:184-286`：含一个 `Send+Sync` 编译期断言测试（`:220-223`），值得照抄；另有三条守线程模型的结构性断言（耗时上界 / 不死锁 / 线程复用），均在环境无引擎时提前返回
 
 CI 三平台矩阵都跑 `cargo test --workspace`（`.github/workflows/ci.yml:22`），所以占位实现的 `Unsupported` 测试确实在各平台执行了——但那不代表功能被验证过。

@@ -39,7 +39,7 @@ dirs::config_dir()  /  "lingostack"  /  "config.json"
 
 ## 测试
 
-`:66-118` 4 个测试，用 `tempfile::tempdir()`：读写往返、文件缺失、损坏 JSON。
+`:66-118` 的现有测试使用 `tempfile::tempdir()`，覆盖读写往返、文件缺失和损坏 JSON。
 
 **`restrict_permissions` 完全未测**——Unix 的 0600 路径也没测。改这个函数时要自己建测试，别指望现有测试拦住回归。
 
