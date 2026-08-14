@@ -1,14 +1,14 @@
 //! 系统托盘：图标常驻 + 左键单击/双击 + 右键菜单。
 //!
 //! 右键菜单由 Tauri 2 原生 `Menu` 渲染（样式跟随系统），项：
-//! 「主窗口」「设置」「退出」。左键交互见 [`setup_tray`] 的事件处理。
+//! 「主窗口」「划词翻译」「收藏」「设置」「退出」。左键交互见 [`setup_tray`] 的事件处理。
 //!
 //! 平台差异由 Tauri 统一抽象；如需平台特化，再按 `#[cfg(target_os)]` 分文件。
 
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager,
+    AppHandle, Emitter, Manager,
 };
 
 /// 主窗口 label，须与 `tauri.conf.json` 中 `app.windows[0].label` 保持一致。
@@ -21,6 +21,28 @@ pub enum WindowAction {
     Show,
     /// 隐藏到托盘。
     Hide,
+}
+
+/// 托盘菜单的产品动作。导航事件始终由既有主窗口消费，不创建新窗口。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrayAction {
+    ShowMain,
+    TranslateSelection,
+    NavigateFavorites,
+    NavigateSettings,
+    Quit,
+}
+
+#[must_use]
+pub fn tray_action(id: &str) -> Option<TrayAction> {
+    match id {
+        "main" => Some(TrayAction::ShowMain),
+        "translate-selection" => Some(TrayAction::TranslateSelection),
+        "favorites" => Some(TrayAction::NavigateFavorites),
+        "settings" => Some(TrayAction::NavigateSettings),
+        "quit" => Some(TrayAction::Quit),
+        _ => None,
+    }
 }
 
 /// 依据主窗口当前的「对用户可见」状态，决定 toggle 应执行的动作。
@@ -47,6 +69,8 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         app,
         &[
             &MenuItem::with_id(app, "main", "主窗口", true, None::<&str>)?,
+            &MenuItem::with_id(app, "translate-selection", "划词翻译", true, None::<&str>)?,
+            &MenuItem::with_id(app, "favorites", "收藏", true, None::<&str>)?,
             &MenuItem::with_id(app, "settings", "设置", true, None::<&str>)?,
             &MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?,
         ],
@@ -87,13 +111,22 @@ fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
 
 /// 右键菜单事件分发。
 fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
-    match event.id().as_ref() {
-        "main" => apply_window_action(app, WindowAction::Show),
-        // 当前无独立设置页：打开主窗口即可；V1 设置 tab 就绪后改为前端导航。
-        "settings" => apply_window_action(app, WindowAction::Show),
-        "quit" => app.exit(0),
-        _ => {}
+    match tray_action(event.id().as_ref()) {
+        Some(TrayAction::ShowMain) => apply_window_action(app, WindowAction::Show),
+        Some(TrayAction::TranslateSelection) => {
+            apply_window_action(app, WindowAction::Show);
+            let _ = app.emit("translate-selection", ());
+        }
+        Some(TrayAction::NavigateFavorites) => navigate_to(app, "favorites"),
+        Some(TrayAction::NavigateSettings) => navigate_to(app, "settings"),
+        Some(TrayAction::Quit) => app.exit(0),
+        None => {}
     }
+}
+
+fn navigate_to(app: &AppHandle, view: &str) {
+    apply_window_action(app, WindowAction::Show);
+    let _ = app.emit("navigate-view", view);
 }
 
 /// 读取主窗口状态计算 toggle 动作；窗口不存在时返回 [`WindowAction::Show`]（无害）。
@@ -147,5 +180,20 @@ mod tests {
     #[test]
     fn toggle_when_hidden_and_minimized_shows() {
         assert_eq!(toggle_action(false, true), WindowAction::Show);
+    }
+
+    #[test]
+    fn tray_menu_ids_cover_the_five_v1_actions() {
+        assert_eq!(tray_action("main"), Some(TrayAction::ShowMain));
+        assert_eq!(
+            tray_action("translate-selection"),
+            Some(TrayAction::TranslateSelection)
+        );
+        assert_eq!(
+            tray_action("favorites"),
+            Some(TrayAction::NavigateFavorites)
+        );
+        assert_eq!(tray_action("settings"), Some(TrayAction::NavigateSettings));
+        assert_eq!(tray_action("quit"), Some(TrayAction::Quit));
     }
 }

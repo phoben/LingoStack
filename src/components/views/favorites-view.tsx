@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bookmark, Search, Trash2, Volume2 } from "lucide-react";
+import { Bookmark, Search, Square, Trash2, Volume2 } from "lucide-react";
 import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,8 +8,8 @@ import {
   parseImport,
   toExportJson,
 } from "@/lib/favorites";
-import { speak } from "@/lib/ipc";
 import { useFavoritesStore } from "@/stores/favorites-store";
+import { useTtsStore } from "@/stores/tts-store";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 
@@ -35,6 +35,12 @@ export function FavoritesView() {
   const load = useFavoritesStore((s) => s.load);
   const remove = useFavoritesStore((s) => s.remove);
   const importAll = useFavoritesStore((s) => s.importAll);
+  const ttsStatus = useTtsStore((s) => s.status);
+  const speakingText = useTtsStore((s) => s.text);
+  const speakText = useTtsStore((s) => s.speakText);
+  const stop = useTtsStore((s) => s.stop);
+  const ttsError = useTtsStore((s) => s.error);
+  const clearTtsError = useTtsStore((s) => s.clearError);
 
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | FavKind>("all");
@@ -91,8 +97,8 @@ export function FavoritesView() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-            placeholder={t("searchFavorites")}
-            aria-label={t("searchFavorites")}
+              placeholder={t("searchFavorites")}
+              aria-label={t("searchFavorites")}
               className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground/60"
             />
           </label>
@@ -151,10 +157,28 @@ export function FavoritesView() {
             {error}
           </p>
         ) : null}
+        {ttsError ? (
+          <p
+            role="alert"
+            className="shrink-0 border-b border-border px-4 py-2 text-xs text-accent"
+          >
+            {t("speakFailed", { message: ttsError })}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-2 h-6"
+              onClick={clearTtsError}
+            >
+              {t("dismiss")}
+            </Button>
+          </p>
+        ) : null}
 
         <div className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-auto">
           {loading ? (
-            <p className="px-4 py-3 text-xs text-muted-foreground">{t("loading")}</p>
+            <p className="px-4 py-3 text-xs text-muted-foreground">
+              {t("loading")}
+            </p>
           ) : shown.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-muted-foreground">
@@ -182,16 +206,27 @@ export function FavoritesView() {
                   {f.meaning}
                 </span>
                 <span className="font-mono text-[10px] text-muted-foreground">
-                  {t(f.kind)} · {f.source} ·{" "}
-                  {formatDate(f.createdAt)}
+                  {t(f.kind)} · {f.source} · {formatDate(f.createdAt)}
                 </span>
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label={`朗读 ${f.term}`}
-                  onClick={() => void speak(f.term)}
+                  aria-label={
+                    ttsStatus === "speaking" && speakingText === f.term
+                      ? t("stopSpeaking")
+                      : `${t("speak")} ${f.term}`
+                  }
+                  onClick={() =>
+                    void (ttsStatus === "speaking" && speakingText === f.term
+                      ? stop()
+                      : speakText(f.term))
+                  }
                 >
-                  <Volume2 className="h-3.5 w-3.5" />
+                  {ttsStatus === "speaking" && speakingText === f.term ? (
+                    <Square className="h-3.5 w-3.5" />
+                  ) : (
+                    <Volume2 className="h-3.5 w-3.5" />
+                  )}
                 </Button>
                 <Button
                   variant="ghost"

@@ -70,9 +70,17 @@ export async function putFavorites(list: Favorite[]): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE, "readwrite");
       const store = tx.objectStore(STORE);
-      list.forEach((f) => store.put(f));
+      try {
+        list.forEach((f) => store.put(f));
+      } catch (error) {
+        // 某一条在排队时就因非法 key 抛错，必须主动中断，不能让已排队的
+        // 前几条悄然提交，否则导入会破坏原有列表的原子性。
+        tx.abort();
+        reject(error);
+      }
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error ?? new Error("IndexedDB 批量写入失败"));
+      tx.onerror = () =>
+        reject(tx.error ?? new Error("IndexedDB 批量写入失败"));
       tx.onabort = () => reject(tx.error ?? new Error("IndexedDB 事务中断"));
     });
   } finally {

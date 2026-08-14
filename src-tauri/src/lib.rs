@@ -36,6 +36,16 @@ pub fn run() {
     }
 
     builder
+        // 主窗口关闭（包括 Alt+F4）只隐藏到托盘。真正退出只能由托盘的
+        // “退出”动作触发；这样托盘始终能重新显示同一个窗口。
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .manage(AppState {
             config_path: config::config_path(),
             rate_limit_until: Arc::new(Mutex::new(None)),

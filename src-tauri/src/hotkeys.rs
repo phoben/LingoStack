@@ -8,6 +8,7 @@
 
 use lingostack_core::hotkey::{HotkeyAction, HotkeyBinding};
 use lingostack_hook::accelerator;
+use lingostack_selection::{Selection, SelectionError};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
@@ -26,6 +27,16 @@ pub struct HotkeyStatus {
 
 /// 前端监听的事件名——热键注册完毕后推送全部状态。
 pub const HOTKEY_STATUS_EVENT: &str = "hotkey-status";
+
+/// 划词热键事件载荷。必须在原应用仍处于前台时完成取词，再显示主窗口；
+/// 否则 UIA 的焦点元素会变成 LingoStack 自身，只能错误地降级到剪贴板。
+#[derive(Debug, Clone, Serialize)]
+pub struct TranslateSelectionPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selection: Option<Selection>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
 
 /// 主窗口 label，须与 `tauri.conf.json` 一致。
 const MAIN_WINDOW: &str = "main";
@@ -123,16 +134,32 @@ fn apply_effect(app: &AppHandle, effect: HotkeyEffect) {
                 let _ = w.set_focus();
             }
         }
-        // 划词翻译：显示主窗口，前端收到事件后切到翻译视图、
-        // 取词、填充原文并自动翻译（见 App.tsx 的 translate-selection 监听）。
+        // 划词翻译：先在原应用前台取词，再显示主窗口；前端收到载荷后切到
+        // 翻译视图、填充原文并自动翻译（见 App.tsx 的 translate-selection 监听）。
         HotkeyEffect::TranslateSelection => {
+            // 先取词、后聚焦主窗口。UIA 按当前焦点元素读取选区，这个顺序是
+            // 跨进程划词成立的必要条件。
+            let payload = selection_payload(lingostack_selection::provider().get_selection());
             if let Some(w) = app.get_webview_window(MAIN_WINDOW) {
                 let _ = w.show();
                 let _ = w.unminimize();
                 let _ = w.set_focus();
             }
-            let _ = app.emit("translate-selection", ());
+            let _ = app.emit("translate-selection", payload);
         }
+    }
+}
+
+fn selection_payload(result: Result<Selection, SelectionError>) -> TranslateSelectionPayload {
+    match result {
+        Ok(selection) => TranslateSelectionPayload {
+            selection: Some(selection),
+            error: None,
+        },
+        Err(error) => TranslateSelectionPayload {
+            selection: None,
+            error: Some(error.to_string()),
+        },
     }
 }
 
@@ -177,5 +204,25 @@ mod tests {
         let json = serde_json::to_string(&s).unwrap();
         assert!(json.contains("\"registered\":false"));
         assert!(json.contains("冲突"));
+    }
+
+    #[test]
+    fn selection_payload_preserves_accessibility_source() {
+        let payload = selection_payload(Ok(Selection {
+            text: "selected text".into(),
+            source: lingostack_selection::SelectionSource::Accessibility,
+        }));
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("selected text"));
+        assert!(json.contains("accessibility"));
+        assert!(!json.contains("error"));
+    }
+
+    #[test]
+    fn selection_payload_exposes_recoverable_error() {
+        let payload = selection_payload(Err(SelectionError::Empty));
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains("未选中文本"));
+        assert!(!json.contains("selection"));
     }
 }

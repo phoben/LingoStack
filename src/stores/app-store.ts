@@ -5,12 +5,10 @@ import { create } from "zustand";
  * 顺序即侧边栏自上而下的展示顺序。
  */
 export type AppView =
-  | "translate"
-  | "naming"
-  | "docs"
-  | "favorites"
-  | "settings"
-  | "about";
+  "translate" | "naming" | "docs" | "favorites" | "settings" | "about";
+
+export type SelectionFeedback =
+  { kind: "clipboard" } | { kind: "error"; message: string } | null;
 
 interface AppState {
   /** V0 占位字段：证明 Zustand 链路连通，V1 接入真实应用就绪状态。 */
@@ -27,6 +25,10 @@ interface AppState {
    */
   injectSource: string | null;
   setInjectSource: (source: string | null) => void;
+
+  /** 划词结果的可恢复反馈；辅助 API 成功时不展示提示。 */
+  selectionFeedback: SelectionFeedback;
+  setSelectionFeedback: (feedback: SelectionFeedback) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -36,4 +38,6 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveView: (activeView) => set({ activeView }),
   injectSource: null,
   setInjectSource: (injectSource) => set({ injectSource }),
+  selectionFeedback: null,
+  setSelectionFeedback: (selectionFeedback) => set({ selectionFeedback }),
 }));

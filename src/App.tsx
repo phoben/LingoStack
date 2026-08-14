@@ -14,6 +14,13 @@ import { useConfigStore } from "@/stores/config-store";
 import { useApplyTheme } from "@/hooks/use-theme";
 import { useThemeStore } from "@/stores/theme-store";
 
+type Selection = Awaited<ReturnType<typeof getSelection>>;
+
+interface TranslateSelectionPayload {
+  selection?: Selection;
+  error?: string;
+}
+
 /**
  * 主窗口：自定义标题栏 + 可调宽左侧导航 + 圆角内容面板（§4.3 / §12.4）。
  *
@@ -29,6 +36,7 @@ function App() {
   const activeView = useAppStore((s) => s.activeView);
   const setActiveView = useAppStore((s) => s.setActiveView);
   const setInjectSource = useAppStore((s) => s.setInjectSource);
+  const setSelectionFeedback = useAppStore((s) => s.setSelectionFeedback);
   const loadConfig = useConfigStore((s) => s.load);
   const config = useConfigStore((s) => s.config);
   const hotkeys = useConfigStore((s) => s.config?.hotkeys);
@@ -50,21 +58,65 @@ function App() {
   }, [hotkeys]);
 
   useEffect(() => {
-    const un = listen("translate-selection", async () => {
+    const translateSelection = async (payload?: TranslateSelectionPayload) => {
       setActiveView("translate");
+      setSelectionFeedback(null);
       try {
-        const sel = await getSelection();
+        if (payload?.error) throw payload.error;
+        const sel = payload?.selection ?? (await getSelection());
         if (sel.text.trim()) {
           setInjectSource(sel.text);
+          if (sel.source === "clipboard")
+            setSelectionFeedback({ kind: "clipboard" });
+        } else {
+          setSelectionFeedback({
+            kind: "error",
+            message: "未读取到选中文本，请手动粘贴后翻译。",
+          });
         }
-      } catch {
-        // 取词失败：仍切到翻译视图，用户可手动粘贴。
+      } catch (error) {
+        setSelectionFeedback({
+          kind: "error",
+          message: `读取选中文本失败：${typeof error === "string" ? error : String(error)}。请手动粘贴后翻译。`,
+        });
+      }
+    };
+    const unTranslate = listen<TranslateSelectionPayload | undefined>(
+      "translate-selection",
+      (event) => void translateSelection(event.payload),
+    );
+    const unNavigate = listen("navigate-view", (event) => {
+      const view = event.payload;
+      if (
+        [
+          "translate",
+          "naming",
+          "docs",
+          "favorites",
+          "settings",
+          "about",
+        ].includes(view as string)
+      ) {
+        setActiveView(
+          view as
+            | "translate"
+            | "naming"
+            | "docs"
+            | "favorites"
+            | "settings"
+            | "about",
+        );
       }
     });
     return () => {
-      void un.then((f) => f());
+      void Promise.all([unTranslate, unNavigate]).then(
+        ([translate, navigate]) => {
+          translate();
+          navigate();
+        },
+      );
     };
-  }, [setActiveView, setInjectSource]);
+  }, [setActiveView, setInjectSource, setSelectionFeedback]);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">

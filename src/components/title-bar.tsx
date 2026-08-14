@@ -26,7 +26,7 @@ interface WindowControlProps {
   children: ReactNode;
 }
 
-/** 窗口控制按钮（最小化 / 最大化 / 关闭）。 */
+/** 窗口控制按钮（最小化 / 最大化 / 隐藏到托盘）。 */
 function WindowControl({
   label,
   onClick,
@@ -133,7 +133,11 @@ export function TitleBar() {
             <Square className="h-3.5 w-3.5" />
           )}
         </WindowControl>
-        <WindowControl label={t("close")} danger onClick={() => appWindow.close()}>
+        <WindowControl
+          label={t("close")}
+          danger
+          onClick={() => void appWindow.hide()}
+        >
           <X className="h-4 w-4" />
         </WindowControl>
       </div>

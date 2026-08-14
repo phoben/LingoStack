@@ -8,7 +8,7 @@ import { useConfigStore } from "@/stores/config-store";
 const mockWindow = {
   minimize: vi.fn(),
   toggleMaximize: vi.fn(),
-  close: vi.fn(),
+  hide: vi.fn(),
   isMaximized: vi.fn().mockResolvedValue(false),
   onResized: vi.fn().mockResolvedValue(vi.fn()),
 };
@@ -47,11 +47,11 @@ describe("TitleBar", () => {
     expect(mockWindow.toggleMaximize).toHaveBeenCalledOnce();
   });
 
-  it("close button calls window.close", async () => {
+  it("close button hides the main window so the tray can reopen it", async () => {
     render(<TitleBar />);
     const btn = await screen.findByRole("button", { name: "关闭" });
     fireEvent.click(btn);
-    expect(mockWindow.close).toHaveBeenCalledOnce();
+    expect(mockWindow.hide).toHaveBeenCalledOnce();
   });
 
   it("theme toggle cycles mode system → light", async () => {

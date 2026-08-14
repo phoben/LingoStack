@@ -5,15 +5,17 @@ import {
   Copy,
   RotateCcw,
   Sparkles,
+  Square,
   Volume2,
 } from "lucide-react";
 import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { effectiveTranslationPrompt, speak, translationPlan } from "@/lib/ipc";
+import { effectiveTranslationPrompt, translationPlan } from "@/lib/ipc";
 import type { TranslationTerm } from "@/lib/translation-envelope";
 import { useAppStore } from "@/stores/app-store";
 import { useFavoritesStore } from "@/stores/favorites-store";
+import { useTtsStore } from "@/stores/tts-store";
 import { useConfigStore } from "@/stores/config-store";
 import { resolveLocale } from "@/lib/i18n";
 import { useT } from "@/lib/i18n";
@@ -32,8 +34,13 @@ export function TermTags({ terms }: { terms: TranslationTerm[] }) {
   }, []);
   if (terms.length === 0) return null;
   return (
-    <section className="mt-4 border-t border-border pt-3" aria-label={t("contextualTerms")}>
-      <p className="mb-2 text-xs text-muted-foreground">{t("contextualTerms")}</p>
+    <section
+      className="mt-4 border-t border-border pt-3"
+      aria-label={t("contextualTerms")}
+    >
+      <p className="mb-2 text-xs text-muted-foreground">
+        {t("contextualTerms")}
+      </p>
       <div className="flex flex-wrap gap-2">
         {terms.map((term, index) => {
           const id = `term-explanation-${index}`;
@@ -51,7 +58,11 @@ export function TermTags({ terms }: { terms: TranslationTerm[] }) {
                 {term.term}
               </button>
               {open === index ? (
-                <span id={id} role="tooltip" className="absolute left-0 top-full z-10 mt-1 w-56 border border-border bg-surface px-2 py-1.5 text-xs text-foreground shadow-ring">
+                <span
+                  id={id}
+                  role="tooltip"
+                  className="absolute left-0 top-full z-10 mt-1 w-56 border border-border bg-surface px-2 py-1.5 text-xs text-foreground shadow-ring"
+                >
                   {term.explanation}
                 </span>
               ) : null}
@@ -98,7 +109,15 @@ function StatusBadge({ status }: { status: StreamStatus }) {
       )}
     >
       <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
-      {t(status === "idle" ? "pending" : status === "streaming" ? "streaming" : status === "done" ? "completed" : "error")}
+      {t(
+        status === "idle"
+          ? "pending"
+          : status === "streaming"
+            ? "streaming"
+            : status === "done"
+              ? "completed"
+              : "error",
+      )}
     </span>
   );
 }
@@ -123,6 +142,10 @@ function PaneActions({
   streaming,
 }: PaneActionsProps) {
   const t = useT();
+  const ttsStatus = useTtsStore((s) => s.status);
+  const speakingText = useTtsStore((s) => s.text);
+  const speakText = useTtsStore((s) => s.speakText);
+  const stop = useTtsStore((s) => s.stop);
   const [copied, setCopied] = useState(false);
   const copy = () => {
     if (!text) return;
@@ -136,12 +159,32 @@ function PaneActions({
         variant="ghost"
         size="icon"
         className="h-7 w-7"
-        title={`${t("speak")} ${label}`}
-        aria-label={`${t("speak")} ${label}`}
-        onClick={() => void speak(text)}
-        disabled={!text || streaming}
+        title={
+          ttsStatus === "speaking" && speakingText === text
+            ? t("stopSpeaking")
+            : `${t("speak")} ${label}`
+        }
+        aria-label={
+          ttsStatus === "speaking" && speakingText === text
+            ? t("stopSpeaking")
+            : `${t("speak")} ${label}`
+        }
+        onClick={() =>
+          void (ttsStatus === "speaking" && speakingText === text
+            ? stop()
+            : speakText(text))
+        }
+        // 朗读期间即使翻译还在流式输出，也必须允许用户随时停止。
+        disabled={
+          !text ||
+          (streaming && !(ttsStatus === "speaking" && speakingText === text))
+        }
       >
-        <Volume2 className="h-3.5 w-3.5" />
+        {ttsStatus === "speaking" && speakingText === text ? (
+          <Square className="h-3.5 w-3.5" />
+        ) : (
+          <Volume2 className="h-3.5 w-3.5" />
+        )}
       </Button>
       <Button
         variant="ghost"
@@ -189,6 +232,10 @@ export function TranslateView() {
   const addFavorite = useFavoritesStore((s) => s.add);
   const injectSource = useAppStore((s) => s.injectSource);
   const setInjectSource = useAppStore((s) => s.setInjectSource);
+  const selectionFeedback = useAppStore((s) => s.selectionFeedback);
+  const setSelectionFeedback = useAppStore((s) => s.setSelectionFeedback);
+  const ttsError = useTtsStore((s) => s.error);
+  const clearTtsError = useTtsStore((s) => s.clearError);
   const task = useStreamStore((s) => s.tasks.translate);
   const setInput = useStreamStore((s) => s.setInput);
   const start = useStreamStore((s) => s.start);
@@ -207,8 +254,8 @@ export function TranslateView() {
     void start("translate", src, async () => {
       const plan = await translationPlan(
         src,
-        sourceLang === "auto" ? undefined : sourceLang as "zh" | "en" | "ja",
-        targetLang === "auto" ? undefined : targetLang as "zh" | "en" | "ja",
+        sourceLang === "auto" ? undefined : (sourceLang as "zh" | "en" | "ja"),
+        targetLang === "auto" ? undefined : (targetLang as "zh" | "en" | "ja"),
         resolveLocale(uiLanguage) === "zh" ? "zh" : "en",
       );
       const system = await effectiveTranslationPrompt(plan.source, plan.target);
@@ -283,6 +330,51 @@ export function TranslateView() {
         </>
       }
     >
+      {selectionFeedback ? (
+        <div
+          className="border-b border-border px-4 py-2 text-xs"
+          aria-live={
+            selectionFeedback.kind === "clipboard" ? "polite" : undefined
+          }
+          role={selectionFeedback.kind === "error" ? "alert" : undefined}
+        >
+          <span
+            className={
+              selectionFeedback.kind === "clipboard"
+                ? "text-info"
+                : "text-accent"
+            }
+          >
+            {selectionFeedback.kind === "clipboard"
+              ? t("selectionClipboardFallback")
+              : selectionFeedback.message}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-2 h-6"
+            onClick={() => setSelectionFeedback(null)}
+          >
+            {t("dismiss")}
+          </Button>
+        </div>
+      ) : null}
+      {ttsError ? (
+        <div
+          role="alert"
+          className="border-b border-border px-4 py-2 text-xs text-accent"
+        >
+          {t("speakFailed", { message: ttsError })}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-2 h-6"
+            onClick={clearTtsError}
+          >
+            {t("dismiss")}
+          </Button>
+        </div>
+      ) : null}
       {/* 原文 / 译文靠一条竖向分割线分隔，不各自成卡片 */}
       <div className="grid h-full grid-cols-2 divide-x divide-border">
         {/* 原文 */}
@@ -326,7 +418,11 @@ export function TranslateView() {
           >
             {target}
             <TermTags terms={task.terms} />
-            {task.diagnostic ? <p className="mt-2 text-xs text-muted-foreground">{task.diagnostic}</p> : null}
+            {task.diagnostic ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {task.diagnostic}
+              </p>
+            ) : null}
             {task.status === "error" ? (
               <div role="alert" className="mt-2 flex items-center gap-2">
                 <span className="text-xs text-accent">{task.error}</span>
