@@ -17,12 +17,13 @@ dirs::config_dir()  /  "lingostack"  /  "config.json"
 - 文件不存在 → `Ok(AppConfig::default())`，视为首次运行，**不是错误**（`:34`）
 - 其他 IO 错误 → 向上传播
 - JSON 解析失败 → `ConfigError::Json`
+- 反序列化成功后调用 `normalize_hotkeys()`：旧动作别名先由 serde 接收，再按动作去重并转成当前 V1 绑定集合
 
 首次运行返回默认值这条依赖 `lingostack-core` 的 `impl Default for AppConfig`——加配置字段时记得同步那份清单（见 [配置模型](../../lingostack-core/backend/config-model.md)）。
 
 ## 写
 
-`save()`（`:40-48`）：`create_dir_all(parent)` → `to_string_pretty` → `fs::write` → `restrict_permissions`。
+`save()`（`:43-54`）：克隆并 `normalize_hotkeys()` → `create_dir_all(parent)` → `to_string_pretty` → `fs::write` → `restrict_permissions`。调用方对象不被原地修改，磁盘上永远写规范化后的动作名与每动作一条绑定。
 
 用 `to_string_pretty` 是刻意的——用户可能手工编辑配置文件。
 
@@ -39,7 +40,7 @@ dirs::config_dir()  /  "lingostack"  /  "config.json"
 
 ## 测试
 
-`:66-118` 4 个测试，用 `tempfile::tempdir()`：读写往返、文件缺失、损坏 JSON。
+配置 IO 测试用 `tempfile::tempdir()` 覆盖读写往返、文件缺失、损坏 JSON；热键迁移与规范化的纯规则由 `lingostack-core` 测试覆盖。
 
 **`restrict_permissions` 完全未测**——Unix 的 0600 路径也没测。改这个函数时要自己建测试，别指望现有测试拦住回归。
 

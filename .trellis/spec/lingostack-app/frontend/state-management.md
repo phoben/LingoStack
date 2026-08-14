@@ -6,18 +6,23 @@ Zustand，4 个 store。**无中间件**——没有 `persist`、没有 `devtool
 
 `create<T>((set, get) => ({ ...state, ...actions }))`，动作与状态就地成对放（`ready` 紧跟 `setReady`）。只有需要读当前值或调用别的动作时才取 `get`。
 
-`theme-store.ts:37-56` 是完整样例，同时展示了「动作调动作」与初始值带副作用：
+`theme-store.ts` 是完整样例，同时展示了「动作调动作」、首屏缓存与 Rust 配置同步：
 
 ```ts
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  mode: readStoredMode(),              // 建 store 时同步读 localStorage
+  mode: readStoredMode(),              // 只用于 Rust 配置加载前的防闪烁
   setMode: (mode) => {
     try {
       localStorage.setItem(THEME_STORAGE_KEY, mode);
     } catch {
-      // 写入失败时退化为仅内存态，不影响本次使用
+      // 缓存失败不阻断本次主题切换
     }
     set({ mode });
+    const config = useConfigStore.getState().config;
+    if (config) {
+      void saveConfig({ ...config, theme: mode });
+      useConfigStore.setState({ config: { ...config, theme: mode } });
+    }
   },
   cycleMode: () => {
     const idx = CYCLE_ORDER.indexOf(get().mode);
@@ -26,6 +31,14 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 }));
 ```
+
+Rust `AppConfig.theme` 是持久化事实来源，`localStorage` 仅是 `index.html` 首屏防闪烁缓存。应用加载配置后必须以 Rust 值覆盖缓存；用户从标题栏或设置页改主题时，同时更新缓存、配置 store 与 Rust 文件。保存失败保留本次视觉选择，并通过 config store 暴露错误。
+
+## 界面语言
+
+`src/lib/i18n.ts` 持有键集合完全一致的 `zh` / `en` 字典。组件用 `useT()` 订阅 `config-store` 中的 `ui_language`；`system` 由 `navigator.language` 解析，中文区域用中文，其余回退英文。不要在组件里自行分支语言，也不要把翻译语种 `Language` 当作 UI 语言类型。
+
+所有 V1 可操作界面和状态文案都必须走字典；产品名、模型名、语言自称及尚未实现的 Docs 示例正文可保持原样。新增键时 TypeScript 必须保证两份字典同键。
 
 ## 消费一律用选择器
 

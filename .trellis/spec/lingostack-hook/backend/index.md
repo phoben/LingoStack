@@ -35,7 +35,7 @@
 
 `is_valid(&KeyCombo) -> bool`（`accelerator.rs:44`）：要求非空主键**且至少一个修饰键**（`:45`）——没有修饰键的裸键会劫持正常输入（理由见 `:40-42`）。
 
-7 个测试（`:48-110`）覆盖渲染顺序、大写、默认热键、有效性规则。改渲染逻辑必须同步这批测试。
+加速器单测覆盖渲染顺序、大写、两个默认热键和有效性规则。改渲染逻辑必须同步这批测试，禁止恢复已移除的独立翻译浮窗动作。
 
 ## 托盘
 
@@ -57,7 +57,7 @@ CI 的纯净性检查只针对 `lingostack-core`（`.github/workflows/ci.yml:58-
 
 ## 测试现状
 
-- `accelerator.rs:48-110` — 7 个测试，覆盖充分
+- `accelerator.rs` — 覆盖渲染顺序、两个默认绑定与裸键非法规则
 - `tray.rs:127-151` — 4 个测试，**只测纯函数 `toggle_action`**。`setup_tray` / `handle_tray_event` / `handle_menu_event` / `apply_window_action` 零覆盖（需要活的 `AppHandle`）
 - `lib.rs:12-18` — `assert_eq!(1+1, 2)` 占位烟雾测试，没测任何东西，可以在下次动这个文件时替换成真实断言
 

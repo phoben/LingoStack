@@ -4,14 +4,15 @@
 
 ## 命令清单
 
-9 个命令，注册顺序见 `src/lib.rs`（配置/Prompt/聊天在前，取词/朗读在后）：
+10 个命令，注册顺序见 `src/lib.rs`（配置/热键/Prompt/聊天在前，取词/朗读在后）：
 
 | 命令 | 参数 | 成功返回 | 位置 |
 |------|------|----------|------|
 | `load_config` | `state` | `AppConfig` | `commands.rs:37-40` |
 | `save_config` | `cfg: AppConfig`, `state` | `()` | `:43-46` |
+| `register_hotkeys` | `bindings: Vec<HotkeyBinding>`, `app`, `state` | `HotkeyStatus[]` | `commands.rs` |
 | `effective_prompt` | `feature: Feature`, `state` | `String`（**含未替换的占位符**） | `:51-60` |
-| `translation_plan` | `text`, `source_override?`, `target_override?`, `state` | `TranslationPlan { source, target }` | `commands.rs` |
+| `translation_plan` | `text`, `source_override?`, `target_override?`, `effective_system_language?`, `state` | `TranslationPlan { source, target }` | `commands.rs` |
 | `effective_translation_prompt` | `source`, `target`, `state` | 已替换语言占位符且追加不可覆盖机器协议的 `String` | `commands.rs` |
 | `chat_stream` | `feature`, `messages`, `on_event: Channel<ChatEvent>`, `state` | `()` | `:75-104` |
 | `get_selection` | 无 | `Selection` | `:15-20` |
@@ -22,7 +23,7 @@
 
 ## 错误一律拍平为 String
 
-9 个命令全部返回 `Result<T, String>`，Rust 错误在边界处 `.map_err(|e| e.to_string())`。前端无法按错误种类分支，只能展示文本。
+10 个命令全部返回 `Result<T, String>`，Rust 错误在边界处 `.map_err(|e| e.to_string())`。前端无法按错误种类分支，只能展示文本。
 
 这是有意的规模取舍，不是疏漏。新增命令照此办理——**不要**为单个命令引入自定义可序列化错误枚举，那会让边界出现两套约定。真要做结构化错误，是一次统一改造。
 
@@ -61,6 +62,7 @@ translation_plan(
     text: String,
     source_override: Option<Language>,
     target_override: Option<Language>,
+    effective_system_language: Option<Language>,
     state: State<'_, AppState>,
 ) -> Result<TranslationPlan, String>
 
@@ -78,11 +80,11 @@ chat_stream(
 ) -> Result<(), String>
 ```
 
-TypeScript 参数必须用 Tauri 的 camelCase 命令参数名：`sourceOverride`、`targetOverride`、`onEvent`。
+TypeScript 参数必须用 Tauri 的 camelCase 命令参数名：`sourceOverride`、`targetOverride`、`effectiveSystemLanguage`、`onEvent`。
 
 ### 3. Contracts
 
-- `TranslationPlan` 两侧均为 `{ source: "zh" | "en" | "ja", target: ... }`；显式选择优先，其次使用 core 的检测、语言映射、界面语言和全局目标规则。
+- `TranslationPlan` 两侧均为 `{ source: "zh" | "en" | "ja", target: ... }`；显式选择优先，其次使用 core 的检测、语言映射、界面语言和全局目标规则。`ui_language = system` 时，前端必须把已解析的系统语言作为 `effective_system_language` 传入，缺失时 core 保守回退英文。
 - `effective_translation_prompt` 先替换 `{source_lang}` / `{target_lang}`，再追加 `<<<LINGOSTACK_TERMS_V1>>>` 协议；用户 Prompt 只能改变风格，不能删除协议。
 - 信封为“译文 + 独立 sentinel 行 + JSON 数组”。前端只流式发布译文；JSON 完成后逐项过滤字段、类别、上下文词面和大小写重复项，最多发布 5 项。不得维护普通词黑名单；专业性由固定 Prompt、类别和验收样例约束。
 - `ChatEvent.status` 只表达仍在处理的诊断状态，不结束任务。`done` 才正常完成；`error` 保留已显示译文。
@@ -127,6 +129,80 @@ output += event.delta; // sentinel 与 JSON 会进入用户译文
 
 ```ts
 output = parser.push(event.delta); // 只发布已确认不是协议前缀的译文
+```
+
+## Scenario：设置持久化与热键即时重注册
+
+### 1. Scope / Trigger
+
+- Trigger：用户在设置页修改提供商、模型、语言规则、Prompt、主题或热键；保存后本次会话立即生效，重启后保持一致。
+- 热键设置跨越 React、IPC、磁盘配置和 Windows 全局注册器，必须让冲突成为用户可见状态，不能只把 JSON 写成功当作完成。
+
+### 2. Signatures
+
+```rust
+register_hotkeys(
+    bindings: Vec<HotkeyBinding>,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Vec<HotkeyStatus>, String>
+
+reregister_and_report(
+    app: &AppHandle,
+    bindings: &[HotkeyBinding],
+) -> Vec<HotkeyStatus>
+```
+
+```ts
+registerHotkeys(bindings: HotkeyBinding[]): Promise<HotkeyStatus[]>
+```
+
+### 3. Contracts
+
+- `register_hotkeys` 先把绑定合入当前 `AppConfig` 并规范化落盘，再注销本应用的全部旧注册项、逐条注册新绑定，并同时返回和广播完整状态。
+- 单条注册失败不回滚已成功项，也不阻止应用启动；`HotkeyStatus` 必须包含动作、规范化加速器、成功标记及可选错误。
+- 前端保存前拒绝空主键、裸键和应用内重复组合；系统或其他应用占用只能以后端注册结果为准，并在对应条目就地显示。
+- 应用加载配置后主动调用一次 `register_hotkeys`，避免启动期广播早于监听器导致状态丢失。
+- 配置模型只保留 `show_main_window` 与 `translate_selection` 两个 V1 动作；旧的 `translate_popup` 读取为 `translate_selection`，再次保存时只写新名称。
+
+### 4. Validation & Error Matrix
+
+| 条件 | 行为 |
+|------|------|
+| 空主键或无修饰键 | 前端阻止保存；后端注册层仍返回 `registered=false` |
+| 两个应用动作使用同一组合 | 前端阻止保存并定位重复项 |
+| 系统或其他应用占用 | 保存保留，当前项标红；其他合法项继续生效 |
+| 配置文件读取/写入失败 | IPC 返回 `Err(String)`，前端保留用户输入并展示错误 |
+| 旧 `translate_popup` | 无损迁移到 `translate_selection`，规范化后去重 |
+| 重注册调用成功但个别项失败 | Promise 正常返回状态数组，不把部分冲突提升为命令失败 |
+
+### 5. Good/Base/Bad Cases
+
+- Good：修改热键后无需重启即可触发新组合；若冲突，用户能看到失败原因并改成可用组合恢复。
+- Base：保持两个默认绑定时，启动后状态可观察，语言、主题和其他设置重启后不丢失。
+- Bad：只调用 `save_config` 而不重新注册，界面会显示新键但系统仍监听旧键；注册失败时整体回滚会误伤另一条可用绑定。
+
+### 6. Tests Required
+
+- core：默认仅两条且无内部冲突；旧动作别名反序列化后写回新名称；规范化对每个动作只保留一条。
+- app Rust：配置 load/save 都执行规范化；`HotkeyStatus` 成功态省略错误、失败态包含错误。
+- TypeScript：捕获组合、裸键与重复组合校验、保存失败、注册成功与部分失败状态。
+- RTL：设置项可编辑；冲突就地可见；修改语言后当前页面立即切换文案。
+- 真实边界：Windows 上至少验证一次“修改并保存 → 即时重注册 → 重启保持 → 冲突后更换组合恢复”。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+await saveConfig({ ...config, hotkeys }); // 磁盘变了，系统注册仍是旧值
+```
+
+#### Correct
+
+```ts
+const statuses = await registerHotkeys(hotkeys);
+setHotkeyStatuses(statuses); // 保存、重注册与可观察结果是一个业务动作
 ```
 
 ## 提供商工厂

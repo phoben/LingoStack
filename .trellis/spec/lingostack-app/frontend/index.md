@@ -10,7 +10,7 @@
 - [ ] 要调后端？→ 走 `src/lib/ipc.ts`，不直接 `invoke`；新字段先读 [IPC 契约指南](../../guides/ipc-contract-guide.md)。
 - [ ] 要加状态？→ 读 [状态管理](./state-management.md)，两个 store 的失败处理策略相反。
 - [ ] 要加组件？→ 读 [组件与样式](./components-and-styling.md)；`ui/` 原语是手写的，不是 shadcn 生成物。
-- [ ] 要新增或修改异步状态区域？→ 读 [测试与可访问性](./testing-and-a11y.md)。翻译、命名、收藏已有 live region；设置与提供商表单等区域仍是缺口。
+- [ ] 要新增或修改异步状态区域？→ 读 [测试与可访问性](./testing-and-a11y.md)。翻译、命名、收藏已有 live region；设置页的保存、校验与热键注册状态也必须就地可观察。
 
 ## 具体规范
 

@@ -3,7 +3,7 @@
   "name": "v1-settings-localization-hotkeys",
   "title": "V1 设置、本地化与热键",
   "description": "实现语言映射、双语界面、Prompt、主题与可修复热键设置。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": "core-hook-app",
   "package": null,
