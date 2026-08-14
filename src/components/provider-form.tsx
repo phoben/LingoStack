@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { ProviderConfig, ProviderKind } from "@/lib/config-types";
+import { useT } from "@/lib/i18n";
 
 const KIND_OPTIONS: { value: ProviderKind; label: string }[] = [
   {
@@ -29,6 +30,7 @@ interface ProviderFormProps {
  * 表单区不套卡片——上下各一条浅色分割线界定范围，与设置页其余分节一致。
  */
 export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [kind, setKind] = useState<ProviderKind>(
     initial?.kind ?? "open_ai_compatible",
@@ -42,7 +44,7 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
 
   const submit = () => {
     if (!name.trim() || !baseUrl.trim() || !apiKey.trim()) {
-      setError("名称、Base URL、API Key 为必填项");
+      setError(t("providerRequired"));
       return;
     }
     const models = modelsText
@@ -63,7 +65,7 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
     <div className="border-y border-border py-3.5">
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">名称</span>
+          <span className="text-xs text-muted-foreground">{t("providerName")}</span>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -71,7 +73,7 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">协议</span>
+          <span className="text-xs text-muted-foreground">{t("providerProtocol")}</span>
           <Select
             value={kind}
             onChange={(e) => setKind(e.target.value as ProviderKind)}
@@ -105,7 +107,7 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
         </label>
         <label className="col-span-2 flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">
-            模型（逗号或换行分隔）
+            {t("providerModels")}
           </span>
           <Input
             value={modelsText}
@@ -118,10 +120,10 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
       {error ? <p className="mt-2 text-xs text-accent">{error}</p> : null}
       <div className="mt-3 flex justify-end gap-2">
         <Button variant="ghost" size="sm" onClick={onCancel}>
-          取消
+          {t("cancel")}
         </Button>
         <Button size="sm" onClick={submit}>
-          {initial ? "保存" : "添加"}
+          {initial ? t("save") : t("add")}
         </Button>
       </div>
     </div>

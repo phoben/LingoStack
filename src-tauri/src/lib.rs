@@ -51,6 +51,7 @@ pub fn run() {
             commands::get_selection,
             commands::speak,
             commands::stop_speaking,
+            commands::register_hotkeys,
         ])
         .setup(|app| {
             let handle = app.handle();

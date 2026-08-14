@@ -10,6 +10,7 @@ import {
   showsSidebarLabels,
 } from "@/lib/sidebar-layout";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 /**
  * 主窗口左侧导航（原型 .sidebar，默认 188px）。
@@ -25,6 +26,7 @@ export function Sidebar() {
   const setWidth = useLayoutStore((s) => s.setSidebarWidth);
   const toggleWidth = useLayoutStore((s) => s.toggleSidebarWidth);
   const [dragging, setDragging] = useState(false);
+  const t = useT();
   const asideRef = useRef<HTMLElement>(null);
 
   const showLabels = showsSidebarLabels(width);
@@ -77,7 +79,7 @@ export function Sidebar() {
       className="relative flex shrink-0 flex-col pb-1 pt-0.5"
     >
       <nav
-        aria-label="主导航"
+        aria-label={t("mainNavigation")}
         className={cn(
           "flex flex-col gap-0.5",
           showLabels ? "pl-1.5 pr-1" : "px-1",
@@ -93,7 +95,7 @@ export function Sidebar() {
               type="button"
               onClick={() => setActiveView(id)}
               aria-current={active ? "page" : undefined}
-              title={showLabels ? meta.description : meta.label}
+              title={showLabels ? meta.description : t(id)}
               className={cn(
                 "relative flex w-full items-center rounded-md py-2 text-left text-sm font-medium transition-colors duration-fast ease-app",
                 showLabels ? "gap-2.5 px-2.5" : "justify-center px-0",
@@ -113,7 +115,7 @@ export function Sidebar() {
               ) : null}
               <Icon className="h-[17px] w-[17px] shrink-0" />
               {showLabels ? (
-                <span className="truncate">{meta.label}</span>
+                <span className="truncate">{t(id)}</span>
               ) : null}
             </button>
           );
@@ -127,7 +129,7 @@ export function Sidebar() {
       <div
         role="separator"
         aria-orientation="vertical"
-        aria-label="调整导航栏宽度"
+        aria-label={t("resizeSidebar")}
         aria-valuenow={clampSidebarWidth(width)}
         aria-valuemin={SIDEBAR_MIN_WIDTH}
         aria-valuemax={SIDEBAR_MAX_WIDTH}

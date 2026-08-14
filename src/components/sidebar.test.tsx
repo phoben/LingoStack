@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Sidebar } from "./sidebar";
 import { useAppStore } from "@/stores/app-store";
 import { useLayoutStore } from "@/stores/layout-store";
 import { VIEW_ORDER } from "@/lib/view-meta";
+import { defaultConfig } from "@/lib/config-types";
+import { useConfigStore } from "@/stores/config-store";
 import {
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
@@ -22,6 +24,7 @@ describe("Sidebar", () => {
     localStorage.clear();
     useAppStore.getState().setActiveView("translate");
     useLayoutStore.setState({ sidebarWidth: SIDEBAR_DEFAULT_WIDTH });
+    useConfigStore.setState({ config: { ...defaultConfig(), ui_language: "zh" } });
   });
 
   it("renders the six nav items in canonical order", () => {
@@ -54,6 +57,13 @@ describe("Sidebar", () => {
   it("exposes one nav item per entry in VIEW_ORDER", () => {
     render(<Sidebar />);
     expect(navButtons()).toHaveLength(VIEW_ORDER.length);
+  });
+
+  it("updates real navigation labels when the persisted locale changes", async () => {
+    render(<Sidebar />);
+    act(() => useConfigStore.setState({ config: { ...defaultConfig(), ui_language: "en" } }));
+    expect(await screen.findByRole("button", { name: "Translate" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Settings" })).toBeInTheDocument();
   });
 
   it("hides nav text when narrowed to icon width", () => {

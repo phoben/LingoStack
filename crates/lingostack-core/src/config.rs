@@ -170,6 +170,30 @@ pub enum Theme {
     Dark,
 }
 
+/// 主窗口显示语言。旧配置的 `zh` / `en` 仍可直接读取。
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UiLanguage {
+    #[default]
+    System,
+    #[serde(alias = "zh")]
+    Zh,
+    #[serde(alias = "en", alias = "ja")]
+    En,
+}
+
+impl UiLanguage {
+    /// 后端没有浏览器 locale；调用方可传入浏览器已解析的 system 语言。
+    #[must_use]
+    pub fn translation_language(self, effective_system_language: Option<Language>) -> Language {
+        match self {
+            Self::Zh => Language::Zh,
+            Self::En => Language::En,
+            Self::System => effective_system_language.unwrap_or(Language::En),
+        }
+    }
+}
+
 /// 应用配置根。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
@@ -177,8 +201,8 @@ pub struct AppConfig {
     pub providers: Vec<ProviderConfig>,
     #[serde(default)]
     pub models: ModelAssignment,
-    #[serde(default = "default_ui_language")]
-    pub ui_language: Language,
+    #[serde(default)]
+    pub ui_language: UiLanguage,
     #[serde(default)]
     pub theme: Theme,
     #[serde(default)]
@@ -191,10 +215,6 @@ pub struct AppConfig {
     pub naming_styles: Vec<NamingStyle>,
     #[serde(default)]
     pub prompt_overrides: PromptOverrides,
-}
-
-fn default_ui_language() -> Language {
-    Language::Zh
 }
 
 fn default_target_language() -> Language {
@@ -210,7 +230,7 @@ impl Default for AppConfig {
         Self {
             providers: Vec::new(),
             models: ModelAssignment::default(),
-            ui_language: default_ui_language(),
+            ui_language: UiLanguage::default(),
             theme: Theme::default(),
             pair_mappings: Vec::new(),
             global_default_target: default_target_language(),
@@ -222,6 +242,15 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
+    /// 旧浮窗动作归并为划词翻译；重复动作以最后一条为准。
+    pub fn normalize_hotkeys(&mut self) {
+        use std::collections::BTreeMap;
+        let mut bindings = BTreeMap::new();
+        for binding in self.hotkeys.drain(..) {
+            bindings.insert(binding.action, binding);
+        }
+        self.hotkeys = bindings.into_values().collect();
+    }
     /// 按 id 查找提供商。
     #[must_use]
     pub fn provider(&self, id: &str) -> Option<&ProviderConfig> {
@@ -356,11 +385,24 @@ mod tests {
     fn default_config_has_sensible_values() {
         let cfg = AppConfig::default();
         assert!(cfg.providers.is_empty());
-        assert_eq!(cfg.ui_language, Language::Zh);
+        assert_eq!(cfg.ui_language, UiLanguage::System);
         assert_eq!(cfg.global_default_target, Language::Zh);
-        assert_eq!(cfg.hotkeys.len(), 3);
+        assert_eq!(cfg.hotkeys.len(), 2);
         assert_eq!(cfg.naming_styles.len(), 5);
         assert_eq!(cfg.theme, Theme::System);
+    }
+
+    #[test]
+    fn system_ui_language_uses_the_frontend_resolved_locale_for_translation() {
+        assert_eq!(
+            UiLanguage::System.translation_language(Some(Language::Zh)),
+            Language::Zh
+        );
+        assert_eq!(UiLanguage::System.translation_language(None), Language::En);
+        assert_eq!(
+            UiLanguage::En.translation_language(Some(Language::Zh)),
+            Language::En
+        );
     }
 
     #[test]
@@ -386,8 +428,8 @@ mod tests {
     fn missing_fields_fill_defaults_on_deserialize() {
         // 空对象 → 全部字段走默认值（向前兼容旧 / 残缺配置）。
         let cfg: AppConfig = serde_json::from_str("{}").unwrap();
-        assert_eq!(cfg.ui_language, Language::Zh);
-        assert_eq!(cfg.hotkeys.len(), 3);
+        assert_eq!(cfg.ui_language, UiLanguage::System);
+        assert_eq!(cfg.hotkeys.len(), 2);
         assert_eq!(cfg.naming_styles.len(), 5);
         assert!(cfg.providers.is_empty());
     }

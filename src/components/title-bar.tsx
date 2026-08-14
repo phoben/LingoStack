@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Copy, Minus, Monitor, Moon, Square, Sun, X } from "lucide-react";
 import { useThemeStore, type ThemeMode } from "@/stores/theme-store";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 type IconType = ComponentType<{ className?: string }>;
 
@@ -12,10 +13,10 @@ const THEME_ICON: Record<ThemeMode, IconType> = {
   system: Monitor,
 };
 
-const THEME_LABEL: Record<ThemeMode, string> = {
-  light: "浅色",
-  dark: "深色",
-  system: "跟随系统",
+const THEME_I18N_KEY: Record<ThemeMode, "themeLight" | "themeDark" | "themeSystem"> = {
+  light: "themeLight",
+  dark: "themeDark",
+  system: "themeSystem",
 };
 
 interface WindowControlProps {
@@ -56,6 +57,7 @@ function WindowControl({
  * 无底部分隔线——标题栏与侧栏同底色，视觉上连成一体（右侧内容区为独立圆角面板）。
  */
 export function TitleBar() {
+  const t = useT();
   const mode = useThemeStore((s) => s.mode);
   const cycleMode = useThemeStore((s) => s.cycleMode);
   const [maximized, setMaximized] = useState(false);
@@ -109,8 +111,8 @@ export function TitleBar() {
         <button
           type="button"
           onClick={cycleMode}
-          title={`主题：${THEME_LABEL[mode]}`}
-          aria-label={`切换主题（当前：${THEME_LABEL[mode]}）`}
+          title={`${t("theme")}: ${t(THEME_I18N_KEY[mode])}`}
+          aria-label={`${t("theme")}: ${t(THEME_I18N_KEY[mode])}`}
           className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           <ThemeIcon className="h-4 w-4" />
@@ -118,11 +120,11 @@ export function TitleBar() {
 
         <div className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
 
-        <WindowControl label="最小化" onClick={() => appWindow.minimize()}>
+        <WindowControl label={t("minimize")} onClick={() => appWindow.minimize()}>
           <Minus className="h-4 w-4" />
         </WindowControl>
         <WindowControl
-          label={maximized ? "还原" : "最大化"}
+          label={maximized ? t("restore") : t("maximize")}
           onClick={() => appWindow.toggleMaximize()}
         >
           {maximized ? (
@@ -131,7 +133,7 @@ export function TitleBar() {
             <Square className="h-3.5 w-3.5" />
           )}
         </WindowControl>
-        <WindowControl label="关闭" danger onClick={() => appWindow.close()}>
+        <WindowControl label={t("close")} danger onClick={() => appWindow.close()}>
           <X className="h-4 w-4" />
         </WindowControl>
       </div>

@@ -14,10 +14,14 @@ import { effectiveTranslationPrompt, speak, translationPlan } from "@/lib/ipc";
 import type { TranslationTerm } from "@/lib/translation-envelope";
 import { useAppStore } from "@/stores/app-store";
 import { useFavoritesStore } from "@/stores/favorites-store";
+import { useConfigStore } from "@/stores/config-store";
+import { resolveLocale } from "@/lib/i18n";
+import { useT } from "@/lib/i18n";
 import { type StreamStatus, useStreamStore } from "@/stores/stream-store";
 import { cn } from "@/lib/utils";
 
 export function TermTags({ terms }: { terms: TranslationTerm[] }) {
+  const t = useT();
   const [open, setOpen] = useState<number | null>(null);
   useEffect(() => {
     const close = (event: KeyboardEvent) => {
@@ -28,8 +32,8 @@ export function TermTags({ terms }: { terms: TranslationTerm[] }) {
   }, []);
   if (terms.length === 0) return null;
   return (
-    <section className="mt-4 border-t border-border pt-3" aria-label="上下文术语">
-      <p className="mb-2 text-xs text-muted-foreground">上下文术语</p>
+    <section className="mt-4 border-t border-border pt-3" aria-label={t("contextualTerms")}>
+      <p className="mb-2 text-xs text-muted-foreground">{t("contextualTerms")}</p>
       <div className="flex flex-wrap gap-2">
         {terms.map((term, index) => {
           const id = `term-explanation-${index}`;
@@ -84,6 +88,7 @@ const STATUS_STYLE: Record<
 
 /** 状态点 + 文案（工具条内，兼作流式进度指示）。 */
 function StatusBadge({ status }: { status: StreamStatus }) {
+  const t = useT();
   const s = STATUS_STYLE[status];
   return (
     <span
@@ -93,7 +98,7 @@ function StatusBadge({ status }: { status: StreamStatus }) {
       )}
     >
       <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
-      {s.text}
+      {t(status === "idle" ? "pending" : status === "streaming" ? "streaming" : status === "done" ? "completed" : "error")}
     </span>
   );
 }
@@ -117,6 +122,7 @@ function PaneActions({
   label,
   streaming,
 }: PaneActionsProps) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const copy = () => {
     if (!text) return;
@@ -130,8 +136,8 @@ function PaneActions({
         variant="ghost"
         size="icon"
         className="h-7 w-7"
-        title={`朗读${label}`}
-        aria-label={`朗读${label}`}
+        title={`${t("speak")} ${label}`}
+        aria-label={`${t("speak")} ${label}`}
         onClick={() => void speak(text)}
         disabled={!text || streaming}
       >
@@ -141,8 +147,8 @@ function PaneActions({
         variant="ghost"
         size="icon"
         className="h-7 w-7"
-        title={favorited ? "已收藏" : "收藏"}
-        aria-label="收藏"
+        title={favorited ? t("favorited") : t("favorite")}
+        aria-label={t("favorite")}
         onClick={() => onFavorite?.()}
         disabled={!onFavorite || streaming}
       >
@@ -152,8 +158,8 @@ function PaneActions({
         variant="ghost"
         size="icon"
         className="h-7 w-7"
-        title={copied ? "已复制" : `复制${label}`}
-        aria-label={`复制${label}`}
+        title={copied ? t("copied") : `${t("copy")} ${label}`}
+        aria-label={`${t("copy")} ${label}`}
         onClick={copy}
         disabled={!text}
       >
@@ -186,6 +192,8 @@ export function TranslateView() {
   const task = useStreamStore((s) => s.tasks.translate);
   const setInput = useStreamStore((s) => s.setInput);
   const start = useStreamStore((s) => s.start);
+  const uiLanguage = useConfigStore((s) => s.config?.ui_language ?? "system");
+  const t = useT();
   const [saved, setSaved] = useState(false);
   const [sourceLang, setSourceLang] = useState("auto");
   const [targetLang, setTargetLang] = useState("auto");
@@ -201,6 +209,7 @@ export function TranslateView() {
         src,
         sourceLang === "auto" ? undefined : sourceLang as "zh" | "en" | "ja",
         targetLang === "auto" ? undefined : targetLang as "zh" | "en" | "ja",
+        resolveLocale(uiLanguage) === "zh" ? "zh" : "en",
       );
       const system = await effectiveTranslationPrompt(plan.source, plan.target);
       return [
@@ -236,12 +245,12 @@ export function TranslateView() {
       toolbar={
         <>
           <Select
-            aria-label="源语言"
+            aria-label={t("sourceLanguage")}
             value={sourceLang}
             onChange={(e) => setSourceLang(e.target.value)}
             className="h-8 w-[124px] text-xs"
           >
-            <option value="auto">自动检测</option>
+            <option value="auto">{t("autoDetect")}</option>
             <option value="en">English</option>
             <option value="zh">中文</option>
             <option value="ja">日本語</option>
@@ -251,12 +260,12 @@ export function TranslateView() {
             aria-hidden="true"
           />
           <Select
-            aria-label="目标语言"
+            aria-label={t("targetLanguage")}
             value={targetLang}
             onChange={(e) => setTargetLang(e.target.value)}
             className="h-8 w-[110px] text-xs"
           >
-            <option value="auto">按语言规则</option>
+            <option value="auto">{t("byLanguageRule")}</option>
             <option value="zh">中文</option>
             <option value="en">English</option>
             <option value="ja">日本語</option>
@@ -269,7 +278,7 @@ export function TranslateView() {
             disabled={streaming || !source.trim()}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            {streaming ? "翻译中…" : "翻译"}
+            {streaming ? t("translating") : t("translateAction")}
           </Button>
         </>
       }
@@ -279,20 +288,20 @@ export function TranslateView() {
         {/* 原文 */}
         <section className="flex min-h-0 flex-col overflow-hidden">
           <PaneLabel>
-            <span>原文</span>
+            <span>{t("sourceText")}</span>
             <span className="flex-1" aria-hidden="true" />
             <PaneActions
               text={source}
               onFavorite={favoriteAction}
               favorited={saved}
-              label="原文"
+              label={t("source")}
               streaming={streaming}
             />
           </PaneLabel>
           <textarea
             value={source}
             onChange={(e) => setInput("translate", e.target.value)}
-            placeholder="输入或粘贴要翻译的文本"
+            placeholder={t("inputToTranslate")}
             className="min-h-0 flex-1 resize-none bg-transparent px-4 py-3.5 text-sm leading-7 text-foreground outline-none placeholder:text-muted-foreground/60"
           />
         </section>
@@ -300,13 +309,13 @@ export function TranslateView() {
         {/* 译文 */}
         <section className="flex min-h-0 flex-col overflow-hidden">
           <PaneLabel>
-            <span>译文</span>
+            <span>{t("translatedText")}</span>
             <span className="flex-1" aria-hidden="true" />
             <PaneActions
               text={target}
               onFavorite={favoriteAction}
               favorited={saved}
-              label="译文"
+              label={t("translation")}
               streaming={streaming}
             />
           </PaneLabel>
@@ -323,7 +332,7 @@ export function TranslateView() {
                 <span className="text-xs text-accent">{task.error}</span>
                 <Button variant="ghost" size="sm" onClick={() => translate()}>
                   <RotateCcw className="h-3.5 w-3.5" />
-                  重试
+                  {t("retry")}
                 </Button>
               </div>
             ) : null}

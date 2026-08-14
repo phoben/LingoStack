@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 use futures::StreamExt;
 use lingostack_core::config::{AppConfig, Feature, ProviderConfig, ProviderKind};
+use lingostack_core::hotkey::HotkeyBinding;
 use lingostack_core::lang::{Language, TranslationPlan};
 use lingostack_core::prompt::compose_translation_prompt;
 use lingostack_llm::{ChatMessage, ChatRequest, LlmError, LlmProvider};
@@ -50,6 +51,20 @@ pub fn save_config(cfg: AppConfig, state: State<'_, AppState>) -> Result<(), Str
     config_store::save(&state.config_path, &cfg).map_err(|e| e.to_string())
 }
 
+/// 保存并立即重新注册全局热键，始终返回每一项的可观察状态。
+#[tauri::command]
+pub fn register_hotkeys(
+    bindings: Vec<HotkeyBinding>,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Vec<crate::hotkeys::HotkeyStatus>, String> {
+    let mut cfg = config_store::load(&state.config_path).map_err(|e| e.to_string())?;
+    cfg.hotkeys = bindings;
+    cfg.normalize_hotkeys();
+    config_store::save(&state.config_path, &cfg).map_err(|e| e.to_string())?;
+    Ok(crate::hotkeys::reregister_and_report(&app, &cfg.hotkeys))
+}
+
 /// 返回某功能当前生效的 Prompt（用户覆盖优先，否则内置）。
 ///
 /// 返回值含 `{source_lang}` / `{target_lang}` / `{style}` 等占位符，由前端替换。
@@ -70,6 +85,7 @@ pub fn translation_plan(
     text: String,
     source_override: Option<Language>,
     target_override: Option<Language>,
+    effective_system_language: Option<Language>,
     state: State<'_, AppState>,
 ) -> Result<TranslationPlan, String> {
     let cfg = config_store::load(&state.config_path).map_err(|e| e.to_string())?;
@@ -78,7 +94,8 @@ pub fn translation_plan(
         source_override,
         target_override,
         &cfg.pair_mappings,
-        cfg.ui_language,
+        cfg.ui_language
+            .translation_language(effective_system_language),
         cfg.global_default_target,
     ))
 }

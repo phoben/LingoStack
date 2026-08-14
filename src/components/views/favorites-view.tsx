@@ -11,12 +11,9 @@ import {
 import { speak } from "@/lib/ipc";
 import { useFavoritesStore } from "@/stores/favorites-store";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
-const FILTERS: { id: "all" | FavKind; label: string }[] = [
-  { id: "all", label: "全部" },
-  { id: "word", label: "单词" },
-  { id: "phrase", label: "短句" },
-];
+const FILTERS: ("all" | FavKind)[] = ["all", "word", "phrase"];
 
 /** 时间戳 → 本地日期（收藏时间列）。 */
 function formatDate(ts: number): string {
@@ -31,6 +28,7 @@ function formatDate(ts: number): string {
  * V1 为扁平列表（含时间与来源），分组 / 标签留 V1.5（§15 开放问题）。
  */
 export function FavoritesView() {
+  const t = useT();
   const list = useFavoritesStore((s) => s.list);
   const loading = useFavoritesStore((s) => s.loading);
   const error = useFavoritesStore((s) => s.error);
@@ -93,26 +91,26 @@ export function FavoritesView() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="搜索词条或释义…"
-              aria-label="搜索收藏"
+            placeholder={t("searchFavorites")}
+            aria-label={t("searchFavorites")}
               className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground/60"
             />
           </label>
           <div className="flex flex-wrap items-center gap-1.5">
             {FILTERS.map((f) => (
               <button
-                key={f.id}
+                key={f}
                 type="button"
-                onClick={() => setFilter(f.id)}
-                aria-pressed={filter === f.id}
+                onClick={() => setFilter(f)}
+                aria-pressed={filter === f}
                 className={cn(
                   "rounded-full border px-3 py-1 font-mono text-[11px] transition-colors duration-fast",
-                  filter === f.id
+                  filter === f
                     ? "border-transparent bg-accent text-foreground"
                     : "border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground",
                 )}
               >
-                {f.label}
+                {t(f)}
               </button>
             ))}
           </div>
@@ -122,7 +120,7 @@ export function FavoritesView() {
               size="sm"
               onClick={() => fileRef.current?.click()}
             >
-              导入 JSON
+              {t("importJson")}
             </Button>
             <Button
               variant="outline"
@@ -130,7 +128,7 @@ export function FavoritesView() {
               onClick={exportJson}
               disabled={list.length === 0}
             >
-              导出 JSON
+              {t("exportJson")}
             </Button>
           </div>
         </>
@@ -156,14 +154,14 @@ export function FavoritesView() {
 
         <div className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-auto">
           {loading ? (
-            <p className="px-4 py-3 text-xs text-muted-foreground">加载中…</p>
+            <p className="px-4 py-3 text-xs text-muted-foreground">{t("loading")}</p>
           ) : shown.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-muted-foreground">
                 <Bookmark className="h-5 w-5" />
               </span>
               <div className="text-sm font-medium text-muted-foreground">
-                {list.length === 0 ? "还没有收藏" : "没有匹配的收藏"}
+                {list.length === 0 ? t("noFavorites") : t("noMatchFavorites")}
               </div>
               {list.length === 0 ? (
                 <p className="text-xs text-muted-foreground/70">
@@ -184,7 +182,7 @@ export function FavoritesView() {
                   {f.meaning}
                 </span>
                 <span className="font-mono text-[10px] text-muted-foreground">
-                  {f.kind === "word" ? "单词" : "短句"} · {f.source} ·{" "}
+                  {t(f.kind)} · {f.source} ·{" "}
                   {formatDate(f.createdAt)}
                 </span>
                 <Button

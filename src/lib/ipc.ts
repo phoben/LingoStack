@@ -6,7 +6,7 @@
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
-import type { AppConfig, ChatEvent, ChatMessage, Feature, Language, TranslationPlan } from "./config-types";
+import type { AppConfig, ChatEvent, ChatMessage, Feature, HotkeyBinding, Language, TranslationPlan } from "./config-types";
 
 /** 取词来源：辅助 API 直读，或降级自剪贴板。 */
 export type SelectionSource = "accessibility" | "clipboard";
@@ -41,6 +41,18 @@ export function saveConfig(cfg: AppConfig): Promise<void> {
   return invoke<void>("save_config", { cfg });
 }
 
+export interface HotkeyStatus {
+  action: HotkeyBinding["action"];
+  accelerator: string;
+  registered: boolean;
+  error?: string;
+}
+
+/** 保存并重新注册本应用热键，返回每项实际注册状态。 */
+export function registerHotkeys(bindings: HotkeyBinding[]): Promise<HotkeyStatus[]> {
+  return invoke<HotkeyStatus[]>("register_hotkeys", { bindings });
+}
+
 /** 取某功能当前生效的 Prompt（用户覆盖优先；含占位符，前端替换）。 */
 export function effectivePrompt(feature: Feature): Promise<string> {
   return invoke<string>("effective_prompt", { feature });
@@ -50,8 +62,9 @@ export function translationPlan(
   text: string,
   sourceOverride?: Language,
   targetOverride?: Language,
+  effectiveSystemLanguage?: Language,
 ): Promise<TranslationPlan> {
-  return invoke<TranslationPlan>("translation_plan", { text, sourceOverride, targetOverride });
+  return invoke<TranslationPlan>("translation_plan", { text, sourceOverride, targetOverride, effectiveSystemLanguage });
 }
 
 export function effectiveTranslationPrompt(source: Language, target: Language): Promise<string> {

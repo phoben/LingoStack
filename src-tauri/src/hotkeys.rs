@@ -37,8 +37,6 @@ pub enum HotkeyEffect {
     ShowMainWindow,
     /// 通知前端：以当前选中文本发起翻译。
     TranslateSelection,
-    /// 通知前端：唤起翻译浮窗。
-    TranslatePopup,
 }
 
 /// 由热键动作映射到副作用。
@@ -49,7 +47,6 @@ pub fn effect_for(action: HotkeyAction) -> HotkeyEffect {
     match action {
         HotkeyAction::ShowMainWindow => HotkeyEffect::ShowMainWindow,
         HotkeyAction::TranslateSelection => HotkeyEffect::TranslateSelection,
-        HotkeyAction::TranslatePopup => HotkeyEffect::TranslatePopup,
     }
 }
 
@@ -108,6 +105,14 @@ pub fn register_and_report(app: &AppHandle, bindings: &[HotkeyBinding]) {
     let _ = app.emit(HOTKEY_STATUS_EVENT, &statuses);
 }
 
+/// 用新配置替换本应用的注册项并返回完整状态；失败项不影响其它项。
+pub fn reregister_and_report(app: &AppHandle, bindings: &[HotkeyBinding]) -> Vec<HotkeyStatus> {
+    let _ = app.global_shortcut().unregister_all();
+    let statuses = register_all(app, bindings);
+    let _ = app.emit(HOTKEY_STATUS_EVENT, &statuses);
+    statuses
+}
+
 /// 施加热键副作用。
 fn apply_effect(app: &AppHandle, effect: HotkeyEffect) {
     match effect {
@@ -118,9 +123,9 @@ fn apply_effect(app: &AppHandle, effect: HotkeyEffect) {
                 let _ = w.set_focus();
             }
         }
-        // 划词翻译 / 唤起翻译：显示主窗口，前端收到事件后切到翻译视图、
+        // 划词翻译：显示主窗口，前端收到事件后切到翻译视图、
         // 取词、填充原文并自动翻译（见 App.tsx 的 translate-selection 监听）。
-        HotkeyEffect::TranslateSelection | HotkeyEffect::TranslatePopup => {
+        HotkeyEffect::TranslateSelection => {
             if let Some(w) = app.get_webview_window(MAIN_WINDOW) {
                 let _ = w.show();
                 let _ = w.unminimize();
@@ -145,10 +150,6 @@ mod tests {
             effect_for(HotkeyAction::TranslateSelection),
             HotkeyEffect::TranslateSelection
         );
-        assert_eq!(
-            effect_for(HotkeyAction::TranslatePopup),
-            HotkeyEffect::TranslatePopup
-        );
     }
 
     #[test]
@@ -168,7 +169,7 @@ mod tests {
     #[test]
     fn status_serializes_error_when_conflicted() {
         let s = HotkeyStatus {
-            action: HotkeyAction::TranslatePopup,
+            action: HotkeyAction::TranslateSelection,
             accelerator: "Ctrl+Shift+T".into(),
             registered: false,
             error: Some("冲突".into()),

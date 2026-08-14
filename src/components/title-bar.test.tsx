@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { TitleBar } from "./title-bar";
 import { useThemeStore } from "@/stores/theme-store";
+import { defaultConfig } from "@/lib/config-types";
+import { useConfigStore } from "@/stores/config-store";
 
 const mockWindow = {
   minimize: vi.fn(),
@@ -20,6 +22,7 @@ describe("TitleBar", () => {
     vi.clearAllMocks();
     localStorage.clear();
     useThemeStore.setState({ mode: "system" });
+    useConfigStore.setState({ config: { ...defaultConfig(), ui_language: "zh" } });
   });
 
   // findByRole 会 flush 微任务，顺带消化 effect 中 isMaximized() 的异步 resolve，
@@ -53,7 +56,7 @@ describe("TitleBar", () => {
 
   it("theme toggle cycles mode system → light", async () => {
     render(<TitleBar />);
-    const btn = await screen.findByRole("button", { name: /切换主题/ });
+    const btn = await screen.findByRole("button", { name: "主题: 跟随系统" });
     fireEvent.click(btn);
     expect(useThemeStore.getState().mode).toBe("light");
   });

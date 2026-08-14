@@ -83,7 +83,6 @@ mod tests {
             .iter()
             .map(|b| format!("{:?}={}", b.action, to_accelerator(&b.combo)))
             .collect();
-        assert!(rendered.contains(&format!("{:?}=Ctrl+Shift+T", HotkeyAction::TranslatePopup)));
         assert!(rendered.contains(&format!("{:?}=Alt+SPACE", HotkeyAction::ShowMainWindow)));
         assert!(rendered.contains(&format!(
             "{:?}=Ctrl+Shift+D",

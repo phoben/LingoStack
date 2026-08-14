@@ -1,54 +1,32 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Info, Plus, X } from "lucide-react";
+import { listen } from "@tauri-apps/api/event";
 import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { SettingsAi } from "@/components/settings-ai";
-import { useThemeStore, type ThemeMode } from "@/stores/theme-store";
+import { registerHotkeys, type HotkeyStatus } from "@/lib/ipc";
+import {
+  MOD,
+  type HotkeyBinding,
+  type Language,
+  type Theme,
+} from "@/lib/config-types";
+import { useConfigStore } from "@/stores/config-store";
+import { useThemeStore } from "@/stores/theme-store";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 type Sub = "general" | "shortcuts" | "ai" | "appearance";
+const langs: Language[] = ["zh", "en", "ja"];
+const labels: Record<Language, string> = {
+  zh: "中文",
+  en: "English",
+  ja: "日本語",
+};
+const themes: Theme[] = ["light", "dark", "system"];
 
-const SUBTABS: { id: Sub; label: string }[] = [
-  { id: "general", label: "通用" },
-  { id: "shortcuts", label: "热键" },
-  { id: "ai", label: "AI" },
-  { id: "appearance", label: "外观" },
-];
-
-const HOTKEYS = [
-  {
-    label: "划词唤起",
-    desc: "任意应用选中文本",
-    keys: ["⌥", "Space"],
-    conflict: false,
-  },
-  {
-    label: "打开主窗口",
-    desc: "已被系统占用",
-    keys: ["⌘", "⇧", "L"],
-    conflict: true,
-  },
-  {
-    label: "翻译浮窗",
-    desc: "全局唤起浮窗",
-    keys: ["⌃", "⌥", "T"],
-    conflict: false,
-  },
-];
-
-const THEME_OPTIONS: { id: ThemeMode; label: string }[] = [
-  { id: "light", label: "浅色" },
-  { id: "dark", label: "深色" },
-  { id: "system", label: "跟随系统" },
-];
-
-const LANG_OPTIONS = [
-  { label: "中文", on: true },
-  { label: "English", on: false },
-  { label: "跟随系统", on: false },
-];
-
-/** 设置分节（原型 .set-section）：标题 + 描述 + 内容，底边分隔。 */
 export function SetSection({
   title,
   desc,
@@ -68,11 +46,6 @@ export function SetSection({
     </section>
   );
 }
-
-/**
- * 通用单元格：左标签 + 右内容/操作（原型 .func-cell）。
- * 无描边无底色——同类单元格之间靠父级的分割线区分，避免卡片套卡片。
- */
 export function FuncCell({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2">
@@ -81,183 +54,366 @@ export function FuncCell({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * 设置视图（§3 场景 6，对齐原型设置 panel）：
- * 二级标签（通用 / 热键 / AI / 外观）。AI 子标签已接入真实配置（providers +
- * 功能默认模型），主题真实联动 theme-store，其余为占位待后续能力接入。
- */
+function displayCombo(binding: HotkeyBinding) {
+  const m = binding.combo.mods;
+  return [
+    [MOD.CTRL, "Ctrl"],
+    [MOD.ALT, "Alt"],
+    [MOD.SHIFT, "Shift"],
+    [MOD.SUPER, "Super"],
+  ]
+    .filter(([bit]) => (m & (bit as number)) !== 0)
+    .map(([, name]) => name)
+    .concat(binding.combo.key || "?")
+    .join("+");
+}
+function capture(
+  e: React.KeyboardEvent<HTMLInputElement>,
+): HotkeyBinding["combo"] | null {
+  e.preventDefault();
+  const mods =
+    (e.ctrlKey ? MOD.CTRL : 0) |
+    (e.altKey ? MOD.ALT : 0) |
+    (e.shiftKey ? MOD.SHIFT : 0) |
+    (e.metaKey ? MOD.SUPER : 0);
+  const ignored = ["Control", "Alt", "Shift", "Meta"];
+  if (!mods || ignored.includes(e.key)) return null;
+  return {
+    mods,
+    key:
+      e.key === " "
+        ? "Space"
+        : e.key.length === 1
+          ? e.key.toUpperCase()
+          : e.key,
+  };
+}
+
 export function SettingsView() {
   const [sub, setSub] = useState<Sub>("general");
+  const config = useConfigStore((s) => s.config);
+  const hotkeys = useConfigStore((s) => s.config?.hotkeys);
+  const update = useConfigStore((s) => s.update);
+  const error = useConfigStore((s) => s.error);
   const mode = useThemeStore((s) => s.mode);
-  const setMode = useThemeStore((s) => s.setMode);
-
+  const setTheme = useThemeStore((s) => s.setMode);
+  const [statuses, setStatuses] = useState<HotkeyStatus[]>([]);
+  const [mapping, setMapping] = useState<[Language, Language]>(["en", "zh"]);
+  const [hotkeyError, setHotkeyError] = useState<string | null>(null);
+  const [mappingError, setMappingError] = useState<string | null>(null);
+  const t = useT();
+  useEffect(() => {
+    const p = listen<HotkeyStatus[]>("hotkey-status", (e) =>
+      setStatuses(e.payload),
+    );
+    return () => {
+      void p.then((u) => u());
+    };
+  }, []);
+  useEffect(() => {
+    if (!hotkeys) return;
+    void registerHotkeys(hotkeys)
+      .then(setStatuses)
+      .catch((cause) => setHotkeyError(String(cause)));
+  }, [hotkeys]);
+  if (!config)
+    return (
+      <ViewShell>
+        <p className="p-4 text-xs text-muted-foreground" aria-live="polite">
+          {t("loadingSettings")}
+        </p>
+      </ViewShell>
+    );
+  const addMapping = () => {
+    if (
+      mapping[0] === mapping[1] ||
+      config.pair_mappings.some(([from]) => from === mapping[0])
+    ) {
+      setMappingError(t("mappingInvalid"));
+      return;
+    }
+    setMappingError(null);
+    void update((c) => ({
+      ...c,
+      pair_mappings: [...c.pair_mappings, mapping],
+    }));
+  };
+  const saveHotkeys = async (bindings: HotkeyBinding[]) => {
+    const duplicates = new Set<string>();
+    if (
+      bindings.some((b) => {
+        const value = displayCombo(b);
+        if (duplicates.has(value)) return true;
+        duplicates.add(value);
+        return !b.combo.mods || !b.combo.key;
+      })
+    ) {
+      setHotkeyError(
+        t("shortcutInvalid"),
+      );
+      return;
+    }
+    setHotkeyError(null);
+    try {
+      setStatuses(await registerHotkeys(bindings));
+      useConfigStore.setState({ config: { ...config, hotkeys: bindings } });
+    } catch (e) {
+      setHotkeyError(String(e));
+    }
+  };
   return (
     <ViewShell
       toolbar={
-        <nav
-          aria-label="设置分组"
-          className="flex flex-wrap items-center gap-0.5"
-        >
-          {SUBTABS.map((t) => (
+        <nav aria-label="Settings sections" className="flex gap-0.5">
+          {(["general", "shortcuts", "ai", "appearance"] as Sub[]).map((id) => (
             <button
-              key={t.id}
+              key={id}
               type="button"
-              onClick={() => setSub(t.id)}
-              aria-current={sub === t.id ? "page" : undefined}
+              onClick={() => setSub(id)}
+              aria-current={sub === id ? "page" : undefined}
               className={cn(
-                "whitespace-nowrap rounded-[5px] px-3.5 py-1.5 text-sm font-medium transition-colors duration-fast",
-                sub === t.id
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                "rounded-[5px] px-3.5 py-1.5 text-sm",
+                sub === id
+                  ? "bg-accent"
+                  : "text-muted-foreground hover:bg-accent/60",
               )}
             >
-              {t.label}
+              {
+                {
+                  general: t("general"),
+                  shortcuts: t("shortcuts"),
+                  ai: "AI",
+                  appearance: t("appearance"),
+                }[id]
+              }
             </button>
           ))}
         </nav>
       }
     >
-      <div className="flex h-full flex-col">
-        <div className="min-h-0 flex-1 overflow-auto px-4 py-1">
-          {sub === "general" && (
-            <div>
-              <SetSection
-                title="语言映射"
-                desc="命中映射用映射目标；原文等于界面语言时改为英文；全部未命中用全局默认。"
-              >
-                <div className="divide-y divide-border border-t border-border">
-                  <FuncCell>
-                    <span className="text-sm text-muted-foreground">
-                      English → 中文
+      <div className="h-full overflow-auto px-4 py-1" aria-live="polite">
+        {sub === "general" && (
+          <>
+            <SetSection
+              title={t("languageMappings")}
+              desc={t("mappingsHelp")}
+            >
+              <div className="divide-y divide-border border-y">
+                {config.pair_mappings.map(([from, to]) => (
+                  <FuncCell key={from}>
+                    <span>
+                      {labels[from]} → {labels[to]}
                     </span>
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label="移除"
-                      title="V1 实装"
+                      aria-label={t("removeMapping", { from })}
+                      onClick={() =>
+                        void update((c) => ({
+                          ...c,
+                          pair_mappings: c.pair_mappings.filter(
+                            ([x]) => x !== from,
+                          ),
+                        }))
+                      }
                     >
                       <X className="h-3.5 w-3.5" />
                     </Button>
                   </FuncCell>
-                  <FuncCell>
-                    <span className="text-sm text-muted-foreground">
-                      中文 → English
+                ))}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <Select
+                  value={mapping[0]}
+                  onChange={(e) =>
+                    setMapping([e.target.value as Language, mapping[1]])
+                  }
+                >
+                  {langs.map((l) => (
+                    <option key={l}>{l}</option>
+                  ))}
+                </Select>
+                <Select
+                  value={mapping[1]}
+                  onChange={(e) =>
+                    setMapping([mapping[0], e.target.value as Language])
+                  }
+                >
+                  {langs.map((l) => (
+                    <option key={l}>{l}</option>
+                  ))}
+                </Select>
+                <Button variant="outline" size="sm" onClick={addMapping}>
+                  <Plus className="h-3.5 w-3.5" />
+                  {t("add")}
+                </Button>
+              </div>
+              {mappingError ? <p role="alert" className="mt-2 text-xs text-destructive">{mappingError}</p> : null}
+            </SetSection>
+            <SetSection title={t("interfaceLanguage")}>
+              <label className="mr-3 text-sm">
+                {t("interfaceLanguage")}{" "}
+                <Select
+                  value={config.ui_language}
+                  onChange={(e) =>
+                    void update((c) => ({
+                      ...c,
+                      ui_language: e.target.value as "system" | "zh" | "en",
+                    }))
+                  }
+                >
+                  <option value="system">{t("system")}</option>
+                  <option value="zh">中文</option>
+                  <option value="en">English</option>
+                </Select>
+              </label>
+              <label className="text-sm">
+                {t("defaultTarget")}{" "}
+                <Select
+                  value={config.global_default_target}
+                  onChange={(e) =>
+                    void update((c) => ({
+                      ...c,
+                      global_default_target: e.target.value as Language,
+                    }))
+                  }
+                >
+                  {langs.map((l) => (
+                    <option key={l}>{labels[l]}</option>
+                  ))}
+                </Select>
+              </label>
+            </SetSection>
+          </>
+        )}
+        {sub === "shortcuts" && (
+          <SetSection
+            title={t("globalShortcuts")}
+            desc={t("shortcutsHelp")}
+          >
+            <div className="divide-y divide-border border-y">
+              {config.hotkeys.map((binding, index) => {
+                const status = statuses.find(
+                  (s) => s.action === binding.action,
+                );
+                return (
+                  <div
+                    key={binding.action}
+                    className={cn(
+                      "flex items-center gap-3 py-2",
+                      status && !status.registered && "bg-destructive/5",
+                    )}
+                  >
+                    <span className="min-w-36 text-sm">
+                      {binding.action === "translate_selection"
+                        ? t("translateSelection")
+                        : t("showMainWindow")}
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="移除"
-                      title="V1 实装"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </FuncCell>
-                </div>
-                <div className="mt-2">
-                  <Button variant="outline" size="sm" title="V1 实装">
-                    <Plus className="h-3.5 w-3.5" />
-                    添加映射
+                    <input
+                      aria-label={`${binding.action} shortcut`}
+                      value={displayCombo(binding)}
+                      onKeyDown={(e) => {
+                        const combo = capture(e);
+                        if (combo) {
+                          const next = config.hotkeys.map((h, i) =>
+                            i === index ? { ...h, combo } : h,
+                          );
+                          void saveHotkeys(next);
+                        } else
+                          setHotkeyError(
+                            t("shortcutInvalid"),
+                          );
+                      }}
+                      readOnly
+                      className="w-44 rounded-sm border border-input bg-background px-2 py-1 font-mono text-xs"
+                    />
+                    {status?.error ? (
+                      <span className="text-xs text-destructive">
+                        {t("hotkeyRegistrationFailed")}{status.error}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-success">
+                        {status?.registered ? t("registered") : t("notChecked")}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <Button
+              className="mt-3"
+              size="sm"
+              onClick={() => void saveHotkeys(config.hotkeys)}
+            >
+              {t("saveReregister")}
+            </Button>
+            {hotkeyError ? (
+              <p role="alert" className="mt-2 text-xs text-destructive">
+                <Info className="mr-1 inline h-3 w-3" />
+                {hotkeyError}
+              </p>
+            ) : null}
+          </SetSection>
+        )}
+        {sub === "ai" && <SettingsAi />}
+        {sub === "appearance" && (
+          <>
+            <SetSection title={t("theme")}>
+              <div className="flex gap-2">
+                {themes.map((theme) => (
+                  <label key={theme}>
+                    <input
+                      type="radio"
+                      name="theme"
+                      checked={mode === theme}
+                      onChange={() => setTheme(theme)}
+                    />{" "}
+                    {theme}
+                  </label>
+                ))}
+              </div>
+            </SetSection>
+            <SetSection title={t("prompts")} desc={t("promptsHelp")}>
+              {(["translate", "naming"] as const).map((feature) => (
+                <label key={feature} className="mb-3 block text-sm">
+                  {feature}
+                  <Textarea
+                    value={config.prompt_overrides[feature] ?? ""}
+                    onChange={(e) =>
+                      void update((c) => ({
+                        ...c,
+                        prompt_overrides: {
+                          ...c.prompt_overrides,
+                          [feature]: e.target.value || null,
+                        },
+                      }))
+                    }
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      void update((c) => ({
+                        ...c,
+                        prompt_overrides: {
+                          ...c.prompt_overrides,
+                          [feature]: null,
+                        },
+                      }))
+                    }
+                  >
+                    {t("restoreBuiltIn")}
                   </Button>
-                </div>
-              </SetSection>
-
-              <SetSection title="界面语言" desc="默认跟随系统，支持中 / 英。">
-                <div className="flex gap-2">
-                  {LANG_OPTIONS.map((o) => (
-                    <label
-                      key={o.label}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-2 rounded-sm border px-3.5 py-2 text-sm transition-colors duration-fast",
-                        o.on
-                          ? "border-foreground/20 bg-accent text-foreground"
-                          : "border-border text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="lang"
-                        defaultChecked={o.on}
-                        className="accent-info"
-                      />
-                      {o.label}
-                    </label>
-                  ))}
-                </div>
-              </SetSection>
-            </div>
-          )}
-
-          {sub === "shortcuts" && (
-            <div>
-              <SetSection
-                title="热键管理"
-                desc="注册失败即视为冲突，浮窗提示并在设置页标红。点击热键重新捕获。"
-              >
-                <div className="divide-y divide-border border-y border-border">
-                  {/* 热键行表：行间浅线分隔，冲突行仅用底色标记，不套描边卡片 */}
-                  {HOTKEYS.map((h) => (
-                    <div
-                      key={h.label}
-                      className={cn(
-                        "flex items-center gap-3 px-1 py-2.5",
-                        h.conflict && "bg-destructive/5",
-                      )}
-                    >
-                      <span className="min-w-[130px] text-sm text-muted-foreground">
-                        {h.label}
-                      </span>
-                      <span className="font-mono text-[10px] text-muted-foreground/70">
-                        {h.desc}
-                      </span>
-                      <span className="ml-auto flex items-center gap-1">
-                        {h.keys.map((k) => (
-                          <kbd key={k} className="kbd">
-                            {k}
-                          </kbd>
-                        ))}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-destructive">
-                  <Info className="h-3 w-3" />
-                  「⌘⇧L」注册失败，疑似与系统快捷键冲突，请更换。
-                </p>
-              </SetSection>
-            </div>
-          )}
-
-          {sub === "ai" && <SettingsAi />}
-
-          {sub === "appearance" && (
-            <div>
-              <SetSection title="主题" desc="浅色 / 深色 / 跟随系统。">
-                <div className="flex gap-2">
-                  {THEME_OPTIONS.map((o) => (
-                    <label
-                      key={o.id}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-2 rounded-sm border px-3.5 py-2 text-sm transition-colors duration-fast",
-                        mode === o.id
-                          ? "border-foreground/20 bg-accent text-foreground"
-                          : "border-border text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="theme"
-                        checked={mode === o.id}
-                        onChange={() => setMode(o.id)}
-                        className="accent-info"
-                      />
-                      {o.label}
-                    </label>
-                  ))}
-                </div>
-              </SetSection>
-            </div>
-          )}
-        </div>
+                </label>
+              ))}
+            </SetSection>
+          </>
+        )}
+        {error ? (
+          <p role="alert" className="py-2 text-xs text-destructive">
+            {t("configSaveFailed")}{error}
+          </p>
+        ) : null}
       </div>
     </ViewShell>
   );

@@ -3,6 +3,7 @@ import { Copy, Download, FileText, Trash2, Upload } from "lucide-react";
 import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 interface DstPara {
   text: string;
@@ -74,6 +75,7 @@ const DOCS: DocItem[] = [
  * 文档翻译为 P1 / V1.5 特性，此处用静态示例还原布局，业务能力留待后续。
  */
 export function DocsView() {
+  const t = useT();
   const [activeDoc, setActiveDoc] = useState("go");
   const [vtab, setVtab] = useState<"src" | "dst">("src");
   const doc = DOCS.find((d) => d.id === activeDoc) ?? DOCS[0];
@@ -83,25 +85,25 @@ export function DocsView() {
     <ViewShell
       toolbar={
         <>
-          <Button size="sm" title="V1 实装">
+          <Button size="sm" title={t("uploadFile")}>
             <Upload className="h-3.5 w-3.5" />
-            上传文件
+            {t("uploadFile")}
           </Button>
           <div className="flex gap-0.5 rounded-sm border border-border bg-muted/30 p-0.5">
-            {(["src", "dst"] as const).map((t) => (
+            {(["src", "dst"] as const).map((tab) => (
               <button
-                key={t}
+                key={tab}
                 type="button"
-                onClick={() => setVtab(t)}
-                aria-pressed={vtab === t}
+                onClick={() => setVtab(tab)}
+                aria-pressed={vtab === tab}
                 className={cn(
                   "rounded-[5px] px-3 py-1 text-xs font-medium transition-colors duration-fast",
-                  vtab === t
+                  vtab === tab
                     ? "bg-accent text-foreground"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {t === "src" ? "原文" : "译文"}
+                {tab === "src" ? t("documentSource") : t("documentTranslation")}
               </button>
             ))}
           </div>
@@ -112,24 +114,24 @@ export function DocsView() {
             <Button
               variant="ghost"
               size="icon"
-              title="V1 实装"
-              aria-label="复制"
+              title={t("copy")}
+              aria-label={t("copy")}
             >
               <Copy className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              title="V1 实装"
-              aria-label="导出"
+              title={t("export")}
+              aria-label={t("export")}
             >
               <Download className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              title="V1 实装"
-              aria-label="删除"
+              title={t("delete")}
+              aria-label={t("delete")}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
@@ -142,7 +144,7 @@ export function DocsView() {
         {/* 文件历史 */}
         <aside className="flex min-h-0 flex-col overflow-hidden">
           <div className="border-b border-border px-4 py-2 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-            文件历史
+            {t("fileHistory")}
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-auto p-2">
             {DOCS.map((d) => {

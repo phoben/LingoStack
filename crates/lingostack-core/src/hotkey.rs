@@ -58,12 +58,11 @@ impl KeyCombo {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HotkeyAction {
-    /// 划词后翻译选中（弹翻译浮窗）。
+    /// 划词后在主窗口翻译选中内容。
+    #[serde(alias = "translate_popup")]
     TranslateSelection,
     /// 显示 / 隐藏主窗口。
     ShowMainWindow,
-    /// 唤起翻译浮窗（翻译剪贴板或最近选中）。
-    TranslatePopup,
 }
 
 /// 一条热键绑定。
@@ -81,18 +80,13 @@ pub struct HotkeyConflict {
 }
 
 /// 返回 Windows 默认热键绑定（用户确认）：
-/// - 翻译浮窗：`Ctrl+Shift+T`
-/// - 主窗口：`Alt+Space`
 /// - 划词翻译：`Ctrl+Shift+D`
+/// - 主窗口：`Alt+Space`
 ///
 /// macOS / Linux 默认值留待目标平台验证时调整（通常以 Super 替换 Ctrl）。
 #[must_use]
 pub fn defaults() -> Vec<HotkeyBinding> {
     vec![
-        HotkeyBinding {
-            action: HotkeyAction::TranslatePopup,
-            combo: KeyCombo::new(Modifiers::CTRL | Modifiers::SHIFT, "T"),
-        },
         HotkeyBinding {
             action: HotkeyAction::ShowMainWindow,
             combo: KeyCombo::new(Modifiers::ALT, "Space"),
@@ -141,7 +135,7 @@ mod tests {
     #[test]
     fn defaults_have_three_bindings_and_no_conflicts() {
         let d = defaults();
-        assert_eq!(d.len(), 3);
+        assert_eq!(d.len(), 2);
         assert!(detect_conflicts(&d).is_empty());
     }
 
@@ -149,7 +143,7 @@ mod tests {
     fn detects_duplicate_combo() {
         let bindings = vec![
             HotkeyBinding {
-                action: HotkeyAction::TranslatePopup,
+                action: HotkeyAction::TranslateSelection,
                 combo: KeyCombo::new(Modifiers::CTRL | Modifiers::SHIFT, "T"),
             },
             HotkeyBinding {
@@ -157,7 +151,7 @@ mod tests {
                 combo: KeyCombo::new(Modifiers::CTRL | Modifiers::SHIFT, "T"),
             },
             HotkeyBinding {
-                action: HotkeyAction::TranslateSelection,
+                action: HotkeyAction::ShowMainWindow,
                 combo: KeyCombo::new(Modifiers::CTRL | Modifiers::SHIFT, "D"),
             },
         ];
@@ -165,7 +159,7 @@ mod tests {
         assert_eq!(conflicts.len(), 1);
         let c = &conflicts[0];
         assert_eq!(c.actions.len(), 2);
-        assert!(c.actions.contains(&HotkeyAction::TranslatePopup));
+        assert!(c.actions.contains(&HotkeyAction::TranslateSelection));
         assert!(c.actions.contains(&HotkeyAction::ShowMainWindow));
     }
 
@@ -179,5 +173,16 @@ mod tests {
         let back: HotkeyBinding = serde_json::from_str(&json).unwrap();
         assert_eq!(b, back);
         assert!(json.contains("\"show_main_window\""));
+    }
+
+    #[test]
+    fn legacy_popup_deserializes_as_selection_and_reserializes_new_name() {
+        let binding: HotkeyBinding =
+            serde_json::from_str(r#"{"action":"translate_popup","combo":{"mods":5,"key":"T"}}"#)
+                .unwrap();
+        assert_eq!(binding.action, HotkeyAction::TranslateSelection);
+        assert!(serde_json::to_string(&binding)
+            .unwrap()
+            .contains("translate_selection"));
     }
 }

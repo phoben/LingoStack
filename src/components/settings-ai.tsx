@@ -7,20 +7,15 @@ import { ProviderForm } from "@/components/provider-form";
 import { FuncCell, SetSection } from "@/components/views/settings-view";
 import { useConfigStore } from "@/stores/config-store";
 import type { ModelRef, ProviderConfig } from "@/lib/config-types";
+import { useT } from "@/lib/i18n";
 
-type ModelField = "translate" | "naming" | "explain" | "global_default";
+type ModelField = "translate" | "naming" | "global_default";
 
-const FUNC_ROWS: { field: ModelField; label: string }[] = [
-  { field: "translate", label: "翻译" },
-  { field: "naming", label: "命名" },
-  { field: "explain", label: "解释" },
-  { field: "global_default", label: "全局默认" },
-];
+const FUNC_ROWS: ModelField[] = ["translate", "naming", "global_default"];
 
 const ALL_MODEL_FIELDS = [
   "translate",
   "naming",
-  "explain",
   "doc_translate",
   "global_default",
 ] as const;
@@ -46,6 +41,7 @@ function genId(name: string, existing: string[]): string {
  * 经 config-store 读写 config.json（乐观更新 + 自动存盘）。
  */
 export function SettingsAi() {
+  const t = useT();
   const config = useConfigStore((s) => s.config);
   const update = useConfigStore((s) => s.update);
   const error = useConfigStore((s) => s.error);
@@ -56,7 +52,7 @@ export function SettingsAi() {
   >(null);
 
   if (!config) {
-    return <p className="text-xs text-muted-foreground">配置加载中…</p>;
+    return <p className="text-xs text-muted-foreground">{t("loadingSettings")}</p>;
   }
 
   const providers = config.providers;
@@ -120,14 +116,14 @@ export function SettingsAi() {
   return (
     <div>
       <SetSection
-        title="LLM 提供商"
-        desc="多提供商并存，按功能指定默认模型，全局默认兜底。仅使用你的 API Key，零内置计费。"
+        title={t("llmProviders")}
+        desc={t("providersHelp")}
       >
         {/* 提供商行表：行间浅线分隔，不逐条套卡片 */}
         <div className="divide-y divide-border border-t border-border">
           {providers.length === 0 ? (
             <p className="px-1 py-5 text-center text-xs text-muted-foreground">
-              尚未配置提供商。添加一个（如 DeepSeek）即可开始翻译。
+              {t("noProvider")}
             </p>
           ) : (
             providers.map((p) => (
@@ -142,10 +138,10 @@ export function SettingsAi() {
                   {p.base_url}
                 </span>
                 <span className="hidden max-w-[200px] truncate font-mono text-[10px] text-muted-foreground/70 sm:block">
-                  {p.models.join(" · ") || "（未设模型）"}
+                  {p.models.join(" · ") || t("unassigned")}
                 </span>
                 <Pill variant={p.api_key ? "ok" : "warn"}>
-                  {p.api_key ? "已配置" : "缺 Key"}
+                  {p.api_key ? t("configured") : t("missingKey")}
                 </Pill>
                 <Button
                   variant="ghost"
@@ -184,33 +180,33 @@ export function SettingsAi() {
               onClick={() => setEditing({ mode: "add" })}
             >
               <Plus className="h-3.5 w-3.5" />
-              添加提供商
+              {t("addProvider")}
             </Button>
           </div>
         )}
 
         <div className="mt-4">
           <p className="mb-2 text-xs text-muted-foreground">
-            功能默认模型（未指定时回退到全局默认）
+            {t("featureDefault")}
           </p>
           <div className="divide-y divide-border border-t border-border">
-            {FUNC_ROWS.map((f) => {
-              const current = config.models[f.field];
+            {FUNC_ROWS.map((field) => {
+              const current = config.models[field];
               const value = current
                 ? `${current.provider_id}::${current.model}`
                 : "";
               return (
-                <FuncCell key={f.field}>
+                <FuncCell key={field}>
                   <span className="text-sm text-muted-foreground">
-                    {f.label}
+                    {field === "translate" ? t("translate") : field === "naming" ? t("naming") : t("globalDefault")}
                   </span>
                   <Select
                     value={value}
-                    onChange={(e) => setFeatureModel(f.field, e.target.value)}
+                    onChange={(e) => setFeatureModel(field, e.target.value)}
                     className="h-8 min-w-[180px] text-xs"
                     disabled={modelOptions.length === 0}
                   >
-                    <option value="">未指定</option>
+                    <option value="">{t("unassigned")}</option>
                     {modelOptions.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
@@ -225,7 +221,7 @@ export function SettingsAi() {
       </SetSection>
 
       {error ? (
-        <p className="mt-2 text-xs text-accent">配置保存失败：{error}</p>
+        <p className="mt-2 text-xs text-accent">{t("configSaveFailed")}{error}</p>
       ) : null}
     </div>
   );

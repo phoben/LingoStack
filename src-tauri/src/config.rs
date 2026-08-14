@@ -30,7 +30,11 @@ pub fn config_path() -> PathBuf {
 /// 加载配置；文件不存在视为首次运行，返回默认值（不报错）。
 pub fn load(path: &Path) -> Result<AppConfig, ConfigError> {
     match fs::read_to_string(path) {
-        Ok(text) => Ok(serde_json::from_str(&text)?),
+        Ok(text) => {
+            let mut config: AppConfig = serde_json::from_str(&text)?;
+            config.normalize_hotkeys();
+            Ok(config)
+        }
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(AppConfig::default()),
         Err(e) => Err(ConfigError::Io(e)),
     }
@@ -41,7 +45,9 @@ pub fn save(path: &Path, config: &AppConfig) -> Result<(), ConfigError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let text = serde_json::to_string_pretty(config)?;
+    let mut normalized = config.clone();
+    normalized.normalize_hotkeys();
+    let text = serde_json::to_string_pretty(&normalized)?;
     fs::write(path, text)?;
     restrict_permissions(path)?;
     Ok(())
@@ -66,8 +72,8 @@ fn restrict_permissions(path: &Path) -> Result<(), ConfigError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lingostack_core::config::UiLanguage;
     use lingostack_core::config::{ProviderConfig, ProviderKind};
-    use lingostack_core::lang::Language;
 
     #[test]
     fn load_missing_file_returns_default() {
@@ -75,7 +81,7 @@ mod tests {
         let path = dir.path().join("config.json");
         let cfg = load(&path).unwrap();
         assert!(cfg.providers.is_empty());
-        assert_eq!(cfg.ui_language, Language::Zh);
+        assert_eq!(cfg.ui_language, UiLanguage::System);
     }
 
     #[test]

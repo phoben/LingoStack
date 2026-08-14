@@ -6,6 +6,7 @@
  */
 
 export type Language = "zh" | "en" | "ja";
+export type UiLanguage = "system" | "zh" | "en";
 export interface TranslationPlan { source: Language; target: Language; }
 
 /** LLM 提供商协议（serde `rename_all = "snake_case"`）。 */
@@ -32,8 +33,7 @@ export type NamingStyle =
 /** 热键动作（serde snake_case）。 */
 export type HotkeyAction =
   | "translate_selection"
-  | "show_main_window"
-  | "translate_popup";
+  | "show_main_window";
 
 export interface ProviderConfig {
   id: string;
@@ -77,7 +77,7 @@ export interface HotkeyBinding {
 export interface AppConfig {
   providers: ProviderConfig[];
   models: ModelAssignment;
-  ui_language: Language;
+  ui_language: UiLanguage;
   theme: Theme;
   pair_mappings: [Language, Language][];
   global_default_target: Language;
@@ -123,15 +123,11 @@ export function defaultConfig(): AppConfig {
   return {
     providers: [],
     models: {},
-    ui_language: "zh",
+    ui_language: "system",
     theme: "system",
     pair_mappings: [],
     global_default_target: "zh",
     hotkeys: [
-      {
-        action: "translate_popup",
-        combo: { mods: MOD.CTRL | MOD.SHIFT, key: "T" },
-      },
       { action: "show_main_window", combo: { mods: MOD.ALT, key: "Space" } },
       {
         action: "translate_selection",

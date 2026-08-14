@@ -40,13 +40,13 @@ describe("config-store", () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
     await useConfigStore.getState().update((cfg) => ({
       ...cfg,
-      ui_language: "ja" as const,
+      ui_language: "zh" as const,
     }));
-    expect(useConfigStore.getState().config?.ui_language).toBe("ja");
+    expect(useConfigStore.getState().config?.ui_language).toBe("zh");
     expect(vi.mocked(invoke)).toHaveBeenCalledWith(
       "save_config",
       expect.objectContaining({
-        cfg: expect.objectContaining({ ui_language: "ja" }),
+        cfg: expect.objectContaining({ ui_language: "zh" }),
       }),
     );
   });

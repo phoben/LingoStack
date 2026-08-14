@@ -8,10 +8,11 @@ import { FavoritesView } from "@/components/views/favorites-view";
 import { NamingView } from "@/components/views/naming-view";
 import { SettingsView } from "@/components/views/settings-view";
 import { TranslateView } from "@/components/views/translate-view";
-import { getSelection } from "@/lib/ipc";
+import { getSelection, registerHotkeys } from "@/lib/ipc";
 import { useAppStore } from "@/stores/app-store";
 import { useConfigStore } from "@/stores/config-store";
 import { useApplyTheme } from "@/hooks/use-theme";
+import { useThemeStore } from "@/stores/theme-store";
 
 /**
  * 主窗口：自定义标题栏 + 可调宽左侧导航 + 圆角内容面板（§4.3 / §12.4）。
@@ -29,10 +30,24 @@ function App() {
   const setActiveView = useAppStore((s) => s.setActiveView);
   const setInjectSource = useAppStore((s) => s.setInjectSource);
   const loadConfig = useConfigStore((s) => s.load);
+  const config = useConfigStore((s) => s.config);
+  const hotkeys = useConfigStore((s) => s.config?.hotkeys);
+  const theme = useThemeStore((s) => s.mode);
+  const setTheme = useThemeStore((s) => s.setMode);
 
   useEffect(() => {
     void loadConfig();
   }, [loadConfig]);
+
+  useEffect(() => {
+    if (config && config.theme !== theme) setTheme(config.theme);
+  }, [config, setTheme, theme]);
+
+  // setup can register before the frontend listener exists; actively register after
+  // config load so status is observable and stale system registrations are repaired.
+  useEffect(() => {
+    if (hotkeys) void registerHotkeys(hotkeys).catch(() => {});
+  }, [hotkeys]);
 
   useEffect(() => {
     const un = listen("translate-selection", async () => {

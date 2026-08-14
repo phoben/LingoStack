@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { saveConfig } from "@/lib/ipc";
+import { useConfigStore } from "@/stores/config-store";
 
 /** 主题模式：浅色 / 深色 / 跟随系统。 */
 export type ThemeMode = "light" | "dark" | "system";
@@ -43,6 +45,14 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       // 写入失败时退化为仅内存态，不影响本次使用
     }
     set({ mode });
+    const config = useConfigStore.getState().config;
+    if (config) {
+      void saveConfig({ ...config, theme: mode }).catch(() => {
+        // 配置 store 保留当前输入并展示错误；主题缓存仍保证本次会话一致。
+        useConfigStore.setState({ error: "主题保存失败" });
+      });
+      useConfigStore.setState({ config: { ...config, theme: mode } });
+    }
   },
   cycleMode: () => {
     const idx = CYCLE_ORDER.indexOf(get().mode);

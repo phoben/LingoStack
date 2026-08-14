@@ -8,6 +8,7 @@ import { NAMING_STYLE_LABEL } from "@/lib/config-types";
 import { GRID_ROWS, GRID_STYLES, buildNamingGrid } from "@/lib/naming";
 import { useStreamStore } from "@/stores/stream-store";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 /**
  * 命名视图（§3 场景 3）：顶部描述输入 + 生成按钮，结果按五列平铺。
@@ -25,6 +26,7 @@ export function NamingView() {
   const setInput = useStreamStore((s) => s.setInput);
   const start = useStreamStore((s) => s.start);
   const [copied, setCopied] = useState<string | null>(null);
+  const t = useT();
 
   const streaming = task.status === "streaming";
   const grid = buildNamingGrid(task.output);
@@ -57,8 +59,8 @@ export function NamingView() {
             onKeyDown={(e) => {
               if (e.key === "Enter") generate();
             }}
-            placeholder="用中文描述这个变量的用途"
-            aria-label="变量用途描述"
+            placeholder={t("describeName")}
+            aria-label={t("describeName")}
             className="h-8 flex-1 text-xs"
           />
           <Button
@@ -67,7 +69,7 @@ export function NamingView() {
             disabled={streaming || !task.input.trim()}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            {streaming ? "生成中…" : "生成"}
+            {streaming ? t("generating") : t("generate")}
           </Button>
         </div>
       }
@@ -80,8 +82,8 @@ export function NamingView() {
         {grid.length === 0 && task.status !== "error" ? (
           <p className="px-4 py-8 text-center text-xs text-muted-foreground">
             {streaming
-              ? "正在生成候选…"
-              : "输入用途描述并点「生成」，一次产出五种命名规范的候选。"}
+              ? t("generating")
+              : t("noNaming")}
           </p>
         ) : null}
 
@@ -108,8 +110,8 @@ export function NamingView() {
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 shrink-0"
-                          title={copied === key ? "已复制" : `复制 ${name ?? "候选"}`}
-                          aria-label={`复制 ${name ?? "候选"}`}
+                          title={copied === key ? t("copied") : `${t("copy")} ${name ?? t("candidate")}`}
+                          aria-label={`${t("copy")} ${name ?? t("candidate")}`}
                           onClick={() => name && copy(key, name)}
                           disabled={!name}
                         >
@@ -130,7 +132,7 @@ export function NamingView() {
 
         {task.status === "done" && grid.length > 0 && grid.length < GRID_ROWS ? (
           <p className="border-t border-border px-4 py-2 text-xs text-accent">
-            仅生成 {grid.length} 个有效候选，未完整生成 5 个候选。
+          {t("incompleteCandidates", { count: String(grid.length) })}
           </p>
         ) : null}
 
@@ -150,7 +152,7 @@ export function NamingView() {
               onClick={generate}
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              重试
+                  {t("retry")}
             </Button>
           </div>
         ) : null}
