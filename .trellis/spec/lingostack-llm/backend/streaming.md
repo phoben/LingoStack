@@ -17,6 +17,7 @@ where S: Stream<Item = Result<B, E>> + Send + Unpin + 'static, B: AsRef<[u8]>, E
 `sse.rs`：
 
 - 跨 chunk 维护一个 `String` 缓冲（`:26`），因为一个 SSE 事件可能被 TCP 切在任意位置
+- 字节块先经过共享 UTF-8 尾缓冲：合法多字节字符可在任意字节位置跨 chunk；只有真正非法字节立即失败，上游结束仍留半个字符才报 `Stream` 错误。
 - 反复查找 `"\n\n"` 事件边界，取出完整块处理（`:32-45`）
 - 只 yield `data:` 开头的行（`strip_prefix("data:")` + `trim()`），其他字段（`event:` / `id:` / `:` 注释）静默忽略（`:37-43`）
 - **终止**：`payload == "[DONE]"` 显式跳过不 yield（`:39-41`），随后底层字节流自然结束
@@ -39,6 +40,8 @@ Gemini 的 `streamGenerateContent`（未加 `alt=sse`）返回的是**增量写�
 - 上游流报错 → `yield Err(LlmError::Stream(e.to_string())); return;`（`sse.rs:52-55`）
 
 **首个错误即终止整个流**，不做部分恢复。
+
+TCP 分片不是 Unicode 分片。任何按单个 `reqwest` 字节块直接 `from_utf8` 的实现都会在中文、日文等字符被拆开时误报协议错误；两个解码器都必须先保留不完整尾序列，并在流结束时检查该尾序列。
 
 ## payload 反序列化失败在上一层
 
@@ -69,5 +72,6 @@ serde_json::from_str(&payload)
 - `handles_events_split_across_chunks`（`sse.rs:87-97`）
 - `handles_objects_split_across_chunks`（`json_array_stream.rs:139-145`）
 - `yields_utf8_error_on_invalid_bytes`、`propagates_upstream_error`
+- 多字节字符在每一个内部字节边界切分，以及流在该字符中途结束
 
 改缓冲逻辑时，必须补一个「在最坏位置切开」的用例。provider 层的 wiremock 测试是一次性投递整个字符串的，**抓不到分片 bug**。

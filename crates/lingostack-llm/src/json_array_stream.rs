@@ -10,6 +10,7 @@ use async_stream::stream;
 use futures::stream::BoxStream;
 use futures::{Stream, StreamExt};
 
+use crate::utf8::Utf8Carry;
 use crate::LlmError;
 
 /// 跨 chunk 的数组流扫描状态。
@@ -78,17 +79,18 @@ where
 {
     let mut input = input;
     let mut scanner = Scanner::default();
+    let mut utf8 = Utf8Carry::default();
     stream! {
         while let Some(chunk) = input.next().await {
             match chunk {
-                Ok(bytes) => match std::str::from_utf8(bytes.as_ref()) {
+                Ok(bytes) => match utf8.push(bytes.as_ref()) {
                     Ok(text) => {
-                        for obj in scanner.push(text) {
+                        for obj in scanner.push(&text) {
                             yield Ok(obj);
                         }
                     }
-                    Err(e) => {
-                        yield Err(LlmError::Stream(format!("UTF-8 解码失败: {e}")));
+                    Err(message) => {
+                        yield Err(LlmError::Stream(message));
                         return;
                     }
                 },
@@ -97,6 +99,9 @@ where
                     return;
                 }
             }
+        }
+        if let Err(message) = utf8.finish() {
+            yield Err(LlmError::Stream(message));
         }
     }
     .boxed()
@@ -200,6 +205,34 @@ mod tests {
         let s = futures::stream::iter(vec![Err::<Vec<u8>, std::io::Error>(std::io::Error::other(
             "connection reset",
         ))]);
+        let results: Vec<_> = parse_json_objects(s).collect().await;
+        assert!(matches!(results[0], Err(LlmError::Stream(_))));
+    }
+
+    #[tokio::test]
+    async fn carries_multibyte_character_split_at_every_byte_boundary() {
+        let text = "[{\"text\":\"中\"}]";
+        let marker = text.find('中').unwrap();
+        for split in 1..'中'.len_utf8() {
+            let byte = marker + split;
+            let s = futures::stream::iter(vec![
+                Ok::<Vec<u8>, std::io::Error>(text.as_bytes()[..byte].to_vec()),
+                Ok(text.as_bytes()[byte..].to_vec()),
+            ]);
+            assert_eq!(
+                collect_objs(parse_json_objects(s)).await,
+                vec!["{\"text\":\"中\"}".to_string()],
+                "split {split}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn yields_utf8_error_when_stream_ends_mid_character() {
+        let bytes = "[{\"text\":\"中".as_bytes();
+        let s = futures::stream::iter(vec![Ok::<Vec<u8>, std::io::Error>(
+            bytes[..bytes.len() - 1].to_vec(),
+        )]);
         let results: Vec<_> = parse_json_objects(s).collect().await;
         assert!(matches!(results[0], Err(LlmError::Stream(_))));
     }

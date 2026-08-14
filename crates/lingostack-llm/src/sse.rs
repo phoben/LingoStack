@@ -7,6 +7,7 @@ use async_stream::stream;
 use futures::stream::BoxStream;
 use futures::{Stream, StreamExt};
 
+use crate::utf8::Utf8Carry;
 use crate::LlmError;
 
 /// 把「字节 chunk 流」解析为「SSE `data:` 负载流」。
@@ -24,12 +25,13 @@ where
 {
     let mut input = input;
     let mut buf = String::new();
+    let mut utf8 = Utf8Carry::default();
     stream! {
         while let Some(chunk) = input.next().await {
             match chunk {
-                Ok(bytes) => match std::str::from_utf8(bytes.as_ref()) {
+                Ok(bytes) => match utf8.push(bytes.as_ref()) {
                     Ok(text) => {
-                        buf.push_str(text);
+                        buf.push_str(&text);
                         // 以空行（\n\n）为事件边界，逐个弹出完整事件块。
                         while let Some(idx) = buf.find("\n\n") {
                             let block: String = buf.drain(..idx + 2).collect();
@@ -44,8 +46,8 @@ where
                             }
                         }
                     }
-                    Err(e) => {
-                        yield Err(LlmError::Stream(format!("UTF-8 解码失败: {e}")));
+                    Err(message) => {
+                        yield Err(LlmError::Stream(message));
                         return;
                     }
                 },
@@ -54,6 +56,9 @@ where
                     return;
                 }
             }
+        }
+        if let Err(message) = utf8.finish() {
+            yield Err(LlmError::Stream(message));
         }
     }
     .boxed()
@@ -107,6 +112,34 @@ mod tests {
     #[tokio::test]
     async fn yields_utf8_error_on_invalid_bytes() {
         let s = futures::stream::iter(vec![Ok::<Vec<u8>, std::io::Error>(vec![0xFF, 0xFE])]);
+        let results: Vec<_> = parse_data_lines(s).collect().await;
+        assert!(matches!(results[0], Err(LlmError::Stream(_))));
+    }
+
+    #[tokio::test]
+    async fn carries_multibyte_character_split_at_every_byte_boundary() {
+        let text = "data: {\"text\":\"中\"}\n\n";
+        let marker = text.find('中').unwrap();
+        for split in 1..'中'.len_utf8() {
+            let byte = marker + split;
+            let s = futures::stream::iter(vec![
+                Ok::<Vec<u8>, std::io::Error>(text.as_bytes()[..byte].to_vec()),
+                Ok(text.as_bytes()[byte..].to_vec()),
+            ]);
+            assert_eq!(
+                collect(parse_data_lines(s)).await,
+                vec!["{\"text\":\"中\"}".to_string()],
+                "split {split}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn yields_utf8_error_when_stream_ends_mid_character() {
+        let bytes = "data: 中".as_bytes();
+        let s = futures::stream::iter(vec![Ok::<Vec<u8>, std::io::Error>(
+            bytes[..bytes.len() - 1].to_vec(),
+        )]);
         let results: Vec<_> = parse_data_lines(s).collect().await;
         assert!(matches!(results[0], Err(LlmError::Stream(_))));
     }

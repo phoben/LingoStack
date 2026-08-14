@@ -63,6 +63,7 @@ Mock::given(method("POST"))
 - 正常多事件
 - **在最坏位置切开**（`handles_events_split_across_chunks`、`handles_objects_split_across_chunks`）
 - 非法 UTF-8
+- UTF-8 多字节字符在每一个内部字节边界分片；上游结束时的半个字符必须报错
 - 上游流报错
 
 ## 硬性要求

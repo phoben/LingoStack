@@ -13,6 +13,7 @@ pub mod gemini;
 mod json_array_stream;
 pub mod openai;
 mod sse;
+mod utf8;
 
 /// 一条消息（system / user / assistant）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
