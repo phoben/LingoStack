@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/lingostack-app/backend/app-setup.md", "reason": "Preserve Tauri plugin and setup ordering while adding test-only plugins"}
+{"file": ".trellis/spec/lingostack-app/backend/ipc-commands.md", "reason": "Exercise the existing chat_stream Channel contract without changing production IPC semantics"}
+{"file": ".trellis/spec/lingostack-app/frontend/testing-and-a11y.md", "reason": "Use semantic selectors and preserve frontend test conventions"}
+{"file": ".trellis/spec/guides/ipc-contract-guide.md", "reason": "Keep Rust and TypeScript IPC boundaries synchronized"}
+{"file": ".trellis/spec/guides/platform-isolation-guide.md", "reason": "Respect Windows system boundary and cross-platform placeholder contracts"}
+{"file": ".trellis/tasks/08-14-tauri-e2e-ci/research/current-app-testability.md", "reason": "Repository evidence for scenarios, fixtures, selectors, and isolation gaps"}
+{"file": ".trellis/tasks/08-14-tauri-e2e-ci/research/official-wdio-tauri.md", "reason": "Official embedded-provider, plugin, production isolation, and platform guidance"}

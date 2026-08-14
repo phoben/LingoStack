@@ -30,3 +30,6 @@ Thumbs.db
 # ===== 日志 / 本地临时 =====
 *.log
 *.local
+
+# ===== Desktop E2E diagnostics =====
+artifacts/e2e/

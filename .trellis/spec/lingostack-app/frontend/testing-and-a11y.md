@@ -41,3 +41,9 @@ vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: ... }));
 ## UI 验证范围
 
 UI 变更测试应覆盖键盘可达、可见焦点、选中/禁用语义，以及异步区域的 `aria-busy` 和播报。静态检查、单元测试和视觉回归是不同证据：没有运行视觉回归时，不得把 RTL 或源码搜索表述为视觉已验证。
+
+## 真实桌面 E2E
+
+根目录 `e2e/` 使用 WebdriverIO 操作真实 Tauri 窗口。选择器继续遵守 RTL 的语义优先原则：role、accessible name、`aria-current`、`aria-busy`、`role=alert`；不要用 Tailwind class 或 DOM 层级。若导航与页面动作可见文案相同（例如都叫“翻译”），给动作补准确的 `aria-label`（当前为“执行翻译”），不要用模糊的 `button=翻译` 碰运气。
+
+guest bridge 只允许在 `import.meta.env.MODE === "e2e"` 时动态加载。普通 `pnpm build` 必须保持无 WDIO bridge，完整 feature/capability/fixture 契约见 [后端真实桌面 E2E](../backend/e2e-testing.md)。

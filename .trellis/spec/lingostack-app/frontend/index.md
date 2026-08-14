@@ -27,6 +27,7 @@
 pnpm lint      # eslint --max-warnings 0，warn 级也会失败
 pnpm build     # tsc --noEmit + vite build
 pnpm test      # vitest run
+pnpm test:e2e  # 改真实窗口、IPC 或关键桌面流程时运行
 ```
 
 TypeScript 严格模式，额外开了 `noUnusedLocals` / `noUnusedParameters` / `noFallthroughCasesInSwitch` / `noUncheckedSideEffectImports`（`tsconfig.json:17-21`）。
