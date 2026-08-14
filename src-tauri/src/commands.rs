@@ -9,6 +9,52 @@ use tauri::State;
 use crate::config as config_store;
 use crate::AppState;
 
+#[cfg(feature = "e2e")]
+mod e2e_fixture {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use futures::stream::{self, BoxStream};
+    use lingostack_llm::{ChatChunk, ChatRequest, LlmError, LlmProvider};
+
+    static ERROR_WAS_RETURNED: AtomicBool = AtomicBool::new(false);
+
+    pub const BASE_URL: &str = "lingostack-e2e://fixture";
+    pub const MODEL: &str = "lingostack-e2e";
+    pub const ERROR_THEN_SUCCESS_INPUT: &str = "E2E_ERROR_THEN_SUCCESS";
+    pub const SUCCESS_OUTPUT: &str = "确定性的 E2E 翻译结果";
+
+    pub struct FixtureProvider;
+
+    impl LlmProvider for FixtureProvider {
+        fn chat_stream<'a>(
+            &'a self,
+            request: &'a ChatRequest,
+        ) -> BoxStream<'a, Result<ChatChunk, LlmError>> {
+            let input = request
+                .messages
+                .iter()
+                .rev()
+                .find(|message| matches!(message.role, lingostack_llm::ChatRole::User))
+                .map(|message| message.content.as_str())
+                .unwrap_or_default();
+            if input == ERROR_THEN_SUCCESS_INPUT && !ERROR_WAS_RETURNED.swap(true, Ordering::SeqCst)
+            {
+                return Box::pin(stream::iter([Err(LlmError::Network(
+                    "E2E fixture: 可重试的确定性错误".into(),
+                ))]));
+            }
+            Box::pin(stream::iter([
+                Ok(ChatChunk {
+                    delta: SUCCESS_OUTPUT[.."确定性的 ".len()].into(),
+                }),
+                Ok(ChatChunk {
+                    delta: SUCCESS_OUTPUT["确定性的 ".len()..].into(),
+                }),
+            ]))
+        }
+    }
+}
+
 /// 读取当前系统选中文本（UIA 优先，失败降级剪贴板）。
 ///
 /// 返回的 `source` 标明来源，前端据此提示用户（如降级到剪贴板时说明，§9）。
@@ -107,6 +153,13 @@ pub async fn chat_stream(
 ///
 /// 四种协议均已实装；Ollama 复用 OpenAI 兼容协议（同一 wire format）。
 fn build_provider(p: &ProviderConfig) -> Result<Box<dyn LlmProvider>, String> {
+    #[cfg(feature = "e2e")]
+    if p.base_url == e2e_fixture::BASE_URL
+        && p.models.iter().any(|model| model == e2e_fixture::MODEL)
+    {
+        return Ok(Box::new(e2e_fixture::FixtureProvider));
+    }
+
     match p.kind {
         ProviderKind::OpenAiCompatible | ProviderKind::Ollama => {
             let provider =
@@ -134,6 +187,8 @@ fn build_provider(p: &ProviderConfig) -> Result<Box<dyn LlmProvider>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "e2e")]
+    use futures::StreamExt;
 
     fn deepseek() -> ProviderConfig {
         ProviderConfig {
@@ -188,5 +243,33 @@ mod tests {
         p.kind = ProviderKind::Ollama;
         p.base_url = "http://localhost:11434".into();
         assert!(build_provider(&p).is_ok());
+    }
+
+    #[cfg(feature = "e2e")]
+    #[test]
+    fn e2e_fixture_provider_streams_known_chunks_without_a_client() {
+        let p = ProviderConfig {
+            id: "e2e".into(),
+            kind: ProviderKind::OpenAiCompatible,
+            name: "E2E fixture".into(),
+            base_url: e2e_fixture::BASE_URL.into(),
+            api_key: "not-a-real-key".into(),
+            models: vec![e2e_fixture::MODEL.into()],
+        };
+        let provider = build_provider(&p).unwrap();
+        let request = ChatRequest::new(
+            e2e_fixture::MODEL,
+            vec![lingostack_llm::ChatMessage {
+                role: lingostack_llm::ChatRole::User,
+                content: "E2E_SUCCESS".into(),
+            }],
+        );
+        let chunks = futures::executor::block_on(
+            provider
+                .chat_stream(&request)
+                .map(|chunk| chunk.unwrap().delta)
+                .collect::<Vec<_>>(),
+        );
+        assert_eq!(chunks, vec!["确定性的 ", "E2E 翻译结果"]);
     }
 }

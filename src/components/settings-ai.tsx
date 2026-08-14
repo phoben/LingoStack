@@ -50,9 +50,7 @@ export function SettingsAi() {
   const update = useConfigStore((s) => s.update);
   const error = useConfigStore((s) => s.error);
   const [editing, setEditing] = useState<
-    | { mode: "add" }
-    | { mode: "edit"; provider: ProviderConfig }
-    | null
+    { mode: "add" } | { mode: "edit"; provider: ProviderConfig } | null
   >(null);
 
   if (!config) {
@@ -205,6 +203,7 @@ export function SettingsAi() {
                     {f.label}
                   </span>
                   <Select
+                    aria-label={`${f.label}默认模型`}
                     value={value}
                     onChange={(e) => setFeatureModel(f.field, e.target.value)}
                     className="h-8 min-w-[180px] text-xs"

@@ -11,6 +11,7 @@
 - [ ] 要加状态？→ 读 [状态管理](./state-management.md)，两个 store 的失败处理策略相反。
 - [ ] 要加组件？→ 读 [组件与样式](./components-and-styling.md)；`ui/` 原语是手写的，不是 shadcn 生成物。
 - [ ] 要新增或修改异步状态区域？→ 读 [测试与可访问性](./testing-and-a11y.md)。翻译、命名、收藏已有 live region；设置与提供商表单等区域仍是缺口。
+- [ ] 已按 [全仓测试策略](../backend/testing-strategy.md) 判断只需 Vitest，还是还要真实桌面 E2E/生产隔离
 
 ## 具体规范
 
@@ -27,6 +28,7 @@
 pnpm lint      # eslint --max-warnings 0，warn 级也会失败
 pnpm build     # tsc --noEmit + vite build
 pnpm test      # vitest run
+pnpm test:e2e  # 改真实窗口、IPC 或关键桌面流程时运行
 ```
 
 TypeScript 严格模式，额外开了 `noUnusedLocals` / `noUnusedParameters` / `noFallthroughCasesInSwitch` / `noUncheckedSideEffectImports`（`tsconfig.json:17-21`）。

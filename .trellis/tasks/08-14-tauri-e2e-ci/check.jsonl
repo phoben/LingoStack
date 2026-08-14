@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/lingostack-app/backend/index.md", "reason": "Verify app assembly, commands, ACL, and package quality gate"}
+{"file": ".trellis/spec/lingostack-app/frontend/index.md", "reason": "Verify frontend conventions and all frontend quality gates"}
+{"file": ".trellis/spec/guides/ipc-contract-guide.md", "reason": "Audit end-to-end IPC and Channel consistency"}
+{"file": ".trellis/spec/guides/platform-isolation-guide.md", "reason": "Audit automated versus native/manual platform evidence"}
+{"file": ".trellis/tasks/08-14-tauri-e2e-ci/research/official-wdio-tauri.md", "reason": "Check implementation against current official WDIO/Tauri guidance"}
+{"file": ".trellis/tasks/08-14-tauri-e2e-ci/research/current-app-testability.md", "reason": "Check scenario coverage and production/test isolation against repository evidence"}
+{"file": ".trellis/spec/lingostack-app/backend/e2e-testing.md", "reason": "Audit the executable WDIO feature, capability, fixture, cleanup, and production-isolation contracts captured after implementation."}
+{"file": ".trellis/spec/lingostack-app/backend/testing-strategy.md", "reason": "Audit the full test-layer trigger matrix, evidence levels, commands, and final gates"}

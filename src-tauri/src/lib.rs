@@ -31,9 +31,20 @@ pub fn run() {
         }));
     }
 
+    // WDIO plugins are test-only: the `e2e` feature is enabled exclusively by
+    // the E2E build wrapper, never by the normal or release build.
+    #[cfg(feature = "e2e")]
+    {
+        builder = builder
+            .plugin(tauri_plugin_wdio::init())
+            .plugin(tauri_plugin_wdio_webdriver::init());
+    }
+
+    let config_path = config::config_path();
+
     builder
         .manage(AppState {
-            config_path: config::config_path(),
+            config_path: config_path.clone(),
         })
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -45,11 +56,11 @@ pub fn run() {
             commands::speak,
             commands::stop_speaking,
         ])
-        .setup(|app| {
+        .setup(move |app| {
             let handle = app.handle();
             lingostack_hook::setup_tray(handle)?;
             // 按配置注册全局热键；失败逐条上报前端（设置页标红），不中断启动。
-            let cfg = config::load(&config::config_path()).unwrap_or_default();
+            let cfg = config::load(&config_path).unwrap_or_default();
             hotkeys::register_and_report(handle, &cfg.hotkeys);
             Ok(())
         })

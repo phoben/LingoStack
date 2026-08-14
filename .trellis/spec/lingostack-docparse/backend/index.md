@@ -26,6 +26,7 @@
 - [ ] 删掉那个 `1 + 1` 烟雾测试，换成真实断言
 - [ ] 解析器要用**真实样例文件**做测试固件，覆盖畸形输入（截断的 PDF、空 DOCX、混合编码的 Markdown）
 - [ ] 新增第三方解析库要按项目约定固定版本，并评估是否引入不必要的传递依赖
+- [ ] 按 [全仓测试策略](../../lingostack-app/backend/testing-strategy.md) 跑 package/workspace 门禁；占位 smoke 必须换成真实 fixture 与畸形输入断言
 
 ## 设计取向（来自设计文档，尚未验证于代码）
 

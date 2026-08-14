@@ -11,15 +11,16 @@
 - [ ] 动流式解析？→ 读 [流式解析](./streaming.md)，注意跨 chunk 缓冲与分片测试
 - [ ] 错误相关改动？→ 读 [错误与密钥](./errors-and-secrets.md)。**注意重试逻辑当前并不存在**
 - [ ] 新增 / 改动请求响应处理？必须补 wiremock 测试，CI 不用真实密钥
+- [ ] 已按 [全仓测试策略](../../lingostack-app/backend/testing-strategy.md) 判定 package/workspace 门禁与证据等级
 
 ## 具体规范
 
-| 文档 | 内容 |
-|------|------|
+| 文档                                    | 内容                                                   |
+| --------------------------------------- | ------------------------------------------------------ |
 | [提供商实现模式](./provider-pattern.md) | trait 定义、三个实现的公共骨架与分歧点、刻意重复的边界 |
-| [流式解析](./streaming.md) | SSE 与 JSON 数组两套解码器、缓冲、终止、错误传播 |
-| [错误与密钥](./errors-and-secrets.md) | `LlmError` 变体语义、密钥防泄漏、**重试现状** |
-| [测试规范](./testing.md) | wiremock 用法、分片测试、canonical 测试形状 |
+| [流式解析](./streaming.md)              | SSE 与 JSON 数组两套解码器、缓冲、终止、错误传播       |
+| [错误与密钥](./errors-and-secrets.md)   | `LlmError` 变体语义、密钥防泄漏、**重试现状**          |
+| [测试规范](./testing.md)                | wiremock 用法、分片测试、canonical 测试形状            |
 
 ## 实际有几个提供商
 
@@ -33,7 +34,7 @@
 
 ```bash
 cargo clippy --all-targets -- -D warnings
-cargo test -p lingostack-llm       # 现有 37 个测试
+cargo test -p lingostack-llm
 ```
 
 集成测试只用 `wiremock`（dev-dependency），**CI 中不使用真实密钥**。
