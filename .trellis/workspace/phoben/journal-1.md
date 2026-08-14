@@ -50,3 +50,26 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 3: 完成 V1 桌面集成与结果操作
+
+**Date**: 2026-08-14
+**Task**: 完成 V1 桌面集成与结果操作
+**Package**: lingostack-core
+**Branch**: `develop`
+
+### Summary
+
+实现聚焦前 UIA 划词、剪贴板降级反馈、托盘五项路由、共享 TTS 朗读停止、收藏原子导入与单实例/关闭到托盘；补齐 Windows 真实运行证据和跨层规范。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `20e5403` | (see git log) |
+| `a9919e0` | (see git log) |
+
+### Status
+
+[OK] **Completed**
