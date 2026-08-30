@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 3
-- **Last Active**: 2026-08-14
+- **Total Sessions**: 4
+- **Last Active**: 2026-08-30
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~75 | Active |
+| `journal-1.md` | ~97 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 4 | 2026-08-30 | 完成并归档 Bootstrap Guidelines | `ebf14bc` | `develop` |
 | 3 | 2026-08-14 | 完成 V1 桌面集成与结果操作 | `20e5403`, `a9919e0` | `develop` |
 | 2 | 2026-08-14 | 完成 V1 设置、本地化与热键 | `883f0e6`, `929adbd` | `develop` |
 | 1 | 2026-08-14 | 更新当前项目 UI 规范 | `496e62b` | `develop` |

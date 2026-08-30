@@ -73,3 +73,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 4: 完成并归档 Bootstrap Guidelines
+<!-- trellis-session: v=2 fp=88f01d5df91f20bd -->
+
+**Date**: 2026-08-30
+**Task**: 完成并归档 Bootstrap Guidelines
+**Branch**: `develop`
+
+### Summary
+
+核验七个 LingoStack package 规范均已项目化且含真实示例；修正 App 与 Hook 规范中的命令数、源码行数和注册位置漂移；完成 8/8 bootstrap 清单并归档任务。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ebf14bc` | docs(spec): 校准 LingoStack 包规范现状 |
+
+### Status
+
+[OK] **Completed**
