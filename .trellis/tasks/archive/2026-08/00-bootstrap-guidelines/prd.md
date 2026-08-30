@@ -21,14 +21,14 @@ the rest conversationally.
 
 ## Status (update the checkboxes as you complete each item)
 
-- [ ] Fill guidelines for lingostack-core
-- [ ] Fill guidelines for lingostack-llm
-- [ ] Fill guidelines for lingostack-selection
-- [ ] Fill guidelines for lingostack-hook
-- [ ] Fill guidelines for lingostack-tts
-- [ ] Fill guidelines for lingostack-docparse
-- [ ] Fill guidelines for lingostack-app
-- [ ] Add code examples
+- [x] Fill guidelines for lingostack-core
+- [x] Fill guidelines for lingostack-llm
+- [x] Fill guidelines for lingostack-selection
+- [x] Fill guidelines for lingostack-hook
+- [x] Fill guidelines for lingostack-tts
+- [x] Fill guidelines for lingostack-docparse
+- [x] Fill guidelines for lingostack-app
+- [x] Add code examples
 
 ---
 
