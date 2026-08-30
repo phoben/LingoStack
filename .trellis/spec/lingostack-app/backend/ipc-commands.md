@@ -288,7 +288,7 @@ app.emit("translate-selection", payload);
 ## 加命令的完整动作
 
 1. 在 `commands.rs` 写 `#[tauri::command]`，错误 `.map_err(|e| e.to_string())`
-2. 在 `src/lib.rs:39-47` 的 `generate_handler!` 里注册（**漏了这步会在运行时报「命令不存在」，编译不报错**）
+2. 在 `src/lib.rs:65-76` 的 `generate_handler!` 里注册（**漏了这步会在运行时报「命令不存在」，编译不报错**）
 3. 在 `src/lib/ipc.ts` 加类型化封装——**前端不允许绕过它直接 `invoke` 业务命令**
 4. 涉及新类型 → 同步 `src/lib/config-types.ts`
 5. 跑 `pnpm tauri dev` 实测往返

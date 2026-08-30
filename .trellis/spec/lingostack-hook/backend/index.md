@@ -2,7 +2,7 @@
 
 > 全局热键的加速器渲染 + 系统托盘。依赖 `tauri`（本 crate 不受 core 的纯净性约束）。
 
-路径：`crates/lingostack-hook`（18 + 110 + 151 行）
+路径：`crates/lingostack-hook`（18 + 109 + 199 行）
 
 ## 开发前检查清单
 

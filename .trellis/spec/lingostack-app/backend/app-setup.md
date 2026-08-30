@@ -12,7 +12,7 @@
 4. 只解析一次 `config_path`，clone 给 `AppState`，原值 move 进 setup，保证两处读取同一文件
 5. `.manage(AppState { config_path })`
 6. **全局热键插件**——必须在 `setup()` 注册热键之前
-7. `.invoke_handler(generate_handler![...])` 注册 7 个命令
+7. `.invoke_handler(generate_handler![...])` 注册 10 个命令
 8. `.setup(...)`：先建托盘，再用同一个 `config_path` 加载配置，最后注册热键
 9. `.run(generate_context!())` 带 `.expect(...)`
 
