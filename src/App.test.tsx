@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, waitFor } from "@testing-library/react";
+import { toast } from "sonner";
 
 const listeners = new Map<string, (event: { payload: unknown }) => void>();
 const { getSelection, registerHotkeys } = vi.hoisted(() => ({
@@ -30,15 +31,23 @@ vi.mock("@/components/views/settings-view", () => ({
 vi.mock("@/components/views/translate-view", () => ({
   TranslateView: () => null,
 }));
+vi.mock("sonner", () => ({
+  toast: { info: vi.fn(), error: vi.fn() },
+  Toaster: () => null,
+}));
 
 import App from "./App";
 import { defaultConfig } from "@/lib/config-types";
 import { useAppStore } from "@/stores/app-store";
 import { useConfigStore } from "@/stores/config-store";
+import { useTtsStore } from "@/stores/tts-store";
+import defaultCapability from "../src-tauri/capabilities/default.json";
 
 describe("App desktop events", () => {
   beforeEach(() => {
     listeners.clear();
+    vi.mocked(toast.info).mockClear();
+    vi.mocked(toast.error).mockClear();
     getSelection.mockReset();
     registerHotkeys.mockReset();
     registerHotkeys.mockResolvedValue([]);
@@ -51,8 +60,8 @@ describe("App desktop events", () => {
     useAppStore.setState({
       activeView: "naming",
       injectSource: null,
-      selectionFeedback: null,
     });
+    useTtsStore.setState({ error: null, clearError: vi.fn() });
   });
 
   it("routes clipboard fallback selection into the existing translate view", async () => {
@@ -73,9 +82,11 @@ describe("App desktop events", () => {
       expect(useAppStore.getState()).toMatchObject({
         activeView: "translate",
         injectSource: "clipboard text",
-        selectionFeedback: { kind: "clipboard" },
       });
     });
+    expect(toast.info).toHaveBeenCalledWith(
+      "The accessibility selection was unavailable, so the clipboard text was used.",
+    );
   });
 
   it("uses the selection captured before the main window takes focus", async () => {
@@ -95,7 +106,6 @@ describe("App desktop events", () => {
       expect(useAppStore.getState()).toMatchObject({
         activeView: "translate",
         injectSource: "UIA selected text",
-        selectionFeedback: null,
       });
     });
     expect(getSelection).not.toHaveBeenCalled();
@@ -113,11 +123,25 @@ describe("App desktop events", () => {
     });
 
     await waitFor(() => {
-      expect(useAppStore.getState().selectionFeedback).toMatchObject({
-        kind: "error",
-        message: expect.stringContaining("手动粘贴"),
-      });
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.stringContaining("Paste text manually"),
+        expect.anything(),
+      );
     });
+  });
+
+  it("presents a TTS failure once at the root notification boundary", async () => {
+    const clearError = vi.fn();
+    useTtsStore.setState({ error: "audio unavailable", clearError });
+    render(<App />);
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Speech failed: audio unavailable",
+        expect.anything(),
+      ),
+    );
+    expect(clearError).toHaveBeenCalledOnce();
   });
 
   it("routes tray navigation without creating another window", async () => {
@@ -125,5 +149,13 @@ describe("App desktop events", () => {
     await waitFor(() => expect(listeners.get("navigate-view")).toBeDefined());
     act(() => listeners.get("navigate-view")?.({ payload: "favorites" }));
     expect(useAppStore.getState().activeView).toBe("favorites");
+  });
+
+  it("suppresses the WebView native context menu while retaining the dialog message capability", () => {
+    render(<App />);
+    const event = new MouseEvent("contextmenu", { cancelable: true });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(defaultCapability.permissions).toContain("dialog:allow-message");
   });
 });

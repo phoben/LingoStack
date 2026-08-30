@@ -20,7 +20,8 @@ import { useConfigStore } from "@/stores/config-store";
 import { resolveLocale } from "@/lib/i18n";
 import { useT } from "@/lib/i18n";
 import { type StreamStatus, useStreamStore } from "@/stores/stream-store";
-import { cn } from "@/lib/utils";
+import { cn, stringifyError } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function TermTags({ terms }: { terms: TranslationTerm[] }) {
   const t = useT();
@@ -127,31 +128,28 @@ interface PaneActionsProps {
   text: string;
   /** 收藏动作；不可用时传 null。 */
   onFavorite: (() => void) | null;
-  favorited: boolean;
   /** 面板身份，用于区分无障碍标签（原文 / 译文）。 */
   label: string;
   streaming: boolean;
 }
 
 /** 面板动作组：朗读 / 收藏 / 复制。原文与译文共用同一组形状。 */
-function PaneActions({
-  text,
-  onFavorite,
-  favorited,
-  label,
-  streaming,
-}: PaneActionsProps) {
+function PaneActions({ text, onFavorite, label, streaming }: PaneActionsProps) {
   const t = useT();
   const ttsStatus = useTtsStore((s) => s.status);
   const speakingText = useTtsStore((s) => s.text);
   const speakText = useTtsStore((s) => s.speakText);
   const stop = useTtsStore((s) => s.stop);
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
+  const copy = async () => {
     if (!text) return;
-    void navigator.clipboard.writeText(text);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(t("copied"));
+    } catch (error) {
+      toast.error(t("copyFailed", { message: stringifyError(error) }), {
+        duration: 4000,
+      });
+    }
   };
   return (
     <div className="flex items-center gap-0.5">
@@ -190,23 +188,23 @@ function PaneActions({
         variant="ghost"
         size="icon"
         className="h-7 w-7"
-        title={favorited ? t("favorited") : t("favorite")}
+        title={t("favorite")}
         aria-label={t("favorite")}
         onClick={() => onFavorite?.()}
         disabled={!onFavorite || streaming}
       >
-        <Bookmark className={cn("h-3.5 w-3.5", favorited && "text-success")} />
+        <Bookmark className="h-3.5 w-3.5" />
       </Button>
       <Button
         variant="ghost"
         size="icon"
         className="h-7 w-7"
-        title={copied ? t("copied") : `${t("copy")} ${label}`}
+        title={`${t("copy")} ${label}`}
         aria-label={`${t("copy")} ${label}`}
-        onClick={copy}
+        onClick={() => void copy()}
         disabled={!text}
       >
-        <Copy className={cn("h-3.5 w-3.5", copied && "text-success")} />
+        <Copy className="h-3.5 w-3.5" />
       </Button>
     </div>
   );
@@ -232,16 +230,11 @@ export function TranslateView() {
   const addFavorite = useFavoritesStore((s) => s.add);
   const injectSource = useAppStore((s) => s.injectSource);
   const setInjectSource = useAppStore((s) => s.setInjectSource);
-  const selectionFeedback = useAppStore((s) => s.selectionFeedback);
-  const setSelectionFeedback = useAppStore((s) => s.setSelectionFeedback);
-  const ttsError = useTtsStore((s) => s.error);
-  const clearTtsError = useTtsStore((s) => s.clearError);
   const task = useStreamStore((s) => s.tasks.translate);
   const setInput = useStreamStore((s) => s.setInput);
   const start = useStreamStore((s) => s.start);
   const uiLanguage = useConfigStore((s) => s.config?.ui_language ?? "system");
   const t = useT();
-  const [saved, setSaved] = useState(false);
   const [sourceLang, setSourceLang] = useState("auto");
   const [targetLang, setTargetLang] = useState("auto");
 
@@ -280,8 +273,11 @@ export function TranslateView() {
   const favorite = async () => {
     if (!source.trim() || !target.trim()) return;
     await addFavorite(source, target, "翻译");
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 1500);
+    const error = useFavoritesStore.getState().error;
+    if (error) {
+      toast.error(t("favoriteFailed", { message: error }), { duration: 4000 });
+      useFavoritesStore.getState().clearError();
+    } else toast.success(t("favorited"));
   };
 
   const canFavorite = source.trim().length > 0 && target.trim().length > 0;
@@ -331,51 +327,6 @@ export function TranslateView() {
         </>
       }
     >
-      {selectionFeedback ? (
-        <div
-          className="border-b border-border px-4 py-2 text-xs"
-          aria-live={
-            selectionFeedback.kind === "clipboard" ? "polite" : undefined
-          }
-          role={selectionFeedback.kind === "error" ? "alert" : undefined}
-        >
-          <span
-            className={
-              selectionFeedback.kind === "clipboard"
-                ? "text-info"
-                : "text-accent"
-            }
-          >
-            {selectionFeedback.kind === "clipboard"
-              ? t("selectionClipboardFallback")
-              : selectionFeedback.message}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-2 h-6"
-            onClick={() => setSelectionFeedback(null)}
-          >
-            {t("dismiss")}
-          </Button>
-        </div>
-      ) : null}
-      {ttsError ? (
-        <div
-          role="alert"
-          className="border-b border-border px-4 py-2 text-xs text-accent"
-        >
-          {t("speakFailed", { message: ttsError })}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-2 h-6"
-            onClick={clearTtsError}
-          >
-            {t("dismiss")}
-          </Button>
-        </div>
-      ) : null}
       {/* 原文 / 译文靠一条竖向分割线分隔，不各自成卡片 */}
       <div className="grid h-full grid-cols-2 divide-x divide-border">
         {/* 原文 */}
@@ -386,7 +337,6 @@ export function TranslateView() {
             <PaneActions
               text={source}
               onFavorite={favoriteAction}
-              favorited={saved}
               label={t("source")}
               streaming={streaming}
             />
@@ -407,7 +357,6 @@ export function TranslateView() {
             <PaneActions
               text={target}
               onFavorite={favoriteAction}
-              favorited={saved}
               label={t("translation")}
               streaming={streaming}
             />

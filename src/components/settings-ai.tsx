@@ -8,10 +8,16 @@ import { FuncCell, SetSection } from "@/components/views/settings-view";
 import { useConfigStore } from "@/stores/config-store";
 import type { ModelRef, ProviderConfig } from "@/lib/config-types";
 import { useT } from "@/lib/i18n";
+import { toast } from "sonner";
 
-type ModelField = "translate" | "naming" | "global_default";
+type ModelField = "translate" | "naming" | "doc_translate" | "global_default";
 
-const FUNC_ROWS: ModelField[] = ["translate", "naming", "global_default"];
+const FUNC_ROWS: ModelField[] = [
+  "translate",
+  "naming",
+  "doc_translate",
+  "global_default",
+];
 
 const ALL_MODEL_FIELDS = [
   "translate",
@@ -44,37 +50,49 @@ export function SettingsAi() {
   const t = useT();
   const config = useConfigStore((s) => s.config);
   const update = useConfigStore((s) => s.update);
-  const error = useConfigStore((s) => s.error);
   const [editing, setEditing] = useState<
     { mode: "add" } | { mode: "edit"; provider: ProviderConfig } | null
   >(null);
 
   if (!config) {
-    return <p className="text-xs text-muted-foreground">{t("loadingSettings")}</p>;
+    return (
+      <p className="text-xs text-muted-foreground">{t("loadingSettings")}</p>
+    );
   }
 
   const providers = config.providers;
   const existingIds = providers.map((p) => p.id);
 
-  const handleSave = (p: ProviderConfig) => {
+  const handleSave = async (p: ProviderConfig) => {
     if (editing?.mode === "edit") {
       const id = editing.provider.id;
-      update((cfg) => ({
+      await update((cfg) => ({
         ...cfg,
         providers: cfg.providers.map((x) => (x.id === id ? p : x)),
       }));
     } else {
       const id = genId(p.name || "provider", existingIds);
-      update((cfg) => ({
+      await update((cfg) => ({
         ...cfg,
         providers: [...cfg.providers, { ...p, id }],
       }));
     }
+    const saveError = useConfigStore.getState().error;
+    if (saveError) {
+      toast.error(t("actionFailed", { message: saveError }), {
+        duration: 4000,
+      });
+      useConfigStore.getState().clearError();
+      return;
+    }
+    toast.success(
+      t(editing?.mode === "edit" ? "providerUpdated" : "providerAdded"),
+    );
     setEditing(null);
   };
 
-  const handleDelete = (id: string) => {
-    update((cfg) => {
+  const handleDelete = async (id: string) => {
+    await update((cfg) => {
       const models = { ...cfg.models };
       ALL_MODEL_FIELDS.forEach((f) => {
         if (models[f]?.provider_id === id) {
@@ -87,6 +105,13 @@ export function SettingsAi() {
         models,
       };
     });
+    const saveError = useConfigStore.getState().error;
+    if (saveError) {
+      toast.error(t("actionFailed", { message: saveError }), {
+        duration: 4000,
+      });
+      useConfigStore.getState().clearError();
+    } else toast.success(t("providerDeleted"));
   };
 
   const setFeatureModel = (field: ModelField, value: string) => {
@@ -113,10 +138,7 @@ export function SettingsAi() {
 
   return (
     <div>
-      <SetSection
-        title={t("llmProviders")}
-        desc={t("providersHelp")}
-      >
+      <SetSection title={t("llmProviders")} desc={t("providersHelp")}>
         {/* 提供商行表：行间浅线分隔，不逐条套卡片 */}
         <div className="divide-y divide-border border-t border-border">
           {providers.length === 0 ? (
@@ -153,7 +175,7 @@ export function SettingsAi() {
                   variant="ghost"
                   size="icon"
                   aria-label={`删除 ${p.name}`}
-                  onClick={() => handleDelete(p.id)}
+                  onClick={() => void handleDelete(p.id)}
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
@@ -198,20 +220,24 @@ export function SettingsAi() {
                   ? t("translate")
                   : field === "naming"
                     ? t("naming")
-                    : t("globalDefault");
+                    : field === "doc_translate"
+                      ? t("documentModel")
+                      : t("globalDefault");
               return (
                 <FuncCell key={field}>
-                  <span className="text-sm text-muted-foreground">
-                    {label}
-                  </span>
+                  <span className="text-sm text-muted-foreground">{label}</span>
                   <Select
-                    aria-label={`${label}默认模型`}
+                    aria-label={label}
                     value={value}
                     onChange={(e) => setFeatureModel(field, e.target.value)}
                     className="h-8 min-w-[180px] text-xs"
                     disabled={modelOptions.length === 0}
                   >
-                    <option value="">{t("unassigned")}</option>
+                    <option value="">
+                      {field === "global_default"
+                        ? t("unassigned")
+                        : t("useGlobalDefaultModel")}
+                    </option>
                     {modelOptions.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
@@ -224,10 +250,6 @@ export function SettingsAi() {
           </div>
         </div>
       </SetSection>
-
-      {error ? (
-        <p className="mt-2 text-xs text-accent">{t("configSaveFailed")}{error}</p>
-      ) : null}
     </div>
   );
 }

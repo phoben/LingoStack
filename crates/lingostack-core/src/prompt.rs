@@ -28,6 +28,10 @@ pub const NAMING_PROMPT: &str = include_str!("prompts/naming.txt");
 /// 词条解释内置 Prompt。`{target_lang}` 由功能层替换。
 pub const EXPLAIN_PROMPT: &str = include_str!("prompts/explain.txt");
 
+/// Document translation prompt. The document module replaces language placeholders
+/// and adds its protected-segment protocol at request time.
+pub const DOCUMENT_TRANSLATE_PROMPT: &str = include_str!("prompts/document_translate.txt");
+
 /// 翻译结果中术语元数据的保留行。该文本永远不能显示给最终用户。
 pub const TRANSLATION_TERMS_SENTINEL: &str = "<<<LINGOSTACK_TERMS_V1>>>";
 
@@ -50,6 +54,8 @@ pub struct PromptOverrides {
     pub naming: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub explain: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doc_translate: Option<String>,
 }
 
 impl PromptOverrides {
@@ -70,6 +76,14 @@ impl PromptOverrides {
     pub fn explain(&self) -> &str {
         self.explain.as_deref().unwrap_or(EXPLAIN_PROMPT)
     }
+
+    /// Document translation Prompt: custom override first, then the dedicated built-in.
+    #[must_use]
+    pub fn doc_translate(&self) -> &str {
+        self.doc_translate
+            .as_deref()
+            .unwrap_or(DOCUMENT_TRANSLATE_PROMPT)
+    }
 }
 
 #[cfg(test)]
@@ -82,6 +96,7 @@ mod tests {
         assert_eq!(o.translate(), TRANSLATE_PROMPT);
         assert_eq!(o.naming(), NAMING_PROMPT);
         assert_eq!(o.explain(), EXPLAIN_PROMPT);
+        assert_eq!(o.doc_translate(), DOCUMENT_TRANSLATE_PROMPT);
     }
 
     #[test]
@@ -161,6 +176,7 @@ mod tests {
             ("translate", TRANSLATE_PROMPT),
             ("naming", NAMING_PROMPT),
             ("explain", EXPLAIN_PROMPT),
+            ("document_translate", DOCUMENT_TRANSLATE_PROMPT),
         ] {
             assert!(prompt.len() > 80, "{name} Prompt 过短，疑似被截断");
             assert!(
@@ -193,5 +209,14 @@ mod tests {
         assert!(prompt.contains(TRANSLATION_TERMS_SENTINEL));
         assert!(prompt.contains("technology|programming|product"));
         assert!(prompt.contains("English"));
+    }
+
+    #[test]
+    fn document_prompt_declares_languages_and_protected_content_contract() {
+        assert!(DOCUMENT_TRANSLATE_PROMPT.contains("{source_lang}"));
+        assert!(DOCUMENT_TRANSLATE_PROMPT.contains("{target_lang}"));
+        assert!(DOCUMENT_TRANSLATE_PROMPT.contains("受保护"));
+        assert!(DOCUMENT_TRANSLATE_PROMPT.contains("Markdown"));
+        assert!(DOCUMENT_TRANSLATE_PROMPT.contains("链接"));
     }
 }

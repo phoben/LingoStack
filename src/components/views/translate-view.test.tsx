@@ -1,6 +1,14 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { TermTags } from "./translate-view";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useFavoritesStore } from "@/stores/favorites-store";
+import { useStreamStore } from "@/stores/stream-store";
+import { useTtsStore } from "@/stores/tts-store";
+
+const sonner = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
+const clipboard = vi.hoisted(() => ({ writeText: vi.fn() }));
+vi.mock("sonner", () => ({ toast: sonner }));
+
+import { TermTags, TranslateView } from "./translate-view";
 
 const terms = [
   {
@@ -33,5 +41,57 @@ describe("TermTags", () => {
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+});
+
+describe("TranslateView toast feedback", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: clipboard,
+    });
+    useStreamStore.setState((state) => ({
+      tasks: {
+        ...state.tasks,
+        translate: {
+          ...state.tasks.translate,
+          status: "done",
+          input: "source text",
+          output: "translated text",
+          error: null,
+          terms: [],
+        },
+      },
+    }));
+    useFavoritesStore.setState({
+      error: null,
+      add: vi.fn().mockResolvedValue(undefined),
+    });
+    useTtsStore.setState({
+      status: "idle",
+      text: null,
+      error: null,
+      speakText: vi.fn(),
+      stop: vi.fn(),
+    });
+  });
+
+  it("waits for clipboard success and surfaces a rejected favorite once", async () => {
+    clipboard.writeText.mockResolvedValueOnce(undefined);
+    render(<TranslateView />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy Source" }));
+    await waitFor(() => expect(sonner.success).toHaveBeenCalledWith("Copied"));
+
+    useFavoritesStore.setState({ error: "disk unavailable" });
+    fireEvent.click(screen.getAllByRole("button", { name: "Favorite" })[0]);
+    await waitFor(() =>
+      expect(sonner.error).toHaveBeenCalledWith(
+        "Could not save favorite: disk unavailable",
+        expect.anything(),
+      ),
+    );
+    expect(useFavoritesStore.getState().error).toBeNull();
   });
 });

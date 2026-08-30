@@ -1,6 +1,24 @@
-# CLAUDE.md
+<!-- TRELLIS:START -->
+# Trellis Instructions
 
-本文件为 Claude Code 在本仓库工作时的核心约定。**完整产品设计以设计文档为准**：[`docs/lingostack-design.md`](docs/lingostack-design.md)。任何与设计文档冲突之处，以设计文档为准并修订本文件。
+These instructions are for AI assistants working in this project.
+
+This project is managed by Trellis. The working knowledge you need lives under `.trellis/`:
+
+- `.trellis/workflow.md` — development phases, when to create tasks, skill routing
+- `.trellis/spec/` — package- and layer-scoped coding guidelines (read before writing code in a given layer)
+- `.trellis/workspace/` — per-developer journals and session traces
+- `.trellis/tasks/` — active and archived tasks (PRDs, research, jsonl context)
+
+If a Trellis command is available on your platform (e.g. `/trellis:finish-work`, `/trellis:continue`), prefer it over manual steps. Not every platform exposes every command.
+
+If you're using Codex or another agent-capable tool, additional project-scoped helpers may live in:
+- `.agents/skills/` — reusable Trellis skills
+- `.codex/agents/` — optional custom subagents
+
+Managed by Trellis. Edits outside this block are preserved; edits inside may be overwritten by a future `trellis update`.
+
+<!-- TRELLIS:END -->
 
 ## 项目概况
 
@@ -51,6 +69,7 @@ crates/                         # Rust workspace（纯后端能力，跨平台 /
   lingostack-hook/              #   全局热键、托盘、单实例锁
   lingostack-tts/               #   系统 TTS（Windows SAPI 直调 + 专用朗读线程 / macOS AVSpeechSynthesizer）
   lingostack-docparse/          #   Markdown / PDF(文本版) / DOCX 提取、分块、结构骨架
+  lingostack-document/          #   文档记录、SQLite 世代、术语与导出（纯 Rust）
 docs/                           # 设计文档
 .github/                        # CI / Dependabot / Issue 与 PR 模板
 ```
@@ -128,4 +147,3 @@ pnpm tauri build        # 打包发布产物
 
 - 主开发机为 **Windows 11 + PowerShell 7**；本会话 shell 为 Git Bash，路径用正斜杠，环境变量用 `$VAR` 而非 `%VAR%`。
 - 涉及 macOS Accessibility / Linux AT-SPI 等平台能力时，在 Windows 上无法实跑验证，需明确标注"需在目标平台验证"。
-

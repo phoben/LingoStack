@@ -383,6 +383,19 @@ mod tests {
     }
 
     #[test]
+    fn document_translation_resolve_falls_back_to_global_default() {
+        let m = ModelAssignment {
+            global_default: Some(ModelRef {
+                provider_id: "b".into(),
+                model: "g-model".into(),
+            }),
+            ..Default::default()
+        };
+        let r = m.resolve(Feature::DocTranslate).unwrap();
+        assert_eq!(r.model, "g-model");
+    }
+
+    #[test]
     fn resolve_unassigned_without_any_default() {
         let m = ModelAssignment::default();
         let err = m.resolve(Feature::Explain).unwrap_err();

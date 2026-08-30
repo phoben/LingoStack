@@ -11,17 +11,16 @@
 //!   故用 [`crate::json_array_stream`] 而非 SSE 解析层；
 //! - 增量文本路径 `candidates[0].content.parts[0].text`。
 
-use std::time::Duration;
-
 use async_stream::try_stream;
 use futures::stream::BoxStream;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
 use crate::json_array_stream::parse_json_objects;
-use crate::{ChatChunk, ChatRequest, ChatRole, LlmError, LlmProvider};
-
-const DEFAULT_TIMEOUT_SECS: u64 = 60;
+use crate::{
+    response_body_error, streaming_http_client, ChatChunk, ChatRequest, ChatRole, LlmError,
+    LlmProvider,
+};
 
 /// Gemini `streamGenerateContent` 请求体。
 #[derive(Serialize)]
@@ -91,10 +90,7 @@ impl GeminiProvider {
     /// 构造提供商。`base_url` 形如 `https://generativelanguage.googleapis.com`
     /// （不含 `/v1beta/...`）。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Result<Self, LlmError> {
-        let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECS))
-            .build()
-            .map_err(|e| LlmError::Network(format!("HTTP 客户端构造失败: {e}")))?;
+        let http = streaming_http_client()?;
         Ok(Self {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             api_key: api_key.into(),
@@ -180,6 +176,7 @@ impl LlmProvider for GeminiProvider {
     ) -> BoxStream<'a, Result<ChatChunk, LlmError>> {
         let body = self.build_body(request);
         let url = self.endpoint(&request.model);
+        let api_key = self.api_key.clone();
         try_stream! {
             let resp = self
                 .http
@@ -198,7 +195,10 @@ impl LlmProvider for GeminiProvider {
                     }
                 })?;
             let resp = ensure_success(resp, &self.api_key).await?;
-            let mut objects = parse_json_objects(resp.bytes_stream());
+            let bytes = resp
+                .bytes_stream()
+                .map(move |result| result.map_err(|error| response_body_error(error, &api_key)));
+            let mut objects = parse_json_objects(bytes);
             while let Some(object) = objects.next().await {
                 let object = object?;
                 let parsed: GeminiStreamChunk = serde_json::from_str(&object)
@@ -375,6 +375,25 @@ mod tests {
                     "API Key 不得出现在错误里: {body}"
                 );
                 assert!(body.contains("<redacted>"));
+            }
+            other => panic!("期望 Status 错误，实际: {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn leaves_status_body_readable_when_api_key_is_empty() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path(ENDPOINT_PATH))
+            .respond_with(ResponseTemplate::new(401).set_body_string("missing API key"))
+            .mount(&server)
+            .await;
+        let provider = GeminiProvider::new(server.uri(), "").unwrap();
+        let results: Vec<_> = provider.chat_stream(&request()).collect().await;
+        match results[0].as_ref() {
+            Err(LlmError::Status { status, body }) => {
+                assert_eq!(*status, 401);
+                assert_eq!(body, "missing API key");
             }
             other => panic!("期望 Status 错误，实际: {other:?}"),
         }

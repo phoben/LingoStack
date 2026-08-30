@@ -1,44 +1,59 @@
 # lingostack-docparse 开发规范
 
-> **当前是空白占位 crate**，无任何实现。规划：Markdown / PDF（文本版）/ DOCX 提取、分块、结构骨架。设计文档定为 V1.5 实装。
+路径：`crates/lingostack-docparse`。
 
-路径：`crates/lingostack-docparse`
+该 crate 是平台无关的文档解析 module。Markdown、文本型 PDF 与 DOCX 统一输出源顺序语义块；`lingostack-document` 再把块转换成规范化 Markdown 并作为内部翻译片段持久化。Tauri 与 React 不得重新解析源格式。
 
-## 当前真实状态
+## 已实现 interface
 
-`src/lib.rs` 全文 11 行：一段模块文档 + 一个 `assert_eq!(1 + 1, 2)` 烟雾测试。
+```rust
+fn parse_document(path: &Path, bytes: &[u8], limits: ParseLimits)
+    -> Result<ParsedDocument, DocParseError>;
+```
 
-- 无模块、无类型、无函数、无 trait
-- **`Cargo.toml` 零依赖**，连 `serde` 都没有
-- 已在 workspace 成员与依赖别名里声明（根 `Cargo.toml:9,28`），但 **`src-tauri/Cargo.toml` 未引用它**，全仓库无任何代码消费它
+- `ParsedDocument`：格式、按源顺序排列的 `StructureBlock`、非阻断 warning。
+- `StructureBlock`：稳定 id、`BlockKind`、`Segment::{Translatable, Protected}`。
+- `BlockKind`：heading、paragraph、list item、quote、code、table row/cell。
+- `ParseLimits`：默认 50 MiB / 100,000 可翻译字符；环境变量只接受正整数。
+- `DocParseError`：unsupported、OCR required（精确显示“暂不支持”）、empty、invalid encoding、corrupt、input/text too large。
 
-它是本仓库「workspace 依赖别名 = 实际在用」这条惯例的**唯一例外**——为 V1.5 提前声明。
+## Markdown 语义契约
 
-前端的文档翻译视图（`src/components/views/docs-view.tsx`）目前是硬编码演示数据，与本 crate 无连接（该文件 `:65-66` 自己写明业务能力留待后续）。
+- 行内代码连同反引号、代码块正文、链接/图片的 Markdown 定界符与 URL 属于 protected content。
+- 链接/图片可见文字可翻译；URL 不得翻译、删除或重排。
+- Markdown 表格按表头/行的源顺序产生 table-row 块，供 document module 合成为有效 GFM。
+- DOCX 保留标题、列表、段落、表格单元、超链可见文字和图片 alt/title；PDF 只保证提取顺序，不保证版式。
+- 图片存在不等于 OCR；只有没有可提取正文且需要图像识别的 PDF 返回 `OcrRequired`。
 
-## 开始实装时
+## 错误与隐私
 
-本文档要随第一段真实代码一起重写。届时先做的事：
+- 解析前检查源字节上限，解析后检查可翻译字符上限；超限不得触发模型请求。
+- 错误不得包含绝对路径、源正文或源文件二进制。
+- 空文档、损坏文档与扫描文档必须保持可区分，不能统一为一般解析失败。
 
-- [ ] 读 [Rust 通用约定](../../guides/rust-conventions.md)，按既有约定定错误枚举（`DocParseError`）、内联测试、serde 属性
-- [ ] 判断是否需要平台差异——大概率不需要，纯解析逻辑应保持平台无关
-- [ ] 在 `src-tauri/Cargo.toml` 加依赖并在 IPC 层接通，参照 [IPC 命令](../../lingostack-app/backend/ipc-commands.md)
-- [ ] 删掉那个 `1 + 1` 烟雾测试，换成真实断言
-- [ ] 解析器要用**真实样例文件**做测试固件，覆盖畸形输入（截断的 PDF、空 DOCX、混合编码的 Markdown）
-- [ ] 新增第三方解析库要按项目约定固定版本，并评估是否引入不必要的传递依赖
-- [ ] 按 [全仓测试策略](../../lingostack-app/backend/testing-strategy.md) 跑 package/workspace 门禁；占位 smoke 必须换成真实 fixture 与畸形输入断言
+## Tests required
 
-## 设计取向（来自设计文档，尚未验证于代码）
+- Markdown：标题、列表、引用、GFM 表格、行内/围栏代码、链接、图片、UTF-8/UTF-16、无效编码、空文档与上限。
+- PDF：文本、空白/image-only、截断/损坏 fixture。
+- DOCX：标题、列表、段落、表格、超链、图片说明、空包/坏 ZIP/缺 XML/坏 XML fixture。
+- 断言必须检查语义块种类、源顺序和 protected delimiters，而不是只检查“提取到一些文字”。
 
-- 只处理**文本版 PDF**，不做 OCR
-- 输出要含结构骨架（标题层级），供文档翻译保留格式
-- 分块要考虑 LLM 上下文窗口
+## Wrong vs Correct
 
-这些是规划意图，实装时以设计文档为准，并在本文档记录实际选择。
+```rust
+// Wrong: 丢失 URL 定界符，后续无法重建 Markdown。
+Segment::Protected(url)
 
-## 质量检查
+// Correct: 开始/结束定界符和 URL 都受保护，可见文字仍可翻译。
+Segment::Protected("[".into());
+Segment::Translatable(label);
+Segment::Protected(format!("]({url})"));
+```
 
-```bash
-cargo clippy --all-targets -- -D warnings
+验证：
+
+```powershell
 cargo test -p lingostack-docparse
+cargo clippy -p lingostack-docparse --all-targets -- -D warnings
+cargo fmt --all --check
 ```

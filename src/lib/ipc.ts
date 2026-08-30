@@ -6,7 +6,22 @@
  */
 
 import { Channel, invoke } from "@tauri-apps/api/core";
-import type { AppConfig, ChatEvent, ChatMessage, Feature, HotkeyBinding, Language, TranslationPlan } from "./config-types";
+import type {
+  AppConfig,
+  ChatEvent,
+  ChatMessage,
+  Feature,
+  HotkeyBinding,
+  Language,
+  TranslationPlan,
+} from "./config-types";
+import type {
+  DocumentContent,
+  DocumentLimits,
+  DocumentSnapshot,
+  DocumentView,
+  ImportOutcome,
+} from "./document-types";
 
 /** 取词来源：辅助 API 直读，或降级自剪贴板。 */
 export type SelectionSource = "accessibility" | "clipboard";
@@ -49,7 +64,9 @@ export interface HotkeyStatus {
 }
 
 /** 保存并重新注册本应用热键，返回每项实际注册状态。 */
-export function registerHotkeys(bindings: HotkeyBinding[]): Promise<HotkeyStatus[]> {
+export function registerHotkeys(
+  bindings: HotkeyBinding[],
+): Promise<HotkeyStatus[]> {
   return invoke<HotkeyStatus[]>("register_hotkeys", { bindings });
 }
 
@@ -64,10 +81,18 @@ export function translationPlan(
   targetOverride?: Language,
   effectiveSystemLanguage?: Language,
 ): Promise<TranslationPlan> {
-  return invoke<TranslationPlan>("translation_plan", { text, sourceOverride, targetOverride, effectiveSystemLanguage });
+  return invoke<TranslationPlan>("translation_plan", {
+    text,
+    sourceOverride,
+    targetOverride,
+    effectiveSystemLanguage,
+  });
 }
 
-export function effectiveTranslationPrompt(source: Language, target: Language): Promise<string> {
+export function effectiveTranslationPrompt(
+  source: Language,
+  target: Language,
+): Promise<string> {
   return invoke<string>("effective_translation_prompt", { source, target });
 }
 
@@ -85,4 +110,38 @@ export async function chatStream(
   const channel = new Channel<ChatEvent>();
   channel.onmessage = onEvent;
   await invoke<void>("chat_stream", { feature, messages, onEvent: channel });
+}
+
+export function listDocuments(): Promise<DocumentSnapshot[]> {
+  return invoke<DocumentSnapshot[]>("list_documents");
+}
+export function documentLimits(): Promise<DocumentLimits> {
+  return invoke<DocumentLimits>("document_limits");
+}
+export function importDocument(
+  fileName: string,
+  content: Uint8Array,
+): Promise<ImportOutcome> {
+  return invoke<ImportOutcome>("import_document", {
+    fileName,
+    content: Array.from(content),
+  });
+}
+export function documentContent(
+  documentId: string,
+  view: DocumentView,
+): Promise<DocumentContent> {
+  return invoke<DocumentContent>("document_content", { documentId, view });
+}
+export function deleteDocument(documentId: string): Promise<void> {
+  return invoke<void>("delete_document", { documentId });
+}
+export function translateDocument(documentId: string): Promise<void> {
+  return invoke<void>("translate_document", { documentId });
+}
+export function pauseDocument(documentId: string): Promise<void> {
+  return invoke<void>("pause_document", { documentId });
+}
+export function cancelDocument(documentId: string): Promise<void> {
+  return invoke<void>("cancel_document", { documentId });
 }

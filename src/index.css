@@ -103,8 +103,14 @@
   html {
     @apply bg-background text-foreground;
     /* Inter 本地打包留待 V1（零遥测不引网络字体）；JetBrains Mono 降级到系统等宽 */
-    font-family: Inter, system-ui, -apple-system, "Segoe UI", "PingFang SC",
-      "Microsoft YaHei", sans-serif;
+    font-family:
+      Inter,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      "PingFang SC",
+      "Microsoft YaHei",
+      sans-serif;
     font-feature-settings: "calt", "kern", "liga", "ss03";
     letter-spacing: 0.005em;
     -webkit-font-smoothing: antialiased;
@@ -174,12 +180,10 @@
   .brand-mark {
     position: relative;
     overflow: hidden;
-    background: linear-gradient(
-      hsl(var(--surface)),
-      hsl(var(--background))
-    );
+    background: linear-gradient(hsl(var(--surface)), hsl(var(--background)));
     border: 1px solid hsl(var(--border));
-    box-shadow: hsl(var(--background) / 0.4) 0 1.5px 0 1px,
+    box-shadow:
+      hsl(var(--background) / 0.4) 0 1.5px 0 1px,
       hsl(var(--foreground) / 0.06) 0 1px 0 0 inset;
   }
   .brand-mark::after {
@@ -217,7 +221,16 @@
     font-size: 11px;
     font-weight: 600;
     border: 1px solid hsl(var(--border));
-    box-shadow: hsl(var(--background) / 0.4) 0 1.5px 0 1px,
+    box-shadow:
+      hsl(var(--background) / 0.4) 0 1.5px 0 1px,
       hsl(var(--foreground) / 0.06) 0 1px 0 0 inset;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sonner-toaster] [data-sonner-toast],
+  [data-sonner-toaster] [data-sonner-toast] * {
+    animation: none !important;
+    transition: none !important;
   }
 }

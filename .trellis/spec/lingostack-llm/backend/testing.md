@@ -63,6 +63,8 @@ Mock::given(method("POST"))
 - UTF-8 多字节字符在每一个内部字节边界分片；上游结束时的半个字符必须报错
 - 上游流报错
 
+上游错误测试必须传入已经分类的 `LlmError::Network` 并断言变体原样传播；provider 对真实 `reqwest` body 解码失败的分类若受 mock HTTP 实现限制无法稳定构造，可在最接近 `bytes_stream` 的 seam 保留 deterministic transport-error fixture，同时明确该证据不等同于真实网络重放。
+
 ## 硬性要求
 
 - 新增 / 改动请求构造或响应处理 → 必须补 wiremock 测试

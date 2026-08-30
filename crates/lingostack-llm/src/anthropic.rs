@@ -13,17 +13,16 @@
 //! 事件类型判别走 data 负载内的 `type` 字段（而非 SSE 的 `event:` 行），
 //! 因为非 delta 事件的负载不含 `delta.text`，按 type 分派即可复用通用 SSE 层。
 
-use std::time::Duration;
-
 use async_stream::try_stream;
 use futures::stream::BoxStream;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
 use crate::sse::parse_data_lines;
-use crate::{ChatChunk, ChatRequest, ChatRole, LlmError, LlmProvider};
-
-const DEFAULT_TIMEOUT_SECS: u64 = 60;
+use crate::{
+    response_body_error, streaming_http_client, ChatChunk, ChatRequest, ChatRole, LlmError,
+    LlmProvider,
+};
 /// Anthropic 要求的 API 版本 header 值。
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 /// `max_tokens` 必填，未指定时的默认上限。
@@ -80,10 +79,7 @@ pub struct AnthropicProvider {
 impl AnthropicProvider {
     /// 构造提供商。`base_url` 形如 `https://api.anthropic.com`（不含 `/v1/...`）。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Result<Self, LlmError> {
-        let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECS))
-            .build()
-            .map_err(|e| LlmError::Network(format!("HTTP 客户端构造失败: {e}")))?;
+        let http = streaming_http_client()?;
         Ok(Self {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             api_key: api_key.into(),
@@ -154,6 +150,7 @@ impl LlmProvider for AnthropicProvider {
         request: &'a ChatRequest,
     ) -> BoxStream<'a, Result<ChatChunk, LlmError>> {
         let body = self.build_body(request);
+        let api_key = self.api_key.clone();
         try_stream! {
             let resp = self
                 .http
@@ -171,7 +168,10 @@ impl LlmProvider for AnthropicProvider {
                     }
                 })?;
             let resp = ensure_success(resp).await?;
-            let mut payloads = parse_data_lines(resp.bytes_stream());
+            let bytes = resp
+                .bytes_stream()
+                .map(move |result| result.map_err(|error| response_body_error(error, &api_key)));
+            let mut payloads = parse_data_lines(bytes);
             while let Some(payload) = payloads.next().await {
                 let payload = payload?;
                 let event: StreamEvent = serde_json::from_str(&payload)

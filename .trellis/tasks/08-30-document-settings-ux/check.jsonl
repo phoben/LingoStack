@@ -1,0 +1,5 @@
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"检查外观布局符合当前生产 UI 契约"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"检查文档控制、模型回退、主题与 Prompt 的可访问性和测试覆盖"}
+{"file":".trellis/spec/lingostack-document/backend/index.md","reason":"确认没有把 UI 优化扩大为文档持久化或 IPC 回归"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"确认配置字段与 Tauri 命令形状保持不变"}
+{"file":".trellis/spec/guides/testing-strategy-guide.md","reason":"检查验证证据等级和未执行边界表述"}

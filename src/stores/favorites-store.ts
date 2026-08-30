@@ -25,6 +25,8 @@ interface FavoritesState {
   remove: (id: string) => Promise<void>;
   /** 批量导入（已解析校验过的条目）。 */
   importAll: (items: Favorite[]) => Promise<void>;
+  /** Clears an error that has already been presented by a transient UI action. */
+  clearError: () => void;
 }
 
 export const useFavoritesStore = create<FavoritesState>((set, get) => ({
@@ -71,4 +73,5 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
       set({ error: stringifyError(e) });
     }
   },
+  clearError: () => set({ error: null }),
 }));

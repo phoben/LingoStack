@@ -26,7 +26,12 @@ try {
     rustNoticePath,
     "licenses/rust-notices.hbs",
   ]);
-  const rust = readFileSync(rustNoticePath, "utf8").trimEnd();
+  // `cargo about` reproduces upstream license files verbatim; normalize only
+  // line-ending whitespace so this generated repository artifact passes the
+  // same diff hygiene gate as source files without changing license content.
+  const rust = readFileSync(rustNoticePath, "utf8")
+    .replace(/[ \t]+$/gm, "")
+    .trimEnd();
   const rawFrontend =
     process.platform === "win32"
       ? run(process.env.ComSpec ?? "cmd.exe", [

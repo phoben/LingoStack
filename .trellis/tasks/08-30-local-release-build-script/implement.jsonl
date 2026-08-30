@@ -1,0 +1,2 @@
+{"file":".trellis/spec/guides/testing-strategy-guide.md","reason":"区分脚本静态测试、真实 release build 与平台验收的证据边界"}
+{"file":".trellis/spec/lingostack-app/backend/testing-strategy.md","reason":"构建脚本和 Tauri release build 的现有质量门禁与退出码契约"}

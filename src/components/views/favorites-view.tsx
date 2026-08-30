@@ -11,7 +11,9 @@ import {
 import { useFavoritesStore } from "@/stores/favorites-store";
 import { useTtsStore } from "@/stores/tts-store";
 import { cn } from "@/lib/utils";
+import { stringifyError } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { toast } from "sonner";
 
 const FILTERS: ("all" | FavKind)[] = ["all", "word", "phrase"];
 
@@ -39,12 +41,9 @@ export function FavoritesView() {
   const speakingText = useTtsStore((s) => s.text);
   const speakText = useTtsStore((s) => s.speakText);
   const stop = useTtsStore((s) => s.stop);
-  const ttsError = useTtsStore((s) => s.error);
-  const clearTtsError = useTtsStore((s) => s.clearError);
 
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | FavKind>("all");
-  const [notice, setNotice] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -57,23 +56,36 @@ export function FavoritesView() {
   );
 
   const exportJson = () => {
-    const blob = new Blob([toExportJson(list)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "lingostack-favorites.json";
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = new Blob([toExportJson(list)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "lingostack-favorites.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(t("favoritesExported"));
+    } catch (error) {
+      toast.error(t("actionFailed", { message: stringifyError(error) }), {
+        duration: 4000,
+      });
+    }
   };
 
   const onPickFile = async (file: File) => {
-    setNotice(null);
     try {
       const items = parseImport(await file.text());
       await importAll(items);
-      setNotice(`已导入 ${items.length} 条`);
+      const error = useFavoritesStore.getState().error;
+      if (error) {
+        toast.error(t("actionFailed", { message: error }), { duration: 4000 });
+        useFavoritesStore.getState().clearError();
+      } else
+        toast.success(t("favoritesImported", { count: String(items.length) }));
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : String(e));
+      toast.error(t("actionFailed", { message: stringifyError(e) }), {
+        duration: 4000,
+      });
     }
   };
 
@@ -141,36 +153,12 @@ export function FavoritesView() {
       }
     >
       <div className="flex h-full flex-col">
-        {notice ? (
-          <p
-            aria-live="polite"
-            className="shrink-0 border-b border-border px-4 py-2 text-xs text-info"
-          >
-            {notice}
-          </p>
-        ) : null}
         {error ? (
           <p
             role="alert"
             className="shrink-0 border-b border-border px-4 py-2 text-xs text-accent"
           >
             {error}
-          </p>
-        ) : null}
-        {ttsError ? (
-          <p
-            role="alert"
-            className="shrink-0 border-b border-border px-4 py-2 text-xs text-accent"
-          >
-            {t("speakFailed", { message: ttsError })}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="ml-2 h-6"
-              onClick={clearTtsError}
-            >
-              {t("dismiss")}
-            </Button>
           </p>
         ) : null}
 
@@ -232,7 +220,17 @@ export function FavoritesView() {
                   variant="ghost"
                   size="icon"
                   aria-label={`删除 ${f.term}`}
-                  onClick={() => void remove(f.id)}
+                  onClick={() =>
+                    void remove(f.id).then(() => {
+                      const error = useFavoritesStore.getState().error;
+                      if (error) {
+                        toast.error(t("actionFailed", { message: error }), {
+                          duration: 4000,
+                        });
+                        useFavoritesStore.getState().clearError();
+                      } else toast.success(t("favoriteDeleted"));
+                    })
+                  }
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>

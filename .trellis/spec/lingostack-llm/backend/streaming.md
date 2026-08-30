@@ -4,7 +4,7 @@
 
 ```rust
 pub fn parse_data_lines<S, B, E>(input: S) -> BoxStream<'static, Result<String, LlmError>>
-where S: Stream<Item = Result<B, E>> + Send + Unpin + 'static, B: AsRef<[u8]>, E: Display
+where S: Stream<Item = Result<B, E>> + Send + Unpin + 'static, B: AsRef<[u8]>, E: Into<LlmError>
 ```
 
 | 解码器 | 文件 | 用于 |
@@ -37,7 +37,7 @@ Gemini 的 `streamGenerateContent`（未加 `alt=sse`）返回的是**增量写�
 两个解码器的错误处理完全一致：
 
 - UTF-8 解码失败 → `yield Err(LlmError::Stream(...)); return;`（`sse.rs:47-50`、`json_array_stream.rs:90-98`）
-- 上游流报错 → `yield Err(LlmError::Stream(e.to_string())); return;`（`sse.rs:52-55`）
+- 上游流报错 → 保留调用方已分类的 `LlmError` 并立即终止；provider 必须先把 `reqwest::Response::bytes_stream()` 的读取/解压失败映射为 `Network` 或 `Timeout`，不能降格为协议 `Stream`。
 
 **首个错误即终止整个流**，不做部分恢复。
 
@@ -56,14 +56,69 @@ serde_json::from_str(&payload)
 
 因为在 `try_stream!` 里用 `?`，这个错误成为流的最后一项，流随即结束——**一个坏块杀死整条流**。三个 provider 各有 `surfaces_stream_json_error` 测试断言这个行为（结果向量只有一项且是错误）。
 
-## 注意：`LlmError::Stream` 语义被复用
+## `LlmError::Stream` 与响应体传输错误必须分离
 
-它同时表示两件事：
+`Stream` 只表示收到的协议内容无法解析：坏 UTF-8、SSE/JSON 分帧损坏或 payload 结构不符。`reqwest` 在读取、解压一个已成功 HTTP 响应体时产生的错误（典型文本为 `error decoding response body`）属于传输失败，provider 必须先经 `response_body_error` 映射为可重试 `Network` / `Timeout`，再交给解码器原样传播。禁止在解码器里统一 `to_string()` 包成 `Stream`，否则应用层的零输出重试永远无法触发。
 
-1. 传输层分帧损坏（坏 UTF-8、SSE 格式错乱）—— 来自解码器
-2. payload 结构不符预期 —— 来自 provider 层
+## Scenario: 长响应流的超时边界
 
-调用方无法区分，只能看错误文本。加新错误来源时，先想清楚是否该复用 `Stream` 还是加新变体。
+### 1. Scope / Trigger
+
+- 适用于 OpenAI 兼容、Anthropic 和 Gemini 的所有流式 HTTP 请求，尤其是一次返回整篇 Markdown 的文档翻译。
+- `reqwest::ClientBuilder::timeout` 是从连接开始直到响应体结束的总 deadline；把它用于流式生成会误杀持续返回增量但总耗时较长的健康请求。
+
+### 2. Signatures
+
+```rust
+fn streaming_http_client_with_timeouts(
+    inactivity_timeout: Duration,
+    connect_timeout: Duration,
+) -> Result<reqwest::Client, LlmError>;
+```
+
+生产入口 `streaming_http_client()` 固定使用 60 秒读取空闲超时和 15 秒连接超时；三个 provider 构造函数必须复用该入口。
+
+### 3. Contracts
+
+- 不设置 total request timeout。
+- `read_timeout` 约束单次读取空闲时间，并在每次成功读取后重新计时。
+- `connect_timeout` 单独约束连接阶段。
+- 超时继续映射为 `LlmError::Timeout`；其他响应体读取错误继续经 `response_body_error` 脱敏并映射为 `Network`。
+- 应用层“仅零输出、最多自动重试一次”的契约不变。
+
+### 4. Validation & Error Matrix
+
+| 条件 | 结果 |
+|------|------|
+| 总生成时长超过 60 秒，但每次读取间隔小于 60 秒 | 保持流存活并继续解析 |
+| 连接阶段超过 15 秒 | `LlmError::Timeout` |
+| 已收到响应头，但连续 60 秒没有响应体字节 | `LlmError::Timeout` |
+| 响应体读取/解压失败且不是超时 | 脱敏后的 `LlmError::Network` |
+| SSE/JSON/UTF-8 内容损坏 | `LlmError::Stream` |
+
+### 5. Good / Base / Bad Cases
+
+- Good：长文档持续输出增量，即使总耗时较长也完整返回。
+- Base：短请求在默认阈值内正常完成。
+- Bad：响应体真正停滞超过读取阈值时失败，不能无限等待。
+
+### 6. Tests Required
+
+- 用本地 TCP 流发送有效协议增量：每次间隔小于测试读取阈值，总时长大于该阈值；断言完整输出且没有 `Timeout`。
+- 返回成功响应头后停止发送 body；外层必须有防挂死 guard，断言真实 `bytes_stream()` 路径产生 `LlmError::Timeout`。
+- 三个 provider 的既有状态码、协议解析、密钥脱敏测试必须继续通过。
+
+### 7. Wrong vs Correct
+
+```rust
+// Wrong: 总 deadline 会中断仍在持续输出的长流。
+reqwest::Client::builder().timeout(Duration::from_secs(60))
+
+// Correct: 只把持续无数据视为超时，并单独限制连接阶段。
+reqwest::Client::builder()
+    .read_timeout(Duration::from_secs(60))
+    .connect_timeout(Duration::from_secs(15))
+```
 
 ## 改动解码器必须加分片测试
 

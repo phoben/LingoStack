@@ -1,0 +1,2 @@
+{"file":".trellis/spec/guides/testing-strategy-guide.md","reason":"独立检查发布脚本验证层级与证据措辞"}
+{"file":".trellis/spec/lingostack-app/backend/testing-strategy.md","reason":"复核 release build、生产隔离和失败退出码要求"}

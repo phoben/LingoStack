@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Check, Copy, RotateCcw, Sparkles } from "lucide-react";
+import { Copy, RotateCcw, Sparkles } from "lucide-react";
 import { ViewShell } from "@/components/view-shell";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,8 @@ import { GRID_ROWS, GRID_STYLES, buildNamingGrid } from "@/lib/naming";
 import { useStreamStore } from "@/stores/stream-store";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { stringifyError } from "@/lib/utils";
+import { toast } from "sonner";
 
 /**
  * 命名视图（§3 场景 3）：顶部描述输入 + 生成按钮，结果按五列平铺。
@@ -25,7 +26,6 @@ export function NamingView() {
   const task = useStreamStore((s) => s.tasks.naming);
   const setInput = useStreamStore((s) => s.setInput);
   const start = useStreamStore((s) => s.start);
-  const [copied, setCopied] = useState<string | null>(null);
   const t = useT();
 
   const streaming = task.status === "streaming";
@@ -42,11 +42,15 @@ export function NamingView() {
     });
   };
 
-  // 复制反馈用「列+行」复合键：同一个词在不同列的按钮不会一起亮起。
-  const copy = (key: string, name: string) => {
-    void navigator.clipboard.writeText(name);
-    setCopied(key);
-    window.setTimeout(() => setCopied(null), 1500);
+  const copy = async (name: string) => {
+    try {
+      await navigator.clipboard.writeText(name);
+      toast.success(t("copied"));
+    } catch (error) {
+      toast.error(t("copyFailed", { message: stringifyError(error) }), {
+        duration: 4000,
+      });
+    }
   };
 
   return (
@@ -81,9 +85,7 @@ export function NamingView() {
       >
         {grid.length === 0 && task.status !== "error" ? (
           <p className="px-4 py-8 text-center text-xs text-muted-foreground">
-            {streaming
-              ? t("generating")
-              : t("noNaming")}
+            {streaming ? t("generating") : t("noNaming")}
           </p>
         ) : null}
 
@@ -110,16 +112,12 @@ export function NamingView() {
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 shrink-0"
-                          title={copied === key ? t("copied") : `${t("copy")} ${name ?? t("candidate")}`}
+                          title={`${t("copy")} ${name ?? t("candidate")}`}
                           aria-label={`${t("copy")} ${name ?? t("candidate")}`}
-                          onClick={() => name && copy(key, name)}
+                          onClick={() => name && void copy(name)}
                           disabled={!name}
                         >
-                          {copied === key ? (
-                            <Check className="h-3 w-3 text-success" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
+                          <Copy className="h-3 w-3" />
                         </Button>
                       </div>
                     );
@@ -130,9 +128,11 @@ export function NamingView() {
           </div>
         ) : null}
 
-        {task.status === "done" && grid.length > 0 && grid.length < GRID_ROWS ? (
+        {task.status === "done" &&
+        grid.length > 0 &&
+        grid.length < GRID_ROWS ? (
           <p className="border-t border-border px-4 py-2 text-xs text-accent">
-          {t("incompleteCandidates", { count: String(grid.length) })}
+            {t("incompleteCandidates", { count: String(grid.length) })}
           </p>
         ) : null}
 
@@ -152,7 +152,7 @@ export function NamingView() {
               onClick={generate}
             >
               <RotateCcw className="h-3.5 w-3.5" />
-                  {t("retry")}
+              {t("retry")}
             </Button>
           </div>
         ) : null}

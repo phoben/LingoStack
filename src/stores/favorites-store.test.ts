@@ -71,4 +71,10 @@ describe("favorites-store", () => {
       "old",
     ]);
   });
+
+  it("can clear an error after a transient action has reported it", () => {
+    useFavoritesStore.setState({ error: "quota exceeded" });
+    useFavoritesStore.getState().clearError();
+    expect(useFavoritesStore.getState().error).toBeNull();
+  });
 });

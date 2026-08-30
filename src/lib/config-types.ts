@@ -61,6 +61,7 @@ export interface PromptOverrides {
   translate?: string | null;
   naming?: string | null;
   explain?: string | null;
+  doc_translate?: string | null;
 }
 
 export interface KeyCombo {

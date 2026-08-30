@@ -5,6 +5,8 @@
 //! 功能层（翻译 / 命名 / 解释 / 文档翻译）只依赖 [`LlmProvider`] trait，
 //! 禁止直连具体提供商。具体协议实现见各子模块（如 [`openai`])。
 
+use std::time::Duration;
+
 use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 
@@ -130,6 +132,47 @@ impl LlmError {
             Self::Stream(_) => false,
         }
     }
+}
+
+/// Classify an error raised while reading an already-successful HTTP response.
+///
+/// These failures happen below the protocol parsers (for example, a truncated
+/// or invalid compressed response body), so callers may retry them before any
+/// output is delivered. They are deliberately not reported as `Stream`: that
+/// variant is reserved for malformed SSE/JSON/UTF-8 payloads.
+#[must_use]
+pub(crate) fn response_body_error(error: reqwest::Error, secret: &str) -> LlmError {
+    if error.is_timeout() {
+        return LlmError::Timeout;
+    }
+    let message = error.to_string();
+    let message = if secret.is_empty() {
+        message
+    } else {
+        message.replace(secret, "<redacted>")
+    };
+    LlmError::Network(format!("响应正文读取失败: {message}"))
+}
+
+/// Build the HTTP client used by every streaming provider.
+///
+/// A model may legitimately take longer than the inactivity threshold to
+/// generate a document, as long as it keeps producing response bytes. Do not
+/// configure reqwest's total deadline; apply the threshold to each individual
+/// read and keep connection setup bounded separately.
+pub(crate) fn streaming_http_client_with_timeouts(
+    inactivity_timeout: Duration,
+    connect_timeout: Duration,
+) -> Result<reqwest::Client, LlmError> {
+    reqwest::Client::builder()
+        .read_timeout(inactivity_timeout)
+        .connect_timeout(connect_timeout)
+        .build()
+        .map_err(|e| LlmError::Network(format!("HTTP 客户端构造失败: {e}")))
+}
+
+pub(crate) fn streaming_http_client() -> Result<reqwest::Client, LlmError> {
+    streaming_http_client_with_timeouts(Duration::from_secs(60), Duration::from_secs(15))
 }
 
 #[cfg(test)]

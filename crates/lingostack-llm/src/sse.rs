@@ -21,7 +21,7 @@ pub fn parse_data_lines<S, B, E>(input: S) -> BoxStream<'static, Result<String, 
 where
     S: Stream<Item = Result<B, E>> + Send + Unpin + 'static,
     B: AsRef<[u8]> + Send + 'static,
-    E: std::fmt::Display + Send + 'static,
+    E: Into<LlmError> + Send + 'static,
 {
     let mut input = input;
     let mut buf = String::new();
@@ -51,8 +51,8 @@ where
                         return;
                     }
                 },
-                Err(e) => {
-                    yield Err(LlmError::Stream(e.to_string()));
+                Err(error) => {
+                    yield Err(error.into());
                     return;
                 }
             }
@@ -69,7 +69,7 @@ mod tests {
     use super::*;
     use futures::StreamExt;
 
-    type Chunk = Result<Vec<u8>, std::io::Error>;
+    type Chunk = Result<Vec<u8>, LlmError>;
 
     fn chunk(s: &str) -> Chunk {
         Ok(s.as_bytes().to_vec())
@@ -111,7 +111,7 @@ mod tests {
 
     #[tokio::test]
     async fn yields_utf8_error_on_invalid_bytes() {
-        let s = futures::stream::iter(vec![Ok::<Vec<u8>, std::io::Error>(vec![0xFF, 0xFE])]);
+        let s = futures::stream::iter(vec![Ok::<Vec<u8>, LlmError>(vec![0xFF, 0xFE])]);
         let results: Vec<_> = parse_data_lines(s).collect().await;
         assert!(matches!(results[0], Err(LlmError::Stream(_))));
     }
@@ -123,7 +123,7 @@ mod tests {
         for split in 1..'中'.len_utf8() {
             let byte = marker + split;
             let s = futures::stream::iter(vec![
-                Ok::<Vec<u8>, std::io::Error>(text.as_bytes()[..byte].to_vec()),
+                Ok::<Vec<u8>, LlmError>(text.as_bytes()[..byte].to_vec()),
                 Ok(text.as_bytes()[byte..].to_vec()),
             ]);
             assert_eq!(
@@ -137,10 +137,20 @@ mod tests {
     #[tokio::test]
     async fn yields_utf8_error_when_stream_ends_mid_character() {
         let bytes = "data: 中".as_bytes();
-        let s = futures::stream::iter(vec![Ok::<Vec<u8>, std::io::Error>(
+        let s = futures::stream::iter(vec![Ok::<Vec<u8>, LlmError>(
             bytes[..bytes.len() - 1].to_vec(),
         )]);
         let results: Vec<_> = parse_data_lines(s).collect().await;
         assert!(matches!(results[0], Err(LlmError::Stream(_))));
+    }
+
+    #[tokio::test]
+    async fn preserves_response_body_decode_failure_as_retryable_transport_error() {
+        let s = futures::stream::iter(vec![Err::<Vec<u8>, LlmError>(LlmError::Network(
+            "响应正文读取失败: error decoding response body".into(),
+        ))]);
+        let results: Vec<_> = parse_data_lines(s).collect().await;
+        assert!(matches!(results.as_slice(), [Err(LlmError::Network(_))]));
+        assert!(results[0].as_ref().unwrap_err().is_retryable());
     }
 }

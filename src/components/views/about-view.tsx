@@ -1,5 +1,5 @@
 import { ViewShell } from "@/components/view-shell";
-import { Pill } from "@/components/ui/pill";
+import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 
 /**
@@ -8,28 +8,26 @@ import { useT } from "@/lib/i18n";
 export function AboutView() {
   const t = useT();
   return (
-    <ViewShell
-      toolbar={
-        <>
+    <ViewShell>
+      <div className="flex h-full items-center justify-center overflow-auto px-6 py-10">
+        <div className="flex max-w-md flex-col items-center text-center">
           <span
-            className="brand-mark h-6 w-6 rounded-[7px]"
+            className="brand-mark mb-5 h-16 w-16 rounded-[18px]"
             aria-hidden="true"
           />
-          <span className="text-sm font-semibold">译栈 LingoStack</span>
-          <Pill className="ml-auto">v1.0.0 · MIT</Pill>
-        </>
-      }
-    >
-      <div className="max-w-2xl px-4 py-4 text-xs leading-7 text-muted-foreground">
-        <p>译栈 LingoStack · v1.0.0 · MIT License</p>
-        <p>{t("privacy")}</p>
-        <p>
-          {t("crashLogs")} {" "}
-          <a href="#" className="text-info hover:underline">
-            GitHub Issues
-          </a>
-          。
-        </p>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            译栈 LingoStack
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t("aboutDescription")}
+          </p>
+          <p className="mt-5 text-xs leading-6 text-muted-foreground">
+            {t("privacy")}
+          </p>
+          <Button className="mt-7" variant="outline" disabled>
+            {t("checkForUpdatesSoon")}
+          </Button>
+        </div>
       </div>
     </ViewShell>
   );

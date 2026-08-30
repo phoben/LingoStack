@@ -1,0 +1,6 @@
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"当前 UI 真源优先级、紧凑布局和语义间距契约"}
+{"file":".trellis/spec/lingostack-app/frontend/components-and-styling.md","reason":"设置页组合、原语复用与局部布局边界"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"模型 selector、文档异步状态与 RTL/a11y 验证要求"}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"移除文档 store 暂停 action 时保持 Zustand 边界"}
+{"file":".trellis/spec/lingostack-document/backend/index.md","reason":"整篇请求、暂停取消迟到结果和兼容状态契约"}
+{"file":".trellis/spec/guides/testing-strategy-guide.md","reason":"区分 RTL 静态证据与本地桌面视觉验收"}

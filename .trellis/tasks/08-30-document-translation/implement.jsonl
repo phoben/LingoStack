@@ -1,0 +1,10 @@
+{"file": "CONTEXT.md", "reason": "文档翻译领域词汇与规范用语"}
+{"file": ".trellis/spec/lingostack-docparse/backend/index.md", "reason": "解析 crate 真实现状、fixture 与错误约定"}
+{"file": ".trellis/spec/guides/ipc-contract-guide.md", "reason": "Rust/TS 手写 IPC 镜像与流式边界"}
+{"file": ".trellis/spec/lingostack-app/backend/ipc-commands.md", "reason": "Tauri command、Channel、错误与注册契约"}
+{"file": ".trellis/spec/lingostack-app/frontend/state-management.md", "reason": "Zustand、异步状态与持久化分层"}
+{"file": ".trellis/spec/lingostack-app/frontend/ui-design.md", "reason": "文档页布局、语义令牌与窗口适配"}
+{"file": ".trellis/spec/lingostack-core/backend/config-model.md", "reason": "doc model/Prompt 配置默认与兼容契约"}
+{"file": ".trellis/spec/lingostack-core/backend/prompt-templates.md", "reason": "独立文档 Prompt 与占位符纪律"}
+{"file": ".trellis/spec/lingostack-llm/backend/errors-and-secrets.md", "reason": "共享重试、429 冷却与密钥边界"}
+{"file": "docs/adr/0001-rust-owned-document-state.md", "reason": "Rust-owned SQLite 状态决策"}

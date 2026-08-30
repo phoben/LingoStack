@@ -22,12 +22,12 @@ pub enum LlmError {
 
 | 变体 | 何时产生 |
 |------|----------|
-| `Timeout` | `.send()` 失败且 `e.is_timeout()` 为真 |
-| `Network` | 其他 `reqwest` 发送错误、客户端构造失败 |
+| `Timeout` | `.send()` 或成功响应的 body stream 失败且 `e.is_timeout()` 为真 |
+| `Network` | 其他 `reqwest` 发送错误、客户端构造失败、响应体读取/解压失败 |
 | `Status` | `ensure_success()` 中非 2xx |
 | `Stream` | 解码器分帧/UTF-8 错误 **或** payload JSON 结构不符（语义被复用，见 [流式解析](./streaming.md)） |
 
-超时与网络的区分在调用点做，不在解析层——三个 provider 各有一份相同闭包（`openai.rs:130-136`、`anthropic.rs:166-172`、`gemini.rs:190-198`）。
+发送阶段的超时与网络区分在各 provider 调用点做；成功响应进入 `bytes_stream()` 后，三个 provider 统一先调用 crate-private `response_body_error(reqwest::Error, secret)`，把 body 读取/解压失败映射为 `Timeout` / `Network` 并脱敏，再交给协议解析器。解析器只保留该分类，不自行重写错误变体。
 
 ## 重试：应用层负责
 
@@ -38,7 +38,9 @@ pub enum LlmError {
 
 这两个方法由 `src-tauri/src/commands.rs` 的 `chat_stream` 消费；provider 保持一次请求对应一次普通文本流。
 
-实际行为：`src-tauri/src/commands.rs` 只在零输出且 `is_retryable()` 时重建一次 provider stream；网络/超时/5xx 等待短退避，429 延长进程共享冷却并通知进入冷却的请求。已有部分输出、401/403 与协议解析错误立即转发，避免重复内容和重复计费。workspace 的 `tokio` 已启用 `time`。
+实际行为：`src-tauri/src/commands.rs` 的普通 `chat_stream` 与 `LiveDocumentPort` 都只在零输出且 `is_retryable()` 时重建一次 provider stream；网络/超时/5xx 等待短退避，普通聊天的 429 还会延长进程共享冷却并通知进入冷却的请求。已有部分输出、401/403 与协议解析错误立即转发，避免重复内容和重复计费。workspace 的 `tokio` 已启用 `time`。
+
+空 API Key 是合法配置形态（例如 Ollama）。脱敏 helper 只有在 secret 非空时才能调用 `replace(secret, "<redacted>")`；对空字符串做 replace 会在错误文本的每个字符之间插入占位符。
 
 前端的「重试」仍可由用户手点触发，用于自动重试结束后的失败（`src/lib/ipc.ts`、翻译/命名视图）。
 

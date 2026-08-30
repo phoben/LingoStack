@@ -1,18 +1,38 @@
-async function invokeE2eFixture(command: string, args: Record<string, unknown> = {}) {
-  await browser.execute(
+async function invokeTauri<T>(
+  command: string,
+  args: Record<string, unknown> = {},
+) {
+  return browser.execute(
     async (name: string, payload: Record<string, unknown>) => {
       const tauri = window as unknown as {
-        __TAURI__: { core: { invoke: (command: string, args: Record<string, unknown>) => Promise<void> } };
+        __TAURI__: {
+          core: {
+            invoke: <Result>(
+              command: string,
+              args: Record<string, unknown>,
+            ) => Promise<Result>;
+          };
+        };
       };
-      await tauri.__TAURI__.core.invoke(name, payload);
+      return tauri.__TAURI__.core.invoke<T>(name, payload);
     },
     command,
     args,
   );
 }
 
+async function invokeE2eFixture(
+  command: string,
+  args: Record<string, unknown> = {},
+) {
+  await invokeTauri<void>(command, args);
+}
+
 async function renderedPageContains(text: string) {
-  return browser.execute((expected: string) => document.body.innerText.includes(expected), text);
+  return browser.execute(
+    (expected: string) => document.body.innerText.includes(expected),
+    text,
+  );
 }
 
 describe("LingoStack desktop E2E", () => {
@@ -62,20 +82,21 @@ describe("LingoStack desktop E2E", () => {
       expect.stringContaining("E2E fixture"),
     );
     await $("button=重试").click();
-    await expect($("[aria-live='polite'][aria-busy]")).toHaveText(
-      "确定性的 E2E 翻译结果",
-    );
+    // The retry fixture can finish before WebDriver observes transient busy
+    // state; the stable live region is the user-visible completion contract.
+    await expect($("[aria-live='polite']")).toHaveText("确定性的 E2E 翻译结果");
   });
 
   it("persists the configured test model through the settings UI", async () => {
     await $("button=设置").click();
     await $("button=AI").click();
-    const select = await $("select[aria-label='翻译默认模型']");
+    await expect($("select[aria-label='文档']")).toBeDisplayed();
+    const select = await $("select[aria-label='翻译']");
     await select.selectByAttribute("value", "e2e::lingostack-e2e");
     await browser.refresh();
     await $("button=设置").click();
     await $("button=AI").click();
-    await expect($("select[aria-label='翻译默认模型']")).toHaveValue(
+    await expect($("select[aria-label='翻译']")).toHaveValue(
       "e2e::lingostack-e2e",
     );
   });
@@ -157,4 +178,85 @@ describe("LingoStack desktop E2E", () => {
     await expect($("button[aria-label='朗读 原文']")).toBeDisplayed();
   });
 
+  it("imports, translates, reads, and deletes a continuous Markdown document through real IPC", async () => {
+    const fileName = `e2e-document-${Date.now()}.md`;
+    const source =
+      "# E2E Document Heading\n\n- E2E_DOCUMENT_MARKER\n\n`cargo test`";
+    const bytes = Array.from(new TextEncoder().encode(source));
+    const outcome = await invokeTauri<{ type: string; data?: { id: string } }>(
+      "import_document",
+      { fileName, content: bytes },
+    );
+    expect(outcome.type).toBe("imported");
+    expect(outcome.data?.id).toEqual(expect.any(String));
+    const documentId = outcome.data!.id;
+
+    try {
+      await invokeTauri<void>("translate_document", { documentId });
+      await browser.waitUntil(
+        async () => {
+          const documents =
+            await invokeTauri<Array<{ id: string; status: string }>>(
+              "list_documents",
+            );
+          return documents.some(
+            (document) =>
+              document.id === documentId && document.status === "completed",
+          );
+        },
+        { timeout: 15_000, timeoutMsg: "文档翻译未完成" },
+      );
+
+      await $("button=文档").click();
+      await browser.waitUntil(() => renderedPageContains(fileName), {
+        timeout: 10_000,
+        timeoutMsg: "导入记录未显示",
+      });
+      await expect($("h1=确定性的 E2E Document Heading")).toBeDisplayed();
+      expect(await renderedPageContains("E2E_DOCUMENT_MARKER")).toBe(true);
+      expect(await renderedPageContains("[未翻译]")).toBe(false);
+      await expect($("[role='radiogroup']")).toBeDisplayed();
+      await expect($("[role='radio'][aria-checked='true']")).toHaveText("译文");
+      const contextMenuPrevented = await browser.execute(() => {
+        const article = document.querySelector("article");
+        return article
+          ? !article.dispatchEvent(
+              new MouseEvent("contextmenu", {
+                bubbles: true,
+                cancelable: true,
+                clientX: 24,
+                clientY: 24,
+              }),
+            )
+          : false;
+      });
+      expect(contextMenuPrevented).toBe(true);
+      await browser.waitUntil(
+        async () => (await $$('[role="menu"]')).length === 1,
+        {
+          timeout: 5_000,
+          timeoutMsg: "文档阅读器右键菜单未打开",
+        },
+      );
+      await expect($("[role='menuitem']")).toBeDisplayed();
+      await browser.keys("Escape");
+      await expect($("[role='radio'][aria-checked='false']")).toHaveText(
+        "原文",
+      );
+      await $("[role='radio'][aria-checked='false']").click();
+      await expect($("h1=E2E Document Heading")).toBeDisplayed();
+      expect(await renderedPageContains("E2E_DOCUMENT_MARKER")).toBe(true);
+      expect(await renderedPageContains("结构块")).toBe(false);
+      expect(await renderedPageContains("双栏")).toBe(false);
+      const importIsInFooter = await browser.execute(() => {
+        const button = [...document.querySelectorAll("button")].find((item) =>
+          item.textContent?.includes("导入文档"),
+        );
+        return button?.parentElement?.classList.contains("border-t") ?? false;
+      });
+      expect(importIsInFooter).toBe(true);
+    } finally {
+      await invokeTauri<void>("delete_document", { documentId });
+    }
+  });
 });

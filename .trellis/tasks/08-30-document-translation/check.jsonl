@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/guides/rust-conventions.md", "reason": "Rust error、serde、测试与依赖门禁"}
+{"file": ".trellis/spec/lingostack-app/backend/testing-strategy.md", "reason": "全仓测试层级、命令与证据边界"}
+{"file": ".trellis/spec/lingostack-app/backend/e2e-testing.md", "reason": "feature-gated 桌面 E2E 与生产隔离"}
+{"file": ".trellis/spec/lingostack-app/frontend/testing-and-a11y.md", "reason": "RTL、可访问性与真实桌面边界"}
+{"file": ".trellis/spec/lingostack-llm/backend/testing.md", "reason": "provider 与流协议确定性测试"}
+{"file": ".trellis/spec/lingostack-docparse/backend/index.md", "reason": "真实格式 fixture 与畸形输入验收"}

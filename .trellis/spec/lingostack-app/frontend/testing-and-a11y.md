@@ -4,6 +4,8 @@
 
 ## Vitest 与组件测试
 
+Toast 测试从用户可见文案与本地化通知区域查询，确认应用根部单实例、成功/失败路径与 Clipboard rejection；不要依赖第三方组件的内部 DOM。持续错误和可恢复操作仍验证原位置的 `role="alert"`。
+
 `vite.config.ts:32-37`：`globals: true`、`environment: "jsdom"`、`setupFiles: ["./src/test-setup.ts"]`、`css: true`。`src/test-setup.ts` 引入 `@testing-library/jest-dom/vitest` 并手动桩 `window.matchMedia`；默认 `matches: false`，所以测试中的 system 主题解析为 light。
 
 只 mock Tauri 边界，不 mock 自己的模块：
@@ -33,12 +35,23 @@ vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: ... }));
 | 翻译译文区（`translate-view.tsx:275-284`）     | `aria-live="polite"`、`aria-busy`；错误 `role="alert"` |
 | 命名生成区（`naming-view.tsx:73-145`）         | `aria-live`、`aria-busy`；错误 `role="alert"`          |
 | 收藏通知与错误（`favorites-view.tsx:140-154`） | 通知 `aria-live`；错误 `role="alert"`                  |
-| 划词来源/失败（翻译页）                       | 剪贴板降级 `aria-live`；最终失败给手动粘贴建议         |
-| TTS 错误（翻译/收藏页）                       | `role="alert"`；朗读与停止按钮名称随状态变化          |
+| 划词来源/失败（翻译页）                        | 剪贴板降级 `aria-live`；最终失败给手动粘贴建议         |
+| TTS 错误（翻译/收藏页）                        | `role="alert"`；朗读与停止按钮名称随状态变化           |
 
-新增会异步更新、但不必打断用户的结果或进度区域：在稳定容器上设置 `aria-live="polite"`，请求期间同步 `aria-busy`，完成后清除。需要立即打断的失败信息使用 `role="alert"`，不要同时把同一错误重复置入 polite region。测试至少断言忙碌、成功或空态、错误三种语义和文案变化。
+新增会异步更新、但不必打断用户的结果或进度区域：在稳定容器上设置 `aria-live="polite"`，请求期间同步 `aria-busy`，完成后清除。需要立即打断且需要持续观察的失败信息使用 `role="alert"`，不要同时把同一错误重复置入 polite region。文档翻译的持久失败原因例外：按失败周期用 Toast 播报一次，列表状态和重试入口持续可见，reader 不重复放置该原因。测试至少断言忙碌、成功或空态、错误三种语义和文案变化。
 
 设置加载/保存、提供商表单等异步文本尚未统一为 live region；改到这些区域时按上表补齐，而非声称全站已覆盖。设置二级导航不是完整 ARIA tabs，没有方向键焦点漫游；`docs-view.tsx` 三个占位图标按钮仍可聚焦；没有自动化 axe/jest-axe 门禁。它们都是当前缺口，不是已完成能力。
+
+### AI 功能默认模型
+
+`SettingsAi` 的功能模型选择器通过真实 `useConfigStore.update()` 保存，测试只 mock Tauri IPC 边界，不能 mock `SettingsAi` 或 store。翻译、命名和文档功能选择器的空选项必须清楚说明会使用全局默认模型；全局默认的空选项仍为未指定。文档翻译只能有一个本地化可访问名称为“文档” / “Document”的 selector。RTL 至少覆盖选择写入 `models.doc_translate` 并调用 `saveConfig`、清空、删除提供商时清理，以及中英文的唯一 selector 查询。
+
+### 文档批量导入与辅助页面
+
+- 文档批量导入测试必须断言 picker 使用 `multiple: true`，同批成功项各自启动翻译，拒绝项不启动翻译且页面出现 alert；不能只断言调用次数而忽略失败可见性。
+- 文档列表项视觉上只保留图标与文件名；测试通过列表按钮的可访问名称验证本地化状态，同时断言状态/百分比没有额外可见行。不要把 `animate-spin` 等 Tailwind class 当成唯一行为断言；源码/样式检查另行确认 `motion-reduce` 降级。
+- 文档阅读交互测试必须覆盖：点击 completed 记录默认请求 translation，点击其他状态默认请求 source；导入成功后自动选中 translation；translation + translating 时覆盖层为 `role=status` 且父区 `aria-busy=true`，不泄漏 source/partial content；completed 后覆盖层消失并显示完整译文。非译文加载及已取消/不支持状态不得伪装为 busy；当前记录的快照更新不得覆盖用户手动选择的 radio。右键菜单的显式原文/译文操作不得被自动策略覆盖。
+- 外观设置测试按本地化 radio/label 查询主题和 Prompt；关于页至少断言产品标题、描述、disabled 更新占位，并确认页面没有额外 toolbar 区域。
 
 ## UI 验证范围
 

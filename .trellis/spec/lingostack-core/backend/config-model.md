@@ -55,6 +55,8 @@ pub translate: Option<String>,                // prompt.rs:34
 
 `resolve_model(feature)` 的优先级：功能级默认模型 → 全局兜底 → `ResolveError::Unassigned`。引用了不存在的 `provider_id` 则 `UnknownProvider`（`:137-145`、`:149`、`:235`）。
 
+`Feature::DocTranslate` 使用同一条 `ModelAssignment::resolve` 分支：`models.doc_translate` 为空时必须回退 `models.global_default`，不得由文档功能另建第二套模型配置或解析规则。
+
 `ResolveError` derive 了 `PartialEq, Eq`，所以测试直接 `assert_eq!` 比对（`:326-331`）；需要只校验形状时用 `matches!`（`:352`）。
 
 ## UI 语言与翻译语言分离

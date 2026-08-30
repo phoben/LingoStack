@@ -3,17 +3,15 @@
 //! 端点：`POST {base_url}/v1/chat/completions`，Bearer 鉴权，SSE 流式响应。
 //! Ollama 同走该协议（默认 `http://localhost:11434`），故不另起实现。
 
-use std::time::Duration;
-
 use async_stream::try_stream;
 use futures::stream::BoxStream;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 
 use crate::sse::parse_data_lines;
-use crate::{ChatChunk, ChatRequest, LlmError, LlmProvider};
-
-const DEFAULT_TIMEOUT_SECS: u64 = 60;
+use crate::{
+    response_body_error, streaming_http_client, ChatChunk, ChatRequest, LlmError, LlmProvider,
+};
 
 /// OpenAI 兼容协议的请求体。
 #[derive(Serialize)]
@@ -60,10 +58,7 @@ impl OpenAiProvider {
     ///
     /// 返回 `Result` 以承载 HTTP 客户端构造失败（极罕见，通常 TLS 后端初始化）。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Result<Self, LlmError> {
-        let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(DEFAULT_TIMEOUT_SECS))
-            .build()
-            .map_err(|e| LlmError::Network(format!("HTTP 客户端构造失败: {e}")))?;
+        let http = streaming_http_client()?;
         Ok(Self {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             api_key: api_key.into(),
@@ -119,6 +114,7 @@ impl LlmProvider for OpenAiProvider {
     ) -> BoxStream<'a, Result<ChatChunk, LlmError>> {
         let body = self.build_body(request);
         let auth_header = format!("Bearer {}", self.api_key);
+        let api_key = self.api_key.clone();
         try_stream! {
             let resp = self
                 .http
@@ -135,7 +131,10 @@ impl LlmProvider for OpenAiProvider {
                     }
                 })?;
             let resp = ensure_success(resp).await?;
-            let mut payloads = parse_data_lines(resp.bytes_stream());
+            let bytes = resp
+                .bytes_stream()
+                .map(move |result| result.map_err(|error| response_body_error(error, &api_key)));
+            let mut payloads = parse_data_lines(bytes);
             while let Some(payload) = payloads.next().await {
                 let payload = payload?;
                 let parsed: OpenAiStreamChunk = serde_json::from_str(&payload)
@@ -159,7 +158,11 @@ impl LlmProvider for OpenAiProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ChatMessage, ChatRequest};
+    use crate::{streaming_http_client_with_timeouts, ChatMessage, ChatRequest};
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::thread;
+    use std::time::Duration;
     use wiremock::matchers::{body_partial_json, header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -168,6 +171,114 @@ mod tests {
             "deepseek-chat",
             vec![ChatMessage::system("你是翻译"), ChatMessage::user("hello")],
         )
+    }
+
+    /// Sends a valid SSE response in frequent pieces. Its total duration is
+    /// deliberately longer than the client inactivity threshold.
+    fn slow_sse_server() -> (String, thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let chunks = [
+            "data: {\"choices\":[{\"delta\":{\"content\":\"one\"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"content\":\" two\"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"content\":\" three\"}}]}\n\n",
+            "data: [DONE]\n\n",
+        ];
+        let handle = thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(1)))
+                .unwrap();
+            let mut request = [0_u8; 2048];
+            let _ = socket.read(&mut request);
+            let content_length: usize = chunks.iter().map(|chunk| chunk.len()).sum();
+            write!(
+                socket,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {content_length}\r\nConnection: close\r\n\r\n"
+            )
+            .unwrap();
+            socket.flush().unwrap();
+            for chunk in chunks {
+                thread::sleep(Duration::from_millis(120));
+                socket.write_all(chunk.as_bytes()).unwrap();
+                socket.flush().unwrap();
+            }
+        });
+        (format!("http://{address}"), handle)
+    }
+
+    /// Sends headers, then leaves the promised body unread long enough for the
+    /// client read timeout to expire. This exercises `bytes_stream`, rather
+    /// than only the client-builder helper.
+    fn stalled_sse_server() -> (String, thread::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let handle = thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(1)))
+                .unwrap();
+            let mut request = [0_u8; 2048];
+            let _ = socket.read(&mut request);
+            write!(
+                socket,
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: 1\r\nConnection: close\r\n\r\n"
+            )
+            .unwrap();
+            socket.flush().unwrap();
+            thread::sleep(Duration::from_millis(600));
+        });
+        (format!("http://{address}"), handle)
+    }
+
+    #[tokio::test]
+    async fn keeps_healthy_sse_stream_alive_past_total_duration() {
+        let (base_url, server) = slow_sse_server();
+        let provider = OpenAiProvider {
+            base_url,
+            api_key: "sk-test".into(),
+            http: streaming_http_client_with_timeouts(
+                Duration::from_millis(300),
+                Duration::from_secs(1),
+            )
+            .unwrap(),
+        };
+        let results: Vec<_> = provider.chat_stream(&request()).collect().await;
+        server.join().unwrap();
+        assert!(
+            results.iter().all(Result::is_ok),
+            "frequently-delivered SSE must not hit a total request deadline: {results:?}"
+        );
+        assert_eq!(
+            results
+                .into_iter()
+                .map(Result::unwrap)
+                .map(|chunk| chunk.delta)
+                .collect::<String>(),
+            "one two three"
+        );
+    }
+
+    #[tokio::test]
+    async fn reports_timeout_when_sse_body_stalls() {
+        let (base_url, server) = stalled_sse_server();
+        let provider = OpenAiProvider {
+            base_url,
+            api_key: "sk-test".into(),
+            http: streaming_http_client_with_timeouts(
+                Duration::from_millis(200),
+                Duration::from_secs(1),
+            )
+            .unwrap(),
+        };
+        let results = tokio::time::timeout(
+            Duration::from_secs(2),
+            provider.chat_stream(&request()).collect::<Vec<_>>(),
+        )
+        .await
+        .expect("stalled body must be bounded by the read timeout");
+        server.join().unwrap();
+        assert!(matches!(results.as_slice(), [Err(LlmError::Timeout)]));
     }
 
     #[tokio::test]

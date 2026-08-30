@@ -1,0 +1,6 @@
+{"file":".trellis/spec/lingostack-app/frontend/index.md","reason":"Frontend guideline index and pre-development routing for UI changes"}
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"Toast visual tokens, bottom-center placement, desktop window and interaction-state contract"}
+{"file":".trellis/spec/lingostack-app/frontend/components-and-styling.md","reason":"Shared UI primitive boundary and root composition rules"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"Live-region, alert, RTL and visual evidence requirements"}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"Business store error and rollback boundaries that notifications must not replace"}
+{"file":".trellis/tasks/08-30-unified-toast-notifications/research.md","reason":"Current feedback inventory, selected Sonner version and dependency tradeoff"}

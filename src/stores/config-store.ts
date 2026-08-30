@@ -16,6 +16,8 @@ interface ConfigState {
    * 保存失败时记录 error，不回滚——配置改动低频，失败提示即可。
    */
   update: (updater: (cfg: AppConfig) => AppConfig) => Promise<void>;
+  /** Clears an error that has already been presented by an explicit save action. */
+  clearError: () => void;
 }
 
 export const useConfigStore = create<ConfigState>((set, get) => ({
@@ -46,4 +48,5 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       set({ error: stringifyError(e) });
     }
   },
+  clearError: () => set({ error: null }),
 }));

@@ -22,6 +22,22 @@
 
 WDIO 插件、E2E config/capability 与 build-script codegen 的完整隔离规则见 [真实桌面 E2E 契约](./e2e-testing.md)。不要为测试方便在生产 `tauri.conf.json` 启用 `withGlobalTauri`。
 
+## 首帧显示契约
+
+主窗口在 `tauri.conf.json` 中固定为 `"visible": false`；`run()` 通过
+`Builder::on_page_load` 等待标签为 `main` 的 WebView 发出
+`PageLoadEvent::Finished`，再调用 `webview.window().show()`。这样窗口只在主题预加载、
+样式表和同步 React 挂载均完成后出现，不暴露 WebView2 的默认白色背景。
+
+- `Started` 事件不得显示窗口；否则深色主题启动时仍会闪白。
+- 其他窗口的加载事件不得显示主窗口；后续新增窗口时继续按 label 隔离生命周期。
+- 显示守卫在进程生命周期内只消费一次；后续页面刷新不得把已隐藏到托盘的窗口
+  意外重新弹出。
+- 托盘和单实例回调仍可在应用已启动后显示并聚焦同一个 `main` 窗口，不新增前端
+  `show()` 调用或 `core:window:allow-show` 权限。
+- `src-tauri/src/lib.rs` 的单元测试必须同时锁定初始隐藏配置和
+  `main + Finished` 判定；真实首帧观感属于 Windows 桌面运行验收，不能由单元测试替代。
+
 ## 热键注册与冲突上报
 
 `src/hotkeys.rs`。分工：冲突检测规则在 `lingostack-core`，加速器字符串渲染在 `lingostack-hook/src/accelerator.rs`，**实际注册与上报在这里**。

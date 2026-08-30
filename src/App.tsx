@@ -13,6 +13,12 @@ import { useAppStore } from "@/stores/app-store";
 import { useConfigStore } from "@/stores/config-store";
 import { useApplyTheme } from "@/hooks/use-theme";
 import { useThemeStore } from "@/stores/theme-store";
+import { useDocumentStore } from "@/stores/document-store";
+import { LingoStackToaster } from "@/components/ui/toaster";
+import { toast } from "sonner";
+import { useT } from "@/lib/i18n";
+import { useTtsStore } from "@/stores/tts-store";
+import { stringifyError } from "@/lib/utils";
 
 type Selection = Awaited<ReturnType<typeof getSelection>>;
 
@@ -36,12 +42,15 @@ function App() {
   const activeView = useAppStore((s) => s.activeView);
   const setActiveView = useAppStore((s) => s.setActiveView);
   const setInjectSource = useAppStore((s) => s.setInjectSource);
-  const setSelectionFeedback = useAppStore((s) => s.setSelectionFeedback);
   const loadConfig = useConfigStore((s) => s.load);
   const config = useConfigStore((s) => s.config);
   const hotkeys = useConfigStore((s) => s.config?.hotkeys);
   const theme = useThemeStore((s) => s.mode);
   const setTheme = useThemeStore((s) => s.setMode);
+  const applyDocumentProgress = useDocumentStore((s) => s.applyProgress);
+  const t = useT();
+  const ttsError = useTtsStore((s) => s.error);
+  const clearTtsError = useTtsStore((s) => s.clearError);
 
   useEffect(() => {
     void loadConfig();
@@ -58,27 +67,29 @@ function App() {
   }, [hotkeys]);
 
   useEffect(() => {
+    if (!ttsError) return;
+    toast.error(t("speakFailed", { message: ttsError }), { duration: 4000 });
+    clearTtsError();
+  }, [clearTtsError, t, ttsError]);
+
+  useEffect(() => {
     const translateSelection = async (payload?: TranslateSelectionPayload) => {
       setActiveView("translate");
-      setSelectionFeedback(null);
       try {
         if (payload?.error) throw payload.error;
         const sel = payload?.selection ?? (await getSelection());
         if (sel.text.trim()) {
           setInjectSource(sel.text);
           if (sel.source === "clipboard")
-            setSelectionFeedback({ kind: "clipboard" });
+            toast.info(t("selectionClipboardFallback"));
         } else {
-          setSelectionFeedback({
-            kind: "error",
-            message: "未读取到选中文本，请手动粘贴后翻译。",
-          });
+          toast.error(t("selectionReadEmpty"), { duration: 4000 });
         }
       } catch (error) {
-        setSelectionFeedback({
-          kind: "error",
-          message: `读取选中文本失败：${typeof error === "string" ? error : String(error)}。请手动粘贴后翻译。`,
-        });
+        toast.error(
+          t("selectionReadFailed", { message: stringifyError(error) }),
+          { duration: 4000 },
+        );
       }
     };
     const unTranslate = listen<TranslateSelectionPayload | undefined>(
@@ -116,7 +127,28 @@ function App() {
         },
       );
     };
-  }, [setActiveView, setInjectSource, setSelectionFeedback]);
+  }, [setActiveView, setInjectSource, t]);
+
+  // Job truth lives in Rust/SQLite, so this subscription belongs above DocsView.
+  // Navigating away only stops rendering; a later event refreshes its snapshot.
+  useEffect(() => {
+    const unlisten = listen<{
+      document: import("@/lib/document-types").DocumentSnapshot;
+    }>("document-progress", (event) =>
+      applyDocumentProgress(event.payload.document),
+    );
+    return () => {
+      void unlisten.then((stop) => stop());
+    };
+  }, [applyDocumentProgress]);
+
+  useEffect(() => {
+    const suppressNativeContextMenu = (event: MouseEvent) =>
+      event.preventDefault();
+    window.addEventListener("contextmenu", suppressNativeContextMenu);
+    return () =>
+      window.removeEventListener("contextmenu", suppressNativeContextMenu);
+  }, []);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
@@ -132,6 +164,7 @@ function App() {
           {activeView === "about" ? <AboutView /> : null}
         </main>
       </div>
+      <LingoStackToaster />
     </div>
   );
 }

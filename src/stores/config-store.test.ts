@@ -76,4 +76,10 @@ describe("config-store", () => {
     expect(useConfigStore.getState().error).toBeTruthy();
     expect(vi.mocked(invoke)).not.toHaveBeenCalled();
   });
+
+  it("can clear an error after an explicit save action has reported it", () => {
+    useConfigStore.setState({ error: "disk full" });
+    useConfigStore.getState().clearError();
+    expect(useConfigStore.getState().error).toBeNull();
+  });
 });

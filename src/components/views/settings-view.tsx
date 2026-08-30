@@ -17,6 +17,7 @@ import { useConfigStore } from "@/stores/config-store";
 import { useThemeStore } from "@/stores/theme-store";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { toast } from "sonner";
 
 type Sub = "general" | "shortcuts" | "ai" | "appearance";
 const langs: Language[] = ["zh", "en", "ja"];
@@ -124,7 +125,7 @@ export function SettingsView() {
         </p>
       </ViewShell>
     );
-  const addMapping = () => {
+  const addMapping = async () => {
     if (
       mapping[0] === mapping[1] ||
       config.pair_mappings.some(([from]) => from === mapping[0])
@@ -133,10 +134,17 @@ export function SettingsView() {
       return;
     }
     setMappingError(null);
-    void update((c) => ({
+    await update((c) => ({
       ...c,
       pair_mappings: [...c.pair_mappings, mapping],
     }));
+    const saveError = useConfigStore.getState().error;
+    if (saveError)
+      toast.error(t("actionFailed", { message: saveError }), {
+        duration: 4000,
+      });
+    if (saveError) useConfigStore.getState().clearError();
+    else toast.success(t("mappingAdded"));
   };
   const saveHotkeys = async (bindings: HotkeyBinding[]) => {
     const duplicates = new Set<string>();
@@ -148,15 +156,17 @@ export function SettingsView() {
         return !b.combo.mods || !b.combo.key;
       })
     ) {
-      setHotkeyError(
-        t("shortcutInvalid"),
-      );
+      setHotkeyError(t("shortcutInvalid"));
       return;
     }
     setHotkeyError(null);
     try {
-      setStatuses(await registerHotkeys(bindings));
+      const nextStatuses = await registerHotkeys(bindings);
+      setStatuses(nextStatuses);
       useConfigStore.setState({ config: { ...config, hotkeys: bindings } });
+      if (nextStatuses.every((status) => status.registered)) {
+        toast.success(t("hotkeysSaved"));
+      }
     } catch (e) {
       setHotkeyError(String(e));
     }
@@ -194,10 +204,7 @@ export function SettingsView() {
       <div className="h-full overflow-auto px-4 py-1" aria-live="polite">
         {sub === "general" && (
           <>
-            <SetSection
-              title={t("languageMappings")}
-              desc={t("mappingsHelp")}
-            >
+            <SetSection title={t("languageMappings")} desc={t("mappingsHelp")}>
               <div className="divide-y divide-border border-y">
                 {config.pair_mappings.map(([from, to]) => (
                   <FuncCell key={from}>
@@ -243,12 +250,20 @@ export function SettingsView() {
                     <option key={l}>{l}</option>
                   ))}
                 </Select>
-                <Button variant="outline" size="sm" onClick={addMapping}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void addMapping()}
+                >
                   <Plus className="h-3.5 w-3.5" />
                   {t("add")}
                 </Button>
               </div>
-              {mappingError ? <p role="alert" className="mt-2 text-xs text-destructive">{mappingError}</p> : null}
+              {mappingError ? (
+                <p role="alert" className="mt-2 text-xs text-destructive">
+                  {mappingError}
+                </p>
+              ) : null}
             </SetSection>
             <SetSection title={t("interfaceLanguage")}>
               <label className="mr-3 text-sm">
@@ -287,10 +302,7 @@ export function SettingsView() {
           </>
         )}
         {sub === "shortcuts" && (
-          <SetSection
-            title={t("globalShortcuts")}
-            desc={t("shortcutsHelp")}
-          >
+          <SetSection title={t("globalShortcuts")} desc={t("shortcutsHelp")}>
             <div className="divide-y divide-border border-y">
               {config.hotkeys.map((binding, index) => {
                 const status = statuses.find(
@@ -319,17 +331,15 @@ export function SettingsView() {
                             i === index ? { ...h, combo } : h,
                           );
                           void saveHotkeys(next);
-                        } else
-                          setHotkeyError(
-                            t("shortcutInvalid"),
-                          );
+                        } else setHotkeyError(t("shortcutInvalid"));
                       }}
                       readOnly
                       className="w-44 rounded-sm border border-input bg-background px-2 py-1 font-mono text-xs"
                     />
                     {status?.error ? (
                       <span className="text-xs text-destructive">
-                        {t("hotkeyRegistrationFailed")}{status.error}
+                        {t("hotkeyRegistrationFailed")}
+                        {status.error}
                       </span>
                     ) : (
                       <span className="text-xs text-success">
@@ -359,59 +369,87 @@ export function SettingsView() {
         {sub === "appearance" && (
           <>
             <SetSection title={t("theme")}>
-              <div className="flex gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {themes.map((theme) => (
-                  <label key={theme}>
+                  <label
+                    key={theme}
+                    className="flex cursor-pointer items-center gap-2 rounded-sm border border-input px-3 py-2 text-sm transition-colors hover:bg-accent"
+                  >
                     <input
                       type="radio"
                       name="theme"
                       checked={mode === theme}
                       onChange={() => setTheme(theme)}
-                    />{" "}
-                    {theme}
+                    />
+                    {t(
+                      theme === "light"
+                        ? "themeLight"
+                        : theme === "dark"
+                          ? "themeDark"
+                          : "themeSystem",
+                    )}
                   </label>
                 ))}
               </div>
             </SetSection>
             <SetSection title={t("prompts")} desc={t("promptsHelp")}>
-              {(["translate", "naming"] as const).map((feature) => (
-                <label key={feature} className="mb-3 block text-sm">
-                  {feature}
-                  <Textarea
-                    value={config.prompt_overrides[feature] ?? ""}
-                    onChange={(e) =>
-                      void update((c) => ({
-                        ...c,
-                        prompt_overrides: {
-                          ...c.prompt_overrides,
-                          [feature]: e.target.value || null,
-                        },
-                      }))
-                    }
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      void update((c) => ({
-                        ...c,
-                        prompt_overrides: {
-                          ...c.prompt_overrides,
-                          [feature]: null,
-                        },
-                      }))
-                    }
-                  >
-                    {t("restoreBuiltIn")}
-                  </Button>
-                </label>
-              ))}
+              <div className="space-y-5">
+                {(["translate", "naming", "doc_translate"] as const).map(
+                  (feature) => (
+                    <div key={feature} className="space-y-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <label
+                          htmlFor={`prompt-${feature}`}
+                          className="text-sm font-medium"
+                        >
+                          {t(
+                            feature === "translate"
+                              ? "translate"
+                              : feature === "naming"
+                                ? "naming"
+                                : "documentModel",
+                          )}
+                        </label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            void update((c) => ({
+                              ...c,
+                              prompt_overrides: {
+                                ...c.prompt_overrides,
+                                [feature]: null,
+                              },
+                            }))
+                          }
+                        >
+                          {t("restoreBuiltIn")}
+                        </Button>
+                      </div>
+                      <Textarea
+                        id={`prompt-${feature}`}
+                        value={config.prompt_overrides[feature] ?? ""}
+                        onChange={(e) =>
+                          void update((c) => ({
+                            ...c,
+                            prompt_overrides: {
+                              ...c.prompt_overrides,
+                              [feature]: e.target.value || null,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                  ),
+                )}
+              </div>
             </SetSection>
           </>
         )}
         {error ? (
           <p role="alert" className="py-2 text-xs text-destructive">
-            {t("configSaveFailed")}{error}
+            {t("configSaveFailed")}
+            {error}
           </p>
         ) : null}
       </div>

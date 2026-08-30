@@ -1,0 +1,5 @@
+{"file":".trellis/spec/lingostack-app/frontend/index.md","reason":"Frontend quality gate routing and current known coverage boundaries"}
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"Verify semantic tokens, layout, motion and desktop sizing compliance"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"Verify polite versus alert semantics and user-observable RTL coverage"}
+{"file":".trellis/spec/lingostack-app/backend/testing-strategy.md","reason":"Verify dependency, frontend gate, license notice and evidence-level requirements"}
+{"file":".trellis/tasks/08-30-unified-toast-notifications/research.md","reason":"Verify library choice and migration boundary against current evidence"}
