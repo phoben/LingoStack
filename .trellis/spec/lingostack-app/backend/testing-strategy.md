@@ -53,6 +53,14 @@ pnpm exec prettier --check .github/workflows/ci.yml
 git diff --check
 ```
 
+#### 第三方许可证通知
+
+```bash
+cargo install cargo-about --version 0.9.2 --locked --features cli
+pnpm notices:generate
+git diff --exit-code -- THIRD_PARTY_NOTICES
+```
+
 CI 运行契约：`.github/workflows/ci.yml` 包含三平台 `rust`、Ubuntu `frontend`、Windows `e2e-windows`。`audit.yml` 是安全审计，不替代功能测试；`dco.yml` 是治理检查，不替代质量门禁。
 
 ### 3. Contracts
@@ -70,6 +78,8 @@ CI 运行契约：`.github/workflows/ci.yml` 包含三平台 `rust`、Ubuntu `fr
 | Windows 原生能力        | Rust 结构测试 + `docs/testing.md` 手工清单  | 自动化只证明不 panic/线程/错误形状；物理结果单独记录    |
 
 新增测试必须确定性：不得依赖真实 LLM Key、互联网、开发者配置、上次运行的 IndexedDB 或人工点击。测试数据用显式 fake 值；诊断中不得泄漏 secret。
+
+`THIRD_PARTY_NOTICES` 是生成物，不得手工修补。生成器必须合并 Rust workspace 与 pnpm production 依赖，输出不含时间戳、临时目录或绝对路径；`cargo-about` 版本和 `cli` feature 在 CI 固定。Windows 调用 pnpm 必须经固定的 `%ComSpec% /d /s /c "pnpm licenses list --json --prod"`，不能直接 `spawnSync("pnpm")`/`spawnSync("pnpm.cmd")` 假设 shim 可执行。
 
 #### 证据等级
 
@@ -106,6 +116,7 @@ Windows 本机 E2E 通过不能写成 GitHub-hosted Windows 已通过；官方�
 | selection/TTS/hotkey     | package/workspace test + Windows 清单         | 自动测试绿只能声明结构通过，不能声明外部选区/出声成功 |
 | CI YAML                  | Prettier/static review；最终看 CI run         | 本地静态通过不能声明 GitHub-hosted runner 通过        |
 | Linux/macOS 未运行       | 三平台 Rust CI 或目标平台运行                 | 只能报告静态/官方支持；不得报告 runtime pass          |
+| 依赖或许可证发生变化     | `notices:generate` + 产物 diff                | 未接受 SPDX、生成失败或 diff 非空都阻断交付           |
 
 所有命令必须保留原退出码。测试失败后允许上传工件，但 `always()` 只能用于诊断步骤，不能吞掉主测试失败。
 
@@ -117,6 +128,7 @@ Windows 本机 E2E 通过不能写成 GitHub-hosted Windows 已通过；官方�
 - **Bad**：为了稳定而 mock 自己的 store/业务模块，或让桌面 E2E 绕过真实 IPC/Channel。
 - **Bad**：写死“现有 N 个测试”作为契约；数量会漂移，应约束场景、断言和命令。
 - **Bad**：系统环境没有语音引擎时把提前返回的 TTS 结构测试写成“真实扬声器已出声”。
+- **Bad**：手改 `THIRD_PARTY_NOTICES`，或使用未固定/未启用 CLI feature 的 cargo-about 让本机与 CI 产物漂移。
 
 ### 6. Tests Required
 
@@ -133,6 +145,8 @@ cargo clippy --all-targets -- -D warnings
 cargo test --workspace
 cargo build --workspace
 cargo build --release -p lingostack-app
+pnpm notices:generate
+git diff --exit-code -- THIRD_PARTY_NOTICES
 ```
 
 触发桌面边界时追加：
@@ -169,6 +183,7 @@ Vitest mock 了 chatStream，因此 Tauri IPC/Channel 已覆盖。
 ci.yml 通过静态格式检查；GitHub-hosted Windows 尚待实际 job 证据。
 workspace Rust 测试证明平台实现不 panic/结构自洽；物理音频与外部选区按 Windows 清单验收。
 Vitest 覆盖 store 状态机；WDIO E2E 通过 feature-gated fixture 覆盖真实 IPC/Channel。
+THIRD_PARTY_NOTICES 由固定 cargo-about 和 pnpm production 清单生成；连续生成一致且 CI diff 为零。
 ```
 
 ## 当前已知覆盖缺口

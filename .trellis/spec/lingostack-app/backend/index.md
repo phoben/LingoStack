@@ -53,7 +53,7 @@ Rust 单元测试主要在纯函数和 provider 工厂上：
 - **所有 `#[tauri::command]` 函数零测试**——凡是接收 `AppHandle` / `State` 的代码都没测
 - **`restrict_permissions`（0600 逻辑）零测试**
 
-真实桌面 E2E 位于根目录 `e2e/`，由 `pnpm test:e2e` 启动 feature-gated Tauri 测试二进制，覆盖启动/导航、翻译成功、错误重试、设置持久化和收藏。它不覆盖外部应用选区、全局快捷键分发与真实播音，边界见 [真实桌面 E2E](./e2e-testing.md)。
+真实桌面 E2E 位于根目录 `e2e/`，由 `pnpm test:e2e` 启动 feature-gated Tauri 测试二进制，覆盖启动/导航、翻译成功、错误重试、设置持久化、收藏、术语、命名以及 feature-gated 热键/选区/TTS 应用内状态。它不覆盖外部应用选区、系统级快捷键注册与真实播音，边界见 [真实桌面 E2E](./e2e-testing.md)。
 
 ## 质量检查
 
