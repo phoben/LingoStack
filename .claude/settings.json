@@ -73,6 +73,5 @@
   "statusLine": {
     "type": "command",
     "command": "python .claude/hooks/statusline.py"
-  },
-  "outputStyle": "业务翻译官"
+  }
 }

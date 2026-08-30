@@ -8,11 +8,11 @@ IndexedDB 测试使用轻量 fake IndexedDB dev dependency；继续测试项目�
 
 ## Desktop E2E
 
-基础 runner 与 CI 由 `tauri-e2e-ci` 独立工作树交付；该产出经评审并进入本分支前，本任务不修改其所有的 WDIO 配置、test-only plugin feature gate 或 E2E CI job。进入本分支后，再按 V1 最终 UI/IPC 契约补充场景与断言。
+基础 runner 与 CI 已由 `tauri-e2e-ci` 经 PR #18 交付并进入本分支。本任务保留其 WDIO embedded provider、test-only plugin feature gate、独立配置/capability、诊断工件和 Windows CI job，只按 V1 最终 UI/IPC 契约补充场景与断言。
 
 采用当前 Tauri 2 推荐的 WebdriverIO + `@wdio/tauri-service` embedded provider。测试插件只在 `e2e` Cargo feature/测试配置启用，不进入正式发布能力面。LLM、选区与 TTS 的不可控外部边界用服务能力 mock；至少保留一个真实 Tauri 启动、IPC、窗口路由烟雾链路。
 
-Windows CI 建独立 E2E job：构建带 e2e feature 的二进制后运行 WDIO。失败时上传日志/截图；在稳定前不降低现有 lint/test/build 门禁。
+现有 Windows CI 已有独立 E2E job：构建带 e2e feature 的二进制后运行 WDIO，并始终上传诊断工件。扩展场景时不得降低该门禁或让 WDIO 能力泄漏到生产构建。
 
 ## Native manual evidence
 

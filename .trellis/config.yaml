@@ -156,21 +156,3 @@ channel:
 #
 # prompt_injection:
 #   skip_keyword: "no-trellis"   # "" disables the escape hatch entirely
-
-# Auto-detected monorepo packages
-packages:
-  lingostack-core:
-    path: crates/lingostack-core
-  lingostack-llm:
-    path: crates/lingostack-llm
-  lingostack-selection:
-    path: crates/lingostack-selection
-  lingostack-hook:
-    path: crates/lingostack-hook
-  lingostack-tts:
-    path: crates/lingostack-tts
-  lingostack-docparse:
-    path: crates/lingostack-docparse
-  lingostack-app:
-    path: src-tauri
-default_package: lingostack-core
