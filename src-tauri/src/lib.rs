@@ -46,6 +46,35 @@ pub fn run() {
 
     let config_path = config::config_path();
 
+    #[cfg(feature = "e2e")]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        commands::load_config,
+        commands::save_config,
+        commands::effective_prompt,
+        commands::translation_plan,
+        commands::effective_translation_prompt,
+        commands::chat_stream,
+        commands::get_selection,
+        commands::speak,
+        commands::stop_speaking,
+        commands::register_hotkeys,
+        commands::e2e_emit_translate_selection,
+        commands::e2e_emit_hotkey_status,
+    ]);
+    #[cfg(not(feature = "e2e"))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        commands::load_config,
+        commands::save_config,
+        commands::effective_prompt,
+        commands::translation_plan,
+        commands::effective_translation_prompt,
+        commands::chat_stream,
+        commands::get_selection,
+        commands::speak,
+        commands::stop_speaking,
+        commands::register_hotkeys,
+    ]);
+
     builder
         // 主窗口关闭（包括 Alt+F4）只隐藏到托盘。真正退出只能由托盘的
         // “退出”动作触发；这样托盘始终能重新显示同一个窗口。
@@ -62,18 +91,6 @@ pub fn run() {
             rate_limit_until: Arc::new(Mutex::new(None)),
         })
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![
-            commands::load_config,
-            commands::save_config,
-            commands::effective_prompt,
-            commands::translation_plan,
-            commands::effective_translation_prompt,
-            commands::chat_stream,
-            commands::get_selection,
-            commands::speak,
-            commands::stop_speaking,
-            commands::register_hotkeys,
-        ])
         .setup(move |app| {
             let handle = app.handle();
             lingostack_hook::setup_tray(handle)?;

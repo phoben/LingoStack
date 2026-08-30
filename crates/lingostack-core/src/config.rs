@@ -278,6 +278,11 @@ impl AppConfig {
 mod tests {
     use super::*;
 
+    fn ipc_contract_fixture() -> serde_json::Value {
+        serde_json::from_str(include_str!("../../../fixtures/ipc-contract.json"))
+            .expect("IPC 契约 fixture 必须是合法 JSON")
+    }
+
     fn sample_provider() -> ProviderConfig {
         ProviderConfig {
             id: "deepseek-1".into(),
@@ -295,6 +300,35 @@ mod tests {
         let dbg = format!("{p:?}");
         assert!(!dbg.contains("sk-abcdef1234567890"));
         assert!(dbg.contains("<redacted>"));
+    }
+
+    #[test]
+    fn default_config_matches_shared_ipc_contract_fixture() {
+        let fixture = ipc_contract_fixture();
+        let expected = fixture
+            .get("default_config")
+            .expect("fixture 必须包含 default_config");
+        assert_eq!(
+            serde_json::to_value(AppConfig::default()).unwrap(),
+            *expected
+        );
+    }
+
+    #[test]
+    fn legacy_config_fixture_keeps_alias_and_default_migration_behavior() {
+        let fixture = ipc_contract_fixture();
+        let mut config: AppConfig = serde_json::from_value(
+            fixture
+                .get("legacy_config")
+                .expect("fixture 必须包含 legacy_config")
+                .clone(),
+        )
+        .unwrap();
+        config.normalize_hotkeys();
+        assert_eq!(config.ui_language, UiLanguage::En);
+        assert_eq!(config.global_default_target, Language::Zh);
+        assert_eq!(config.hotkeys.len(), 1);
+        assert_eq!(config.hotkeys[0].combo.key, "K");
     }
 
     #[test]

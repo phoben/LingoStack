@@ -28,6 +28,7 @@ function pnpm(args, env = process.env) {
 }
 
 const fixtureConfig = {
+  ui_language: "zh",
   providers: [
     {
       id: "e2e",

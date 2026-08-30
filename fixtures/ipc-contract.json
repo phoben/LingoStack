@@ -1,0 +1,36 @@
+{
+  "default_config": {
+    "providers": [],
+    "models": {},
+    "ui_language": "system",
+    "theme": "system",
+    "pair_mappings": [],
+    "global_default_target": "zh",
+    "hotkeys": [
+      { "action": "show_main_window", "combo": { "mods": 2, "key": "Space" } },
+      { "action": "translate_selection", "combo": { "mods": 5, "key": "D" } }
+    ],
+    "naming_styles": ["camel_case", "snake_case", "pascal_case", "kebab_case", "constant_case"],
+    "prompt_overrides": {}
+  },
+  "legacy_config": {
+    "ui_language": "ja",
+    "hotkeys": [
+      { "action": "translate_popup", "combo": { "mods": 5, "key": "D" } },
+      { "action": "translate_selection", "combo": { "mods": 5, "key": "K" } }
+    ]
+  },
+  "chat_events": [
+    { "type": "status", "message": "正在连接" },
+    { "type": "chunk", "delta": "确定性的译文" },
+    { "type": "done" },
+    { "type": "error", "message": "fixture error" }
+  ],
+  "selection": { "text": "selected text", "source": "clipboard" },
+  "hotkey_status": {
+    "action": "translate_selection",
+    "accelerator": "Ctrl+Shift+D",
+    "registered": false,
+    "error": "occupied"
+  }
+}

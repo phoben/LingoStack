@@ -10,6 +10,8 @@ use lingostack_core::lang::{Language, TranslationPlan};
 use lingostack_core::prompt::compose_translation_prompt;
 use lingostack_llm::{ChatMessage, ChatRequest, LlmError, LlmProvider};
 use tauri::ipc::Channel;
+#[cfg(feature = "e2e")]
+use tauri::Emitter;
 use tauri::State;
 
 use crate::config as config_store;
@@ -28,6 +30,13 @@ mod e2e_fixture {
     pub const MODEL: &str = "lingostack-e2e";
     pub const ERROR_THEN_SUCCESS_INPUT: &str = "E2E_ERROR_THEN_SUCCESS";
     pub const SUCCESS_OUTPUT: &str = "确定性的 E2E 翻译结果";
+    pub const TERMS_INPUT: &str = "E2E_TERMS";
+    pub const TERMS_OUTPUT: &str = "确定性的 fixture 术语译文\n<<<LINGOSTACK_TERMS_V1>>>\n[{\"term\":\"fixture\",\"category\":\"technology\",\"explanation\":\"确定性测试术语\"}]";
+    pub const NAMING_INPUT: &str = "E2E_NAMING";
+    pub const NAMING_OUTPUT: &str =
+        "cache invalidator\nrequest router\nfeature flag\nsession token\nerror boundary";
+    pub const SELECTION_TEXT: &str = "E2E_CLIPBOARD_SELECTION";
+    pub const TTS_TEXT: &str = SELECTION_TEXT;
 
     pub struct FixtureProvider;
 
@@ -45,9 +54,19 @@ mod e2e_fixture {
                 .unwrap_or_default();
             if input == ERROR_THEN_SUCCESS_INPUT && !ERROR_WAS_RETURNED.swap(true, Ordering::SeqCst)
             {
-                return Box::pin(stream::iter([Err(LlmError::Network(
-                    "E2E fixture: 可重试的确定性错误".into(),
+                return Box::pin(stream::iter([Err(LlmError::Stream(
+                    "E2E fixture: 首次请求的确定性错误".into(),
                 ))]));
+            }
+            if input == TERMS_INPUT || input == NAMING_INPUT {
+                let output = if input == TERMS_INPUT {
+                    TERMS_OUTPUT
+                } else {
+                    NAMING_OUTPUT
+                };
+                return Box::pin(stream::iter([Ok(ChatChunk {
+                    delta: output.into(),
+                })]));
             }
             Box::pin(stream::iter([
                 Ok(ChatChunk {
@@ -74,6 +93,10 @@ pub fn get_selection() -> Result<lingostack_selection::Selection, String> {
 /// 朗读文本（异步，打断上一句）。
 #[tauri::command]
 pub fn speak(text: String) -> Result<(), String> {
+    #[cfg(feature = "e2e")]
+    if text == e2e_fixture::TTS_TEXT {
+        return Ok(());
+    }
     lingostack_tts::speaker()
         .speak(&text)
         .map_err(|e| e.to_string())
@@ -82,7 +105,43 @@ pub fn speak(text: String) -> Result<(), String> {
 /// 停止当前朗读。
 #[tauri::command]
 pub fn stop_speaking() -> Result<(), String> {
+    #[cfg(feature = "e2e")]
+    {
+        return Ok(());
+    }
+    #[cfg(not(feature = "e2e"))]
     lingostack_tts::speaker().stop().map_err(|e| e.to_string())
+}
+
+#[cfg(feature = "e2e")]
+/// 仅供 feature-gated desktop E2E 触发真实前端事件；不进入生产 command 表。
+#[tauri::command]
+pub fn e2e_emit_translate_selection(app: tauri::AppHandle) -> Result<(), String> {
+    app.emit(
+        "translate-selection",
+        crate::hotkeys::TranslateSelectionPayload {
+            selection: Some(lingostack_selection::Selection {
+                text: e2e_fixture::SELECTION_TEXT.into(),
+                source: lingostack_selection::SelectionSource::Clipboard,
+            }),
+            error: None,
+        },
+    )
+    .map_err(|error| error.to_string())
+}
+
+#[cfg(feature = "e2e")]
+/// 仅供 feature-gated desktop E2E 注入热键冲突/恢复事件；不触碰系统热键注册表。
+#[tauri::command]
+pub fn e2e_emit_hotkey_status(app: tauri::AppHandle, conflicted: bool) -> Result<(), String> {
+    let statuses = vec![crate::hotkeys::HotkeyStatus {
+        action: lingostack_core::hotkey::HotkeyAction::TranslateSelection,
+        accelerator: "Ctrl+Shift+D".into(),
+        registered: !conflicted,
+        error: conflicted.then(|| "E2E fixture: occupied".into()),
+    }];
+    app.emit(crate::hotkeys::HOTKEY_STATUS_EVENT, statuses)
+        .map_err(|error| error.to_string())
 }
 
 /// 加载应用配置；文件不存在时回退默认值（首次运行）。

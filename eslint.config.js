@@ -7,7 +7,17 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   // .claude/ 为编辑器 / Agent 工具脚本（Node 环境），不属前端源码，
   // 不适用本配置的浏览器 + React 规则。
-  { ignores: ["dist", "src-tauri", "target", "coverage", ".claude"] },
+  {
+    ignores: [
+      "dist",
+      "src-tauri",
+      "target",
+      "coverage",
+      ".claude",
+      // Trellis' timestamped recovery snapshots are not repository source.
+      ".trellis/.backup-*",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
