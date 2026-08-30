@@ -71,6 +71,13 @@ jobs:
       - name: cargo build --workspace
         run: cargo build --workspace
 
+      - name: Verify third-party notices
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cargo install cargo-about --version 0.9.2 --locked --features cli
+          pnpm notices:generate
+          git diff --exit-code -- THIRD_PARTY_NOTICES
+
       # 显式指定 bash：Windows runner 默认 shell 是 pwsh，`if ...; then` 这类
       # POSIX 语法会被 PowerShell 解析器拒绝（Missing '(' after 'if'）。
       # Windows runner 自带 Git Bash，指定后三平台走同一份脚本。

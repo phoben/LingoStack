@@ -17,7 +17,8 @@
     "test:e2e": "node scripts/run-e2e.mjs",
     "test:e2e:build": "pnpm tauri build --debug --features e2e --config src-tauri/tauri.e2e.conf.json",
     "test:e2e:run": "wdio run wdio.conf.ts",
-    "test:production-isolation": "node scripts/check-production-isolation.mjs"
+    "test:production-isolation": "node scripts/check-production-isolation.mjs",
+    "notices:generate": "node scripts/generate-third-party-notices.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",

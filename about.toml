@@ -1,0 +1,30 @@
+# cargo-about is pinned by the CI workflow.  Keep this list explicit so a new
+# Rust dependency with an unreviewed license makes notice generation fail.
+accepted = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+]
+targets = [
+    "x86_64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "x86_64-unknown-linux-gnu",
+]
+ignore-build-dependencies = false
+ignore-dev-dependencies = true
+ignore-transitive-dependencies = false
+workarounds = ["ring", "chrono", "rustls", "unicode-ident"]
+
+[ring]
+accepted = ["OpenSSL"]
+
+[unicode-ident]
+accepted = ["Unicode-3.0", "Unicode-DFS-2016"]
