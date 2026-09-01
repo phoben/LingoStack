@@ -9,7 +9,7 @@
 - LingoStack 是基于 Tauri 2 的跨平台开源桌面应用；当前只有 Windows x64 NSIS 发布产物与真实桌面验收基础。
 - 当前应用版本由 `package.json`、workspace `Cargo.toml` 与 `src-tauri/tauri.conf.json` 三处共同维护；本地发布脚本不签名、不上传，也不生成更新索引。
 - 当前未接入 updater/process 插件、更新 ACL 或远程发布 workflow；About 页已有“检查更新”占位，应用已有全局轻量 Toast、标题栏与托盘机制。
-- `lsupdates.gridfriend.cn` 已被选为公开更新域名，但 2026-08-31 只读验证时仍为 NXDOMAIN，属于发布基础设施待部署项。
+- `lsupdates.yugasoft.cn` 已部署为公开更新域名；2026-09-01 已验证 CNAME、HTTPS、TLS 1.2、私有 COS 回源和三类路径重写，stable manifest 尚待首次正式发布。
 
 ## Requirements
 
@@ -39,8 +39,8 @@
 ### R4. 分发与发布
 
 - 使用 Tauri 官方 Updater 与签名机制，不自研更新协议、验签或安装器。
-- 腾讯云 COS 私有源桶是发布存储，已备案中国内地 CDN 域名 `lsupdates.gridfriend.cn` 是应用内唯一权威更新源；CDN 使用回源鉴权，对外 URL 不使用会过期的查询签名。
-- 稳定索引固定为 `https://lsupdates.gridfriend.cn/channels/stable/latest.json`。版本产物使用不可变路径，稳定索引使用短缓存并在发布后刷新 CDN。
+- 腾讯云 COS 私有源桶是发布存储，已备案中国内地 CDN 域名 `lsupdates.yugasoft.cn` 是应用内唯一权威更新源；CDN 使用回源鉴权，对外 URL 不使用会过期的查询签名。
+- 稳定索引固定为 `https://lsupdates.yugasoft.cn/channels/stable/latest.json`。版本产物使用不可变路径，稳定索引使用短缓存并在发布后刷新 CDN。
 - GitHub Releases 保留公开发布记录与手动下载镜像，但不作为应用内自动更新 endpoint；预发布版本不得进入稳定索引。
 - 正式版由 SemVer Git 标签触发 GitHub Actions，经 `production` 环境人工批准后构建、签名、发布 GitHub Release、上传并验证 COS 产物，最后切换稳定索引。
 - 客户端协议保持厂商无关；COS CLI/SDK 与凭据只存在于发布流水线边界。
@@ -82,7 +82,7 @@
 
 以下事项不改变产品设计，但会阻断真实远程发布验收：
 
-- 配置 `lsupdates.gridfriend.cn` 的 DNS/CNAME、TLS、COS 私有回源与 CDN 缓存/刷新规则。
+- 配置 `lsupdates.yugasoft.cn` 的 DNS/CNAME、TLS、COS 私有回源与 CDN 缓存/刷新规则。
 - 提供受限 CAM 发布身份、COS Bucket/Region/Prefix 与 CDN 刷新权限，写入 GitHub `production` environment secrets/variables。
 - 生成 Tauri 更新签名密钥，配置 GitHub 发布副本和独立离线备份，并完成一次恢复演练。
 

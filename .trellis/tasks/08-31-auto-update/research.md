@@ -57,7 +57,9 @@ Tauri 多 endpoint 只会在前一个 endpoint 返回非 2xx 时尝试后一个�
 
 ## 更新域名现状
 
-2026-08-31 只读验证：`lsupdates.gridfriend.cn` 在本机解析器、Cloudflare `1.1.1.1` 与 Google `8.8.8.8` 上均返回 NXDOMAIN，因此当前无法建立 TLS 或读取 `/channels/stable/latest.json` 的 HTTP 状态、`Content-Type` 与 `Cache-Control`。这属于发布基础设施待部署项，不否定客户端设计；正式发布前必须重新验证 DNS/CNAME、证书链、索引 200 响应、`application/json` 与短缓存策略。
+2026-08-31 只读验证时，原候选域名 `lsupdates.gridfriend.cn` 在本机解析器、Cloudflare `1.1.1.1` 与 Google `8.8.8.8` 上均返回 NXDOMAIN。该域名未投入客户端发布，随后被正式域名取代。
+
+2026-09-01 生产域名确定为 `lsupdates.yugasoft.cn`，CNAME 指向 `lsupdates.yugasoft.cn.cdn.dnsv1.com`。公网实测确认：Cloudflare/Google DNS 均返回该 CNAME；HTTPS 证书有效；HTTP 以 301 保留完整路径跳转 HTTPS；TLS 1.0 被拒绝而 TLS 1.2 可连接；私有 COS 的 CDN 服务授权和回源鉴权生效；`channels`、`releases`、`manifests` 三类公共路径分别重写到 `lingostack/` 前缀。stable manifest 尚未发布，因此 `/channels/stable/latest.json` 当前预期返回 COS `NoSuchKey`；只有首次正式发布后返回 200 JSON 才能完成端到端验收。
 
 ## 签名密钥与坏版本恢复
 

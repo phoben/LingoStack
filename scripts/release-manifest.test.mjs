@@ -23,7 +23,7 @@ test("creates the official static updater shape with HTTPS immutable URLs", asyn
     version: "0.0.3",
     artifact,
     signature: sig,
-    baseUrl: "https://lsupdates.gridfriend.cn/",
+    baseUrl: "https://lsupdates.yugasoft.cn/",
     notes: "Fixed update flow.",
     publishedAt: "2026-08-31T00:00:00Z",
   });
@@ -33,7 +33,7 @@ test("creates the official static updater shape with HTTPS immutable URLs", asyn
     pub_date: "2026-08-31T00:00:00Z",
     platforms: {
       "windows-x86_64": {
-        url: "https://lsupdates.gridfriend.cn/releases/0.0.3/windows-x86_64/LingoStack_0.0.3_x64-setup.exe",
+        url: "https://lsupdates.yugasoft.cn/releases/0.0.3/windows-x86_64/LingoStack_0.0.3_x64-setup.exe",
         signature: "valid-signature",
       },
     },
@@ -48,7 +48,7 @@ test("fails before a stable manifest is written for prereleases, bad URLs, or mi
         version: "0.0.3-beta.1",
         artifact,
         signature: sig,
-        baseUrl: "https://lsupdates.gridfriend.cn",
+        baseUrl: "https://lsupdates.yugasoft.cn",
       }),
     /stable update version/,
   );
@@ -58,7 +58,7 @@ test("fails before a stable manifest is written for prereleases, bad URLs, or mi
         version: "0.0.3",
         artifact,
         signature: sig,
-        baseUrl: "http://lsupdates.gridfriend.cn",
+        baseUrl: "http://lsupdates.yugasoft.cn",
       }),
     /signature file is empty/,
   );
@@ -85,7 +85,7 @@ test("CLI carries GitHub release notes into the static manifest as plain text", 
       "--signature",
       sig,
       "--base-url",
-      "https://lsupdates.gridfriend.cn",
+      "https://lsupdates.yugasoft.cn",
       "--notes-file",
       notes,
       "--output",

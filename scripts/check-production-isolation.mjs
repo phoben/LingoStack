@@ -33,6 +33,7 @@ const [
   e2eConfig,
   e2eCapability,
   updaterReleaseTemplate,
+  releaseWorkflow,
 ] = await Promise.all([
   text("src-tauri/Cargo.toml"),
   text("src-tauri/tauri.conf.json"),
@@ -40,6 +41,7 @@ const [
   text("src-tauri/tauri.e2e.conf.json"),
   text("src-tauri/capabilities/e2e.json"),
   text("src-tauri/tauri.release.conf.template.json"),
+  text(".github/workflows/release.yml"),
 ]);
 if (!appCargo.includes("optional = true") || !appCargo.includes("e2e =")) {
   throw new Error(
@@ -63,13 +65,21 @@ if (
 }
 if (
   !updaterReleaseTemplate.includes(
-    "https://lsupdates.gridfriend.cn/channels/stable/latest.json",
+    "https://lsupdates.yugasoft.cn/channels/stable/latest.json",
   ) ||
   !updaterReleaseTemplate.includes("__TAURI_UPDATER_PUBLIC_KEY_AT_RELEASE__") ||
   /BEGIN (?:RSA |EC )?PRIVATE KEY/.test(updaterReleaseTemplate)
 ) {
   throw new Error(
     "release updater template must use the authoritative endpoint and contain no signing secret",
+  );
+}
+if (
+  !releaseWorkflow.includes("CDN_DOMAIN: ${{ vars.CDN_DOMAIN }}") ||
+  !releaseWorkflow.includes("-not $env:CDN_DOMAIN")
+) {
+  throw new Error(
+    "release workflow must obtain and validate CDN_DOMAIN from the production environment",
   );
 }
 if (

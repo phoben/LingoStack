@@ -13,7 +13,7 @@ test("release updater config injects only a supplied public key", () => {
   const config = JSON.parse(rendered);
   assert.equal(config.plugins.updater.pubkey, "public-key-value");
   assert.deepEqual(config.plugins.updater.endpoints, [
-    "https://lsupdates.gridfriend.cn/channels/stable/latest.json",
+    "https://lsupdates.yugasoft.cn/channels/stable/latest.json",
   ]);
 });
 

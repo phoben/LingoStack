@@ -5,7 +5,7 @@ Tencent COS/CDN setup, deployment order and acceptance evidence is
 `.trellis/spec/lingostack-app/backend/version-release-deployment.md`.
 
 This runbook covers the Windows x64 NSIS channel only. The application reads one
-signed static Tauri manifest from `https://lsupdates.gridfriend.cn/channels/stable/latest.json`.
+signed static Tauri manifest from `https://lsupdates.yugasoft.cn/channels/stable/latest.json`.
 GitHub Releases are a public download mirror and changelog, never an in-app update endpoint.
 
 ## One-time production gate
@@ -29,10 +29,12 @@ The protected `production` environment must contain these secrets:
 - `TAURI_UPDATER_PUBLIC_KEY`
 - `COS_SECRET_ID`, `COS_SECRET_KEY`
 
-It must also contain these non-secret variables: `COS_BUCKET`, `COS_REGION`, and
-`COS_PREFIX`. The CAM identity is limited to object operations under that prefix
-and an exact CDN purge permission; it must not administer buckets or delete broad
-objects. A production-environment approval is required for every publishing job.
+It must also contain these non-secret variables: `COS_BUCKET`, `COS_REGION`,
+`COS_PREFIX`, and `CDN_DOMAIN`. The CAM identity is limited to object operations
+under that prefix and the operation-level `PurgePathCache` permission; Tencent CDN
+requires resource `*` for that single action, so no other CDN action may be granted.
+It must not administer buckets or delete broad objects. A production-environment
+approval is required for every publishing job.
 
 ## Publish
 

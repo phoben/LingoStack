@@ -30,14 +30,14 @@ updateProgress(downloadedBytes: number, contentLength: number | null): number | 
 
 ```text
 git tag: v<major>.<minor>.<patch>
-endpoint: https://lsupdates.gridfriend.cn/channels/stable/latest.json
+endpoint: https://lsupdates.yugasoft.cn/channels/stable/latest.json
 node scripts/release-manifest.mjs assert-version --version <semver>
 node scripts/release-manifest.mjs create ... --notes-file <path> --output <path>
 python scripts/publish_immutable.py --bucket ... --region ... --key ... --file ... --cache-control ...
 cargo run --release -p lingostack-app --bin verify-updater-signature -- <artifact> <signature-file>
 ```
 
-GitHub `production` secrets：`TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`、`TAURI_UPDATER_PUBLIC_KEY`、`COS_SECRET_ID`、`COS_SECRET_KEY`。Variables：`COS_BUCKET`、`COS_REGION`、`COS_PREFIX`。这些值不得进入仓库、缓存、artifact 或日志。
+GitHub `production` secrets：`TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`、`TAURI_UPDATER_PUBLIC_KEY`、`COS_SECRET_ID`、`COS_SECRET_KEY`。Variables：`COS_BUCKET`、`COS_REGION`、`COS_PREFIX`、`CDN_DOMAIN`。这些值不得进入仓库、缓存、artifact 或日志；workflow 必须从 `vars.CDN_DOMAIN` 读取域名，禁止再次硬编码。
 
 ### 3. Contracts
 

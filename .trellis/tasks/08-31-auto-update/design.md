@@ -11,7 +11,7 @@ Zustand update-store（唯一任务与状态机）
         ↓
 @tauri-apps/plugin-updater + process
         ↓
-https://lsupdates.gridfriend.cn/channels/stable/latest.json
+https://lsupdates.yugasoft.cn/channels/stable/latest.json
         ↓
 CDN → 私有 COS 源桶中的签名 NSIS 更新产物
 ```

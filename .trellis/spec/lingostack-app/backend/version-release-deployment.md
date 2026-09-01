@@ -18,7 +18,7 @@ Cargo.toml                          [workspace.package].version = X.Y.Z
 src-tauri/tauri.conf.json           version = X.Y.Z
 git tag                             vX.Y.Z
 GitHub Actions environment          production
-stable endpoint                     https://lsupdates.gridfriend.cn/channels/stable/latest.json
+stable endpoint                     https://lsupdates.yugasoft.cn/channels/stable/latest.json
 ```
 
 同步三处版本但不构建：
@@ -50,6 +50,7 @@ pnpm tauri signer generate --write-keys <仓库外私钥路径>
 | `COS_BUCKET`                         | Environment Variable | COS SDK 使用的完整 Bucket 名，例如包含 APPID 后缀的实际 bucket 名    |
 | `COS_REGION`                         | Environment Variable | Bucket 的腾讯云地域代码，例如 `ap-guangzhou`，必须与实际 bucket 一致 |
 | `COS_PREFIX`                         | Environment Variable | 该应用独占对象前缀，例如 `lingostack`；不使用首尾 `/`                |
+| `CDN_DOMAIN`                         | Environment Variable | 公共更新域名；当前生产值为 `lsupdates.yugasoft.cn`，不含协议或路径   |
 
 网页设置是权威方式。已登录正确仓库的 GitHub CLI 也可逐项交互写入，Secret 不放在命令行参数、shell 历史或 dotenv 文件中：
 
@@ -63,6 +64,7 @@ gh secret set COS_SECRET_KEY --env production
 gh variable set COS_BUCKET --env production --body "<完整 bucket 名>"
 gh variable set COS_REGION --env production --body "<地域代码>"
 gh variable set COS_PREFIX --env production --body "lingostack"
+gh variable set CDN_DOMAIN --env production --body "lsupdates.yugasoft.cn"
 ```
 
 禁止把上述 Secret 放入 Repository Secret、`.env*`、`VITE_*`、源码、`tauri.conf.json`、日志、Actions artifact、Issue 或 PR。Repository Secret 绕过了本流程的 production 审批边界；`VITE_*` 会进入前端 bundle。当前工作流把公钥也放在 Environment Secret 中，是为了让生产信任根只在获批 job 内生成临时配置。
@@ -72,12 +74,12 @@ gh variable set COS_PREFIX --env production --body "lingostack"
 一次性生产配置由腾讯云/DNS 管理员完成：
 
 1. 创建或选择**私有读写** COS bucket，记录其完整 Bucket 名与地域；启用版本控制，并为历史 stable manifest 保留可恢复版本。
-2. 创建独立 CAM 程序化身份。权限仅覆盖 `COS_PREFIX` 下所需的 Head/Get/Put，以及 `lsupdates.gridfriend.cn/channels/stable/latest.json` 的精确 CDN 刷新；不授予 bucket 管理、宽泛删除或账户管理权限。
-3. 将 `lsupdates.gridfriend.cn` 接入中国大陆 CDN，配置已备案域名、有效 TLS 证书、CNAME 和私有 COS 回源鉴权。客户端访问固定 HTTPS URL，不使用临时签名 URL。
+2. 创建独立 CAM 程序化身份。COS 权限仅覆盖 `COS_PREFIX` 下的 `HeadObject`、`GetObject`、`PutObject`。CDN `PurgePathCache` 是腾讯云 CAM 的操作级接口，策略必须使用 `resource: "*"`；只授予这一项 CDN action，不授予域名配置、bucket 管理、删除或账户管理权限。
+3. 将 `lsupdates.yugasoft.cn` 接入中国大陆 CDN，配置已备案域名、有效 TLS 证书、CNAME 和私有 COS 回源鉴权。客户端访问固定 HTTPS URL，不使用临时签名 URL。
 4. 缓存规则：`releases/**` 与 `manifests/<version>/**` 长缓存且不可变；`channels/stable/latest.json` 使用 `no-cache` 或极短 TTL，并允许发布后只刷新这一条路径。
 5. 将真实 `COS_BUCKET`、`COS_REGION`、`COS_PREFIX` 写入 GitHub `production` Variables，将新 CAM SecretId/SecretKey 写入同环境 Secrets；不把云凭据写入仓库或维护文档。
 
-`CDN_DOMAIN=lsupdates.gridfriend.cn` 当前固定在 `.github/workflows/release.yml`。更换域名不是普通 Variable 变更：必须同步 workflow、客户端 endpoint、DNS/TLS/CDN 配置、ADR/Spec，并重新做旧版客户端兼容评估。
+`.github/workflows/release.yml` 必须通过 `${{ vars.CDN_DOMAIN }}` 注入域名，当前值为 `lsupdates.yugasoft.cn`。更换 Variable 本身不能迁移已安装客户端：仍必须同步客户端 endpoint、DNS/TLS/CDN 配置、ADR/Spec，并重新做旧版客户端兼容评估。
 
 #### 2.4 COS 对象布局
 
@@ -91,17 +93,17 @@ gh variable set COS_PREFIX --env production --body "lingostack"
 前三类对象不可变；`channels/stable/latest.json` 是唯一可变对象。CDN 对外 URL 不暴露 `COS_PREFIX`，因此 CDN 源站路径映射必须让以下公共路径对应到上述对象：
 
 ```text
-https://lsupdates.gridfriend.cn/releases/<version>/windows-x86_64/<installer>.exe
-https://lsupdates.gridfriend.cn/releases/<version>/windows-x86_64/<installer>.exe.sig
-https://lsupdates.gridfriend.cn/manifests/<version>/latest.json
-https://lsupdates.gridfriend.cn/channels/stable/latest.json
+https://lsupdates.yugasoft.cn/releases/<version>/windows-x86_64/<installer>.exe
+https://lsupdates.yugasoft.cn/releases/<version>/windows-x86_64/<installer>.exe.sig
+https://lsupdates.yugasoft.cn/manifests/<version>/latest.json
+https://lsupdates.yugasoft.cn/channels/stable/latest.json
 ```
 
 ### 3. Contracts
 
 #### 3.1 首次上线门禁
 
-- `production` Environment 已有 reviewer，且五个 Secrets、三个 Variables 均已配置；任何 Secret 都不能在日志中打印或通过 artifact 传递。
+- `production` Environment 已有 reviewer，且五个 Secrets、四个 Variables 均已配置；任何 Secret 都不能在日志中打印或通过 artifact 传递。
 - updater 私钥有一份独立离线加密备份；安全记录只保存公钥指纹、负责人、备份位置类别和最近恢复演练日期，不保存私钥或密码。
 - DNS、TLS、CNAME、私有回源和缓存规则均通过外部验收。域名未解析、证书不可信或公开端点不可读时不得发布 stable。
 - 生产工作流的 `preflight` 不绑定 `production`，只校验 Tag 与仓库版本；只有通过预检后的 publish job 才等待人工批准并获得 Secrets。
@@ -171,9 +173,9 @@ git diff --check
 首次配置或每次真实发布还要保存以下外部证据，但不得保存 Secret：
 
 ```powershell
-Resolve-DnsName lsupdates.gridfriend.cn
-Invoke-WebRequest -Method Head https://lsupdates.gridfriend.cn/channels/stable/latest.json
-Invoke-RestMethod https://lsupdates.gridfriend.cn/channels/stable/latest.json
+Resolve-DnsName lsupdates.yugasoft.cn
+Invoke-WebRequest -Method Head https://lsupdates.yugasoft.cn/channels/stable/latest.json
+Invoke-RestMethod https://lsupdates.yugasoft.cn/channels/stable/latest.json
 ```
 
 同时记录 GitHub production approval/run URL、公开 artifact 与 manifest URL、返回版本、TLS/缓存结果，以及旧 NSIS → 新版本的人工验收结果。未执行的外部检查明确标记“待生产验收”。
