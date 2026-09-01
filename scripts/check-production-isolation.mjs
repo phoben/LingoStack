@@ -32,12 +32,14 @@ const [
   defaultCapability,
   e2eConfig,
   e2eCapability,
+  updaterReleaseTemplate,
 ] = await Promise.all([
   text("src-tauri/Cargo.toml"),
   text("src-tauri/tauri.conf.json"),
   text("src-tauri/capabilities/default.json"),
   text("src-tauri/tauri.e2e.conf.json"),
   text("src-tauri/capabilities/e2e.json"),
+  text("src-tauri/tauri.release.conf.template.json"),
 ]);
 if (!appCargo.includes("optional = true") || !appCargo.includes("e2e =")) {
   throw new Error(
@@ -50,6 +52,25 @@ if (
   /wdio[-:]/.test(defaultCapability)
 ) {
   throw new Error("production config/capability must not grant WDIO access");
+}
+if (
+  !/tauri-plugin-updater/.test(appCargo) ||
+  !/updater:default/.test(defaultCapability)
+) {
+  throw new Error(
+    "the main production window must have the official updater plugin and minimal ACL",
+  );
+}
+if (
+  !updaterReleaseTemplate.includes(
+    "https://lsupdates.gridfriend.cn/channels/stable/latest.json",
+  ) ||
+  !updaterReleaseTemplate.includes("__TAURI_UPDATER_PUBLIC_KEY_AT_RELEASE__") ||
+  /BEGIN (?:RSA |EC )?PRIVATE KEY/.test(updaterReleaseTemplate)
+) {
+  throw new Error(
+    "release updater template must use the authoritative endpoint and contain no signing secret",
+  );
 }
 if (
   !e2eConfig.includes('"withGlobalTauri": true') ||

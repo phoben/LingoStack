@@ -1,0 +1,14 @@
+{"file":".trellis/tasks/08-31-auto-update/prd.md","reason":"已确认的自动更新产品范围、行为与验收标准"}
+{"file":".trellis/tasks/08-31-auto-update/design.md","reason":"官方 updater、客户端状态机、COS/CDN 与发布流水线设计"}
+{"file":".trellis/tasks/08-31-auto-update/research.md","reason":"仓库现状、Tauri 官方能力、COS 与签名恢复事实"}
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"标题栏、About、Toast、语义 token 与桌面交互契约"}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"Zustand store 和异步动作约定"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"RTL、异步状态、可访问性与桌面证据边界"}
+{"file":".trellis/spec/lingostack-app/backend/app-setup.md","reason":"Tauri 插件装配、启动顺序与 capability 边界"}
+{"file":".trellis/spec/lingostack-app/backend/auto-update-release.md","reason":"自动更新状态机、COS/CDN 不可变发布、签名与 stable-last 契约"}
+{"file":".trellis/spec/lingostack-app/backend/version-release-deployment.md","reason":"版本同步、production Environment、Secrets/Variables、COS/CDN 部署与验收契约"}
+{"file":".trellis/spec/lingostack-app/backend/e2e-testing.md","reason":"Tauri E2E fixture 和生产隔离契约"}
+{"file":".trellis/spec/lingostack-app/backend/testing-strategy.md","reason":"跨前端、Rust、发布与桌面的分层门禁"}
+{"file":"docs/adr/0002-domestic-authoritative-update-source.md","reason":"腾讯 COS/CDN 权威源决策"}
+{"file":"docs/adr/0003-forward-only-auto-update-recovery.md","reason":"坏版本只向前修复决策"}
+{"file":"docs/adr/0004-updater-signing-key-custody.md","reason":"签名信任根保管与轮换决策"}

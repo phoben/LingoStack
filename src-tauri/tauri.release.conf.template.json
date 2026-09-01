@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "plugins": {
+    "updater": {
+      "pubkey": "__TAURI_UPDATER_PUBLIC_KEY_AT_RELEASE__",
+      "endpoints": [
+        "https://lsupdates.gridfriend.cn/channels/stable/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

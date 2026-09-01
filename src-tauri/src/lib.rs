@@ -163,6 +163,10 @@ pub fn run() {
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        // The updater owns signed package verification and the platform installer.
+        // Its endpoint/public key live only in the production release overlay so
+        // ordinary local and portable builds never need production credentials.
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(move |app| {
             let handle = app.handle();

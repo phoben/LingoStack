@@ -34,5 +34,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
     css: true,
+    // Release helper tests use Node's built-in runner so they can exercise
+    // filesystem fixtures without jsdom or the renderer test bootstrap.
+    exclude: ["node_modules/**", "scripts/**/*.test.mjs"],
   },
 });

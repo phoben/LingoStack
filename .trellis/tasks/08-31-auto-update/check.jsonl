@@ -1,0 +1,11 @@
+{"file":".trellis/tasks/08-31-auto-update/prd.md","reason":"逐项核对需求与可观察验收"}
+{"file":".trellis/tasks/08-31-auto-update/design.md","reason":"复核端到端数据流、安全、失败与发布原子性"}
+{"file":".trellis/tasks/08-31-auto-update/research.md","reason":"验证 Tauri/COS/域名事实与推断边界"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"检查更新 UI 的角色、名称、busy/live 与 RTL 覆盖"}
+{"file":".trellis/spec/lingostack-app/backend/auto-update-release.md","reason":"检查状态机、不可变发布、公开验签与 stable-last 未漂移"}
+{"file":".trellis/spec/lingostack-app/backend/version-release-deployment.md","reason":"检查版本发布、Secret 边界、生产部署顺序与外部验收未漂移"}
+{"file":".trellis/spec/lingostack-app/backend/e2e-testing.md","reason":"检查 updater fixture 不污染生产构建"}
+{"file":".trellis/spec/lingostack-app/backend/testing-strategy.md","reason":"检查静态、本地 runtime、CI 与手工系统证据边界"}
+{"file":"docs/adr/0002-domestic-authoritative-update-source.md","reason":"检查权威源与镜像实现未漂移"}
+{"file":"docs/adr/0003-forward-only-auto-update-recovery.md","reason":"检查未引入未批准的自动降级"}
+{"file":"docs/adr/0004-updater-signing-key-custody.md","reason":"检查私钥不进入仓库、日志或产物"}

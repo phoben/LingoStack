@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { TitleBar } from "@/components/title-bar";
 import { Sidebar } from "@/components/sidebar";
@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { useT } from "@/lib/i18n";
 import { useTtsStore } from "@/stores/tts-store";
 import { stringifyError } from "@/lib/utils";
+import { useUpdateStore } from "@/stores/update-store";
 
 type Selection = Awaited<ReturnType<typeof getSelection>>;
 
@@ -51,6 +52,11 @@ function App() {
   const t = useT();
   const ttsError = useTtsStore((s) => s.error);
   const clearTtsError = useTtsStore((s) => s.clearError);
+  const checkForUpdate = useUpdateStore((s) => s.check);
+  const updateVersion = useUpdateStore((s) => s.available?.version ?? null);
+  const updateError = useUpdateStore((s) => s.error);
+  const announcedUpdate = useRef<string | null>(null);
+  const announcedError = useRef<string | null>(null);
 
   useEffect(() => {
     void loadConfig();
@@ -71,6 +77,45 @@ function App() {
     toast.error(t("speakFailed", { message: ttsError }), { duration: 4000 });
     clearTtsError();
   }, [clearTtsError, t, ttsError]);
+
+  useEffect(() => {
+    void checkForUpdate("automatic");
+    const timer = window.setInterval(
+      () => {
+        // Keep polling stopped once discovery found an update, including after a
+        // retryable download/install error that still retains that update.
+        if (!useUpdateStore.getState().available)
+          void checkForUpdate("automatic");
+      },
+      24 * 60 * 60 * 1000,
+    );
+    return () => window.clearInterval(timer);
+  }, [checkForUpdate]);
+
+  useEffect(() => {
+    if (!updateVersion || announcedUpdate.current === updateVersion) return;
+    announcedUpdate.current = updateVersion;
+    toast.info(t("updateAvailableToast", { version: updateVersion }));
+  }, [t, updateVersion]);
+
+  useEffect(() => {
+    if (!updateError) {
+      announcedError.current = null;
+      return;
+    }
+    if (announcedError.current === updateError) return;
+    announcedError.current = updateError;
+    toast.error(
+      t(
+        updateError === "check"
+          ? "updateCheckFailed"
+          : updateError === "download"
+            ? "updateDownloadFailed"
+            : "updateInstallFailed",
+      ),
+      { duration: 4000 },
+    );
+  }, [t, updateError]);
 
   useEffect(() => {
     const translateSelection = async (payload?: TranslateSelectionPayload) => {

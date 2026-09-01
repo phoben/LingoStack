@@ -29,6 +29,16 @@
 
 Tauri 多 endpoint 只会在前一个 endpoint 返回非 2xx 时尝试后一个；“可访问但内容过期”的主源不会自动切到镜像。因此双源降级不能只依赖 endpoint 顺序，必须明确索引一致性与健康策略。
 
+## 国内对象存储比较
+
+- 运行时保持 provider-neutral：客户端只认识 HTTPS `latest.json` 与签名产物 URL，不暴露或依赖具体云厂商协议。
+- 阿里云 OSS 与腾讯云 COS 均支持公开 HTTPS 对象、版本控制、对象级缓存元数据和中国内地 CDN；启用自定义中国内地 CDN 域名均涉及备案。
+- 阿里云提供官方 GitHub Action，可用 GitHub Actions OIDC 换取短期 RAM 凭据；production job 不必长期保存云访问密钥。当前核实到的腾讯 COS GitHub Actions 路径主要使用受限 SecretId/SecretKey，虽可用但密钥治理成本更高。
+- 推荐首发部署采用阿里云 OSS；若尚无备案域名，可先用 OSS 默认 HTTPS endpoint 实测发布，备案完成后只切换 endpoint 域名，不改变客户端更新协议。
+- 费用不能只比较存储单价，还包含下载流量、请求和 CDN 回源；最终上线前应按 Windows 安装包大小与预估月更新次数计算预算。
+
+产品决策：首发部署改用腾讯云 COS。保留上述 provider-neutral 运行时边界；CI 使用受限 CAM 身份访问指定 Bucket/前缀，长期密钥仅存放在 GitHub `production` environment secrets，后续若核实可用的短期身份联邦再替换凭据获取方式。
+
 ## 官方来源
 
 - [Tauri Updater 插件](https://v2.tauri.app/plugin/updater/)
@@ -38,3 +48,25 @@ Tauri 多 endpoint 只会在前一个 endpoint 返回非 2xx 时尝试后一个�
 - [CrabNebula Cloud Tauri 自动更新](https://docs.crabnebula.dev/cloud/auto-updates/tauri/)
 - [GitHub Actions Secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)
 - [GitHub Actions 安全使用](https://docs.github.com/en/actions/reference/security/secure-use?learn=getting_started&learnProduct=actions)
+- [阿里云 OSS 自定义域名](https://help.aliyun.com/zh/oss/user-guide/access-buckets-via-custom-domain-names)
+- [阿里云 CDN 接入域名](https://help.aliyun.com/zh/cdn/add-a-domain-name)
+- [阿里云官方 GitHub Actions 凭据 Action](https://github.com/aliyun/configure-aliyun-credentials-action)
+- [GitHub Actions OIDC](https://docs.github.com/zh/actions/reference/security/oidc)
+- [腾讯云 COS 公有访问](https://cloud.tencent.com/document/product/436/45228)
+- [腾讯云 COS STS 临时密钥](https://cloud.tencent.cn/document/product/436/14048)
+
+## 更新域名现状
+
+2026-08-31 只读验证：`lsupdates.gridfriend.cn` 在本机解析器、Cloudflare `1.1.1.1` 与 Google `8.8.8.8` 上均返回 NXDOMAIN，因此当前无法建立 TLS 或读取 `/channels/stable/latest.json` 的 HTTP 状态、`Content-Type` 与 `Cache-Control`。这属于发布基础设施待部署项，不否定客户端设计；正式发布前必须重新验证 DNS/CNAME、证书链、索引 200 响应、`application/json` 与短缓存策略。
+
+## 签名密钥与坏版本恢复
+
+- Tauri Updater 的签名验证不可关闭；当前官方实现以单个 active 公钥验签，没有现成 key ring。私钥丢失后，已安装客户端无法再信任由新私钥签名的更新。
+- 计划内轮换需要先发布仍由旧私钥签名、但内置新公钥的桥接版本；随后版本再切换到新私钥。若旧私钥已丢失或泄露，只能通过官网、管理员或其他外部渠道重新安装新的信任根。
+- 默认版本比较只接受远端版本高于当前版本。把稳定索引指回低版本只能阻止尚未更新的客户端继续获取坏版，不能让已更新客户端自动降级。
+- 若不在首版预置受控降级逻辑，坏版本的稳妥恢复方式是立即恢复最后健康索引以止损，并尽快发布版本号更高的修复版本。
+- 私钥与密码应保存在两个相互独立、可审计且完成恢复演练的机密位置；CI 只在 production 审批后通过环境变量临时注入，禁止进入仓库、`.env`、产物或日志。
+
+## Windows 安装与重启
+
+Tauri v2 updater 在 Windows NSIS `passive` 模式下默认启用安装后重启：下载完成并启动安装器时当前应用自动退出，官方安装器使用 `/P /UPDATE /R` 显示短进度，安装成功后重新启动新版本。JS 不能依赖 `install()` / `downloadAndInstall()` 之后再调用 `process.relaunch()`，本功能也不需要自定义 NSIS hook；真实行为必须以已安装 NSIS 旧版本到新版本的 Windows 验收为证据。

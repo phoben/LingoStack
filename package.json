@@ -19,12 +19,14 @@
     "test:e2e:run": "wdio run wdio.conf.ts",
     "test:production-isolation": "node scripts/check-production-isolation.mjs",
     "release:local": "pwsh -NoProfile -File scripts/build-release.ps1",
-    "notices:generate": "node scripts/generate-third-party-notices.mjs"
+    "notices:generate": "node scripts/generate-third-party-notices.mjs",
+    "test:release": "node --test scripts/prepare-updater-release-config.test.mjs scripts/release-manifest.test.mjs && python scripts/test_publish_immutable.py && cargo test -p lingostack-app --bin verify-updater-signature"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",
     "@tauri-apps/plugin-dialog": "^2.7.2",
     "@tauri-apps/plugin-fs": "2.5.1",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",

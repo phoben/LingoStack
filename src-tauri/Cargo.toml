@@ -26,6 +26,8 @@ thiserror = { workspace = true }
 dirs = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }
+base64 = "0.22"
+minisign-verify = "0.2.5"
 
 # Tauri 插件
 tauri-plugin-single-instance = { workspace = true }
@@ -43,6 +45,7 @@ lingostack-selection = { workspace = true }
 lingostack-tts = { workspace = true }
 lingostack-document = { workspace = true }
 lingostack-docparse = { workspace = true }
+tauri-plugin-updater = "2.10.1"
 
 [dev-dependencies]
 tempfile = { workspace = true }

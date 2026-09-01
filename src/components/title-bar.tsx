@@ -1,9 +1,20 @@
 import { type ComponentType, type ReactNode, useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Copy, Minus, Monitor, Moon, Square, Sun, X } from "lucide-react";
+import {
+  Copy,
+  Download,
+  LoaderCircle,
+  Minus,
+  Monitor,
+  Moon,
+  Square,
+  Sun,
+  X,
+} from "lucide-react";
 import { useThemeStore, type ThemeMode } from "@/stores/theme-store";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { UPDATER_ENABLED, useUpdateStore } from "@/stores/update-store";
 
 type IconType = ComponentType<{ className?: string }>;
 
@@ -13,7 +24,10 @@ const THEME_ICON: Record<ThemeMode, IconType> = {
   system: Monitor,
 };
 
-const THEME_I18N_KEY: Record<ThemeMode, "themeLight" | "themeDark" | "themeSystem"> = {
+const THEME_I18N_KEY: Record<
+  ThemeMode,
+  "themeLight" | "themeDark" | "themeSystem"
+> = {
   light: "themeLight",
   dark: "themeDark",
   system: "themeSystem",
@@ -60,6 +74,9 @@ export function TitleBar() {
   const t = useT();
   const mode = useThemeStore((s) => s.mode);
   const cycleMode = useThemeStore((s) => s.cycleMode);
+  const updateStatus = useUpdateStore((s) => s.status);
+  const availableUpdate = useUpdateStore((s) => s.available);
+  const installUpdate = useUpdateStore((s) => s.install);
   const [maximized, setMaximized] = useState(false);
 
   // 跟踪最大化状态以切换「最大化 / 还原」图标
@@ -118,9 +135,39 @@ export function TitleBar() {
           <ThemeIcon className="h-4 w-4" />
         </button>
 
+        {UPDATER_ENABLED && availableUpdate ? (
+          <button
+            type="button"
+            onClick={() => void installUpdate()}
+            disabled={updateStatus !== "available" && updateStatus !== "error"}
+            title={
+              updateStatus === "downloading"
+                ? t("downloadingUpdate")
+                : t("updateNow")
+            }
+            aria-label={
+              updateStatus === "downloading"
+                ? t("downloadingUpdate")
+                : t("updateNow")
+            }
+            className="flex h-8 w-8 items-center justify-center rounded-md text-info hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info/40 disabled:opacity-70"
+          >
+            {updateStatus === "downloading" ||
+            updateStatus === "installing" ||
+            updateStatus === "restarting" ? (
+              <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+          </button>
+        ) : null}
+
         <div className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
 
-        <WindowControl label={t("minimize")} onClick={() => appWindow.minimize()}>
+        <WindowControl
+          label={t("minimize")}
+          onClick={() => appWindow.minimize()}
+        >
           <Minus className="h-4 w-4" />
         </WindowControl>
         <WindowControl

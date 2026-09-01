@@ -4,6 +4,7 @@ import { TitleBar } from "./title-bar";
 import { useThemeStore } from "@/stores/theme-store";
 import { defaultConfig } from "@/lib/config-types";
 import { useConfigStore } from "@/stores/config-store";
+import { useUpdateStore } from "@/stores/update-store";
 
 const mockWindow = {
   minimize: vi.fn(),
@@ -22,6 +23,7 @@ describe("TitleBar", () => {
     vi.clearAllMocks();
     localStorage.clear();
     useThemeStore.setState({ mode: "system" });
+    useUpdateStore.getState().resetForTest();
     useConfigStore.setState({ config: { ...defaultConfig(), ui_language: "zh" } });
   });
 
@@ -59,6 +61,18 @@ describe("TitleBar", () => {
     const btn = await screen.findByRole("button", { name: "主题: 跟随系统" });
     fireEvent.click(btn);
     expect(useThemeStore.getState().mode).toBe("light");
+  });
+
+  it("shows the persistent update entry only after an update is available", async () => {
+    const install = vi.fn();
+    useUpdateStore.setState({
+      status: "available",
+      available: { version: "0.0.3", date: null, notes: "" },
+      install,
+    });
+    render(<TitleBar />);
+    fireEvent.click(await screen.findByRole("button", { name: "立即更新" }));
+    expect(install).toHaveBeenCalledOnce();
   });
 
   it("maximize icon switches to restore when maximized", async () => {

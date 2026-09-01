@@ -14,17 +14,21 @@
 - [ ] 加业务逻辑？先问它是否该下沉到能力 crate——本 crate 只做装配与边界转换
 - [ ] 动配置落盘？→ 注意 0600 权限**只在 Unix 生效**，见 [配置落盘](./config-persistence.md)
 - [ ] 动 Tauri 插件、capability、IPC 或桌面 E2E？→ 必读 [真实桌面 E2E 契约](./e2e-testing.md)，守住测试/生产隔离
+- [ ] 动客户端自动更新、签名验证或 release workflow？→ 必读 [自动更新与稳定版发布契约](./auto-update-release.md)
+- [ ] 动版本号、Git Tag、GitHub Environment/Secrets 或 COS/CDN 部署？→ 必读 [版本更新与生产部署契约](./version-release-deployment.md)
 - [ ] 准备交付或改 CI/构建？→ 按 [全仓测试策略](./testing-strategy.md) 选择完整门禁并标注证据等级
 
 ## 具体规范
 
-| 文档                                  | 内容                                                                |
-| ------------------------------------- | ------------------------------------------------------------------- |
-| [IPC 命令](./ipc-commands.md)         | 10 个命令清单、错误约定、流式与广播两套原语、提供商工厂             |
-| [配置落盘](./config-persistence.md)   | 路径解析、首次运行、权限收紧的现状与缺口                            |
-| [应用装配](./app-setup.md)            | 启动顺序、单实例、托盘、热键注册与冲突上报、ACL                     |
-| [真实桌面 E2E](./e2e-testing.md)      | WDIO embedded、fixture/配置、feature/capability 隔离、CI 与验证边界 |
-| [全仓测试策略](./testing-strategy.md) | 单元、协议、构建、E2E、平台验收的触发矩阵与证据分级                 |
+| 文档                                              | 内容                                                                |
+| ------------------------------------------------- | ------------------------------------------------------------------- |
+| [IPC 命令](./ipc-commands.md)                     | 10 个命令清单、错误约定、流式与广播两套原语、提供商工厂             |
+| [配置落盘](./config-persistence.md)               | 路径解析、首次运行、权限收紧的现状与缺口                            |
+| [应用装配](./app-setup.md)                        | 启动顺序、单实例、托盘、热键注册与冲突上报、ACL                     |
+| [自动更新与发布](./auto-update-release.md)        | Updater 状态机、签名、COS/CDN 不可变发布、stable-last 与恢复        |
+| [版本更新与部署](./version-release-deployment.md) | 版本同步、生产环境、Secret/Variable、COS/CDN 配置、发布与验收       |
+| [真实桌面 E2E](./e2e-testing.md)                  | WDIO embedded、fixture/配置、feature/capability 隔离、CI 与验证边界 |
+| [全仓测试策略](./testing-strategy.md)             | 单元、协议、构建、E2E、平台验收的触发矩阵与证据分级                 |
 
 ## 职责边界
 
