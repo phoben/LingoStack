@@ -6,7 +6,9 @@ vi.mock("@/lib/favorites-db", () => ({
   getAllFavorites: vi.fn(),
   putFavorite: vi.fn(),
   putFavorites: vi.fn(),
+  updateFavoriteIfExists: vi.fn(),
 }));
+vi.mock("@/lib/ipc", () => ({ explainTerms: vi.fn() }));
 
 import {
   deleteFavorite,
@@ -14,9 +16,14 @@ import {
   getAllFavorites,
   putFavorite,
   putFavorites,
+  updateFavoriteIfExists,
 } from "@/lib/favorites-db";
+import { explainTerms } from "@/lib/ipc";
 import type { Favorite } from "@/lib/favorites";
-import { useFavoritesStore } from "./favorites-store";
+import {
+  resetFavoritesExplanationQueueForTest,
+  useFavoritesStore,
+} from "./favorites-store";
 
 const favorite = (id: string, createdAt = 1): Favorite => ({
   id,
@@ -29,11 +36,15 @@ const favorite = (id: string, createdAt = 1): Favorite => ({
 
 describe("favorites-store", () => {
   beforeEach(() => {
+    resetFavoritesExplanationQueueForTest();
     vi.mocked(deleteFavorite).mockReset();
     vi.mocked(deleteFavorites).mockReset();
     vi.mocked(getAllFavorites).mockReset();
     vi.mocked(putFavorite).mockReset();
     vi.mocked(putFavorites).mockReset();
+    vi.mocked(updateFavoriteIfExists).mockReset();
+    vi.mocked(updateFavoriteIfExists).mockResolvedValue(true);
+    vi.mocked(explainTerms).mockReset();
     useFavoritesStore.setState({
       list: [favorite("existing")],
       loading: false,
@@ -82,12 +93,26 @@ describe("favorites-store", () => {
   });
 
   it("removes every historical duplicate even when its explanation differs", async () => {
-    const duplicate = { ...favorite("duplicate"), term: "EXISTING", meaning: "释义" };
-    const different = { ...favorite("different"), term: "existing", meaning: "另一释义" };
-    useFavoritesStore.setState({ list: [favorite("existing"), duplicate, different] });
+    const duplicate = {
+      ...favorite("duplicate"),
+      term: "EXISTING",
+      meaning: "释义",
+    };
+    const different = {
+      ...favorite("different"),
+      term: "existing",
+      meaning: "另一释义",
+    };
+    useFavoritesStore.setState({
+      list: [favorite("existing"), duplicate, different],
+    });
     await useFavoritesStore.getState().toggle(" existing ", "释义", "翻译");
     expect(useFavoritesStore.getState().list).toEqual([]);
-    expect(deleteFavorites).toHaveBeenCalledWith(["existing", "duplicate", "different"]);
+    expect(deleteFavorites).toHaveBeenCalledWith([
+      "existing",
+      "duplicate",
+      "different",
+    ]);
     expect(putFavorite).not.toHaveBeenCalled();
   });
 
@@ -96,7 +121,116 @@ describe("favorites-store", () => {
     const duplicate = { ...favorite("duplicate"), term: "existing" };
     useFavoritesStore.setState({ list: [favorite("existing"), duplicate] });
     await useFavoritesStore.getState().toggle("existing", "释义", "翻译");
-    expect(useFavoritesStore.getState().list.map((item) => item.id)).toEqual(["existing", "duplicate"]);
+    expect(useFavoritesStore.getState().list.map((item) => item.id)).toEqual([
+      "existing",
+      "duplicate",
+    ]);
     expect(useFavoritesStore.getState().error).toBe("blocked");
+  });
+
+  it("persists manual rows before starting explanation and freezes request language", async () => {
+    let resolveRequest!: (value: {
+      items: { id: string; explanation: string }[];
+    }) => void;
+    vi.mocked(explainTerms).mockReturnValue(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+    const result = await useFavoritesStore
+      .getState()
+      .addManualBatch(["Redis"], "en");
+    expect(result.count).toBe(1);
+    expect(putFavorites).toHaveBeenCalledOnce();
+    const pending = useFavoritesStore
+      .getState()
+      .list.find((item) => item.term === "Redis")!;
+    expect(pending.explanation).toEqual({ status: "pending", language: "en" });
+    await vi.waitFor(() =>
+      expect(explainTerms).toHaveBeenCalledWith(
+        [{ id: pending.id, content: "Redis" }],
+        "en",
+      ),
+    );
+    resolveRequest({
+      items: [{ id: pending.id, explanation: "An in-memory store." }],
+    });
+    await vi.waitFor(() =>
+      expect(
+        useFavoritesStore.getState().list.find((item) => item.id === pending.id)
+          ?.explanation?.status,
+      ).toBe("ready"),
+    );
+  });
+
+  it("rejects more than ten manual rows without persisting or invoking AI", async () => {
+    const result = await useFavoritesStore.getState().addManualBatch(
+      Array.from({ length: 11 }, (_, index) => `term-${index}`),
+      "zh",
+    );
+    expect(result.count).toBe(0);
+    expect(putFavorites).not.toHaveBeenCalled();
+    expect(explainTerms).not.toHaveBeenCalled();
+    expect(useFavoritesStore.getState().error).toContain("10");
+  });
+
+  it("does not enqueue a retry when restoring its pending state did not persist", async () => {
+    const failed: Favorite = {
+      ...favorite("failed"),
+      explanation: {
+        status: "failed",
+        language: "en",
+        error: "Could not generate the explanation. Please retry.",
+      },
+    };
+    useFavoritesStore.setState({ list: [failed] });
+    vi.mocked(updateFavoriteIfExists).mockResolvedValue(false);
+
+    await useFavoritesStore.getState().retryExplanations([failed.id]);
+
+    expect(explainTerms).not.toHaveBeenCalled();
+  });
+
+  it("deduplicates repeated retry clicks while the pending state is being persisted", async () => {
+    const failed: Favorite = {
+      ...favorite("failed"),
+      explanation: {
+        status: "failed",
+        language: "zh",
+        error: "无法生成解释，请重试",
+      },
+    };
+    useFavoritesStore.setState({ list: [failed] });
+    let resolvePersist!: (saved: boolean) => void;
+    vi.mocked(updateFavoriteIfExists).mockReturnValue(
+      new Promise((resolve) => {
+        resolvePersist = resolve;
+      }),
+    );
+
+    const first = useFavoritesStore.getState().retryExplanations([failed.id]);
+    const second = useFavoritesStore.getState().retryExplanations([failed.id]);
+    expect(updateFavoriteIfExists).toHaveBeenCalledOnce();
+
+    resolvePersist(false);
+    await Promise.all([first, second]);
+    expect(explainTerms).not.toHaveBeenCalled();
+  });
+
+  it("restores interrupted work in the language frozen for that batch without calling AI", async () => {
+    const interrupted: Favorite = {
+      ...favorite("interrupted"),
+      explanation: { status: "pending", language: "en" },
+    };
+    vi.mocked(getAllFavorites).mockResolvedValue([interrupted]);
+
+    await useFavoritesStore.getState().load();
+
+    expect(useFavoritesStore.getState().list[0]?.explanation).toEqual({
+      status: "failed",
+      language: "en",
+      error: "Previous generation did not finish. Retry it.",
+    });
+    expect(explainTerms).not.toHaveBeenCalled();
   });
 });

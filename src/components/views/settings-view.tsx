@@ -394,7 +394,7 @@ export function SettingsView() {
             </SetSection>
             <SetSection title={t("prompts")} desc={t("promptsHelp")}>
               <div className="space-y-5">
-                {(["translate", "naming", "doc_translate"] as const).map(
+                {(["translate", "naming", "explain", "doc_translate"] as const).map(
                   (feature) => (
                     <div key={feature} className="space-y-1">
                       <div className="flex items-center justify-between gap-3">
@@ -407,6 +407,8 @@ export function SettingsView() {
                               ? "translate"
                               : feature === "naming"
                                 ? "naming"
+                                : feature === "explain"
+                                  ? "termExplanation"
                                 : "documentModel",
                           )}
                         </label>

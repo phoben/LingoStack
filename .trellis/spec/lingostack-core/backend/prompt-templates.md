@@ -1,6 +1,6 @@
 # Prompt 模板
 
-`src/prompt.rs` + `src/prompts/{translate,naming,explain}.txt`。这是产品差异化的核心资产，改动纪律最严。
+`src/prompt.rs` + `src/prompts/{translate,naming,explain,document_translate}.txt`。这是产品差异化的核心资产，改动纪律最严。
 
 ## 加载机制
 
@@ -10,13 +10,14 @@
 pub const TRANSLATE_PROMPT: &str = include_str!("prompts/translate.txt");
 pub const NAMING_PROMPT: &str = include_str!("prompts/naming.txt");
 pub const EXPLAIN_PROMPT: &str = include_str!("prompts/explain.txt");
+pub const DOCUMENT_TRANSLATE_PROMPT: &str = include_str!("prompts/document_translate.txt");
 ```
 
 不是运行时文件读取——所以改了 `.txt` 必须重新编译才生效。
 
 ## 用户覆盖
 
-`PromptOverrides` 三个 `Option<String>` 字段，访问器实现「自定义优先，留空回退内置」（`prompt.rs:44-58`）：
+`PromptOverrides` 四个 `Option<String>` 字段，访问器实现「自定义优先，留空回退内置」：
 
 ```rust
 self.translate.as_deref().unwrap_or(TRANSLATE_PROMPT)
@@ -33,7 +34,7 @@ Rust 侧测试断言的是**内容不变量**，不是字面相等：
 - `translate_prompt_encodes_dev_language_rules`（`:91-101`）：必须含「原样保留」或「保留原文」、含「禁止意译」、含 `Redis`（技术名词不直译的探针）、含 `{target_lang}`
 - `:103-106`：`NAMING_PROMPT` 必须含 `{style}`
 - `:108-113`：`EXPLAIN_PROMPT` 必须含 `{target_lang}` 与「程序员」
-- `all_prompts_are_structurally_sound`（`:116-138`）：表驱动，三个 Prompt 各须长度 > 80、≥5 行、以 `\n` 结尾、**不含 `TODO` / `FIXME`**
+- `all_prompts_are_structurally_sound`：表驱动，四个 Prompt 各须长度 > 80、≥5 行、以 `\n` 结尾、**不含 `TODO` / `FIXME`**
 - `:141-145`：`TRANSLATE_PROMPT` 必须同时含 `{source_lang}` 和 `{target_lang}`（防只删一个导致字面占位符发给模型）
 
 **这些是语义探针，不是全文校验**。一次「保留所有关键词但重写其余全部」的改动能通过测试。所以：
@@ -57,6 +58,8 @@ effective_translation_prompt(source, target, explanation_language, state)
 - `{style}` 仍由命名视图替换；通用 `effective_prompt` 仍可返回原始模板，但翻译业务不得绕过专用命令自行拼协议。
 
 测试必须同时覆盖内置和自定义翻译 Prompt，并分别断言中文/英文界面得到对应的解释语言；IPC 测试还要断言参数使用 `explanationLanguage`，避免 Tauri 运行期缺参。
+
+批量术语解释统一调用 `compose_explain_prompt(base, language)`：先替换 `{target_lang}`，再追加不可覆盖的 1–10 项 JSON 数组协议。输入内容只能作为数据，输出每项只含原 `id` 与非空 `explanation`；技术名词保持原文。单项也必须使用长度为 1 的同一数组协议，禁止另建第二套 Prompt 或解析器。用户自定义 Explain Prompt 只能替换 `base`，不能移除输出结构和界面语言约束。
 
 ## 内容规范
 

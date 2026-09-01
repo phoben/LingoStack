@@ -1,0 +1,10 @@
+{"file":".trellis/spec/lingostack-app/frontend/index.md","reason":"Check frontend changes against package routing and quality gates."}
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"Verify dialog/list states preserve current production layout and minimum-window behavior."}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"Verify atomic favorites persistence, rollback, identity and restart semantics."}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"Verify keyboard/dialog/live-region coverage and evidence boundaries."}
+{"file":".trellis/spec/lingostack-app/backend/ipc-commands.md","reason":"Audit new command registration, model resolution and shared retry/cooldown behavior."}
+{"file":".trellis/spec/lingostack-app/backend/e2e-testing.md","reason":"Audit fixture isolation, real Tauri roundtrip and production separation."}
+{"file":".trellis/spec/lingostack-core/backend/prompt-templates.md","reason":"Audit protected batch protocol, interface language and Prompt invariants."}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"Cross-check Rust and TypeScript request/response naming and shapes."}
+{"file":".trellis/spec/guides/testing-strategy-guide.md","reason":"Classify static, automated, desktop and manual proof honestly."}
+{"file":".trellis/tasks/09-01-favorites-batch-add-ai-explanations/research/codebase-findings.md","reason":"Check implementation against discovered current behavior and overlapping worktree edits."}

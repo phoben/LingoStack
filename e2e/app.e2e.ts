@@ -115,6 +115,32 @@ describe("LingoStack desktop E2E", () => {
     await expect($("button[aria-label^='删除 ']")).toBeDisplayed();
   });
 
+  it("adds up to ten manual favorites and resolves their explanations through real IPC", async () => {
+    await $("button=收藏").click();
+    await $("button=新增").click();
+    const dialog = await $("[role='dialog']");
+    await expect(dialog).toBeDisplayed();
+    const addItem = await dialog.$("button=添加一项");
+    for (let index = 0; index < 9; index += 1) await addItem.click();
+    await expect(addItem).toBeDisabled();
+
+    const inputs = await dialog.$$("input");
+    await inputs[0].setValue("E2E_BATCH_FAVORITE_ONE");
+    await inputs[1].setValue("E2E_BATCH_FAVORITE_TWO");
+    await dialog.$("button=保存并生成解释").click();
+
+    await browser.waitUntil(
+      async () =>
+        (await renderedPageContains("E2E_BATCH_FAVORITE_ONE")) &&
+        (await renderedPageContains("E2E_BATCH_FAVORITE_TWO")),
+      { timeout: 10_000, timeoutMsg: "批量新增收藏未在列表中立即可见" },
+    );
+    await browser.waitUntil(
+      async () => await renderedPageContains("fixture explanation for"),
+      { timeout: 10_000, timeoutMsg: "批量收藏的 fixture 解释未完成" },
+    );
+  });
+
   it("renders fixture terms without leaking the protocol envelope", async () => {
     await $("button=翻译").click();
     const input = await $("textarea");

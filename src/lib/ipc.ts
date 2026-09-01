@@ -23,6 +23,14 @@ import type {
   ImportOutcome,
 } from "./document-types";
 
+export interface ExplainTermInput { id: string; content: string; }
+export interface ExplainTermOutput { id: string; explanation: string; }
+export interface ExplainTermsResponse { items: ExplainTermOutput[]; }
+
+export function explainTerms(items: ExplainTermInput[], language: "zh" | "en"): Promise<ExplainTermsResponse> {
+  return invoke<ExplainTermsResponse>("explain_terms", { items, language });
+}
+
 /** 取词来源：辅助 API 直读，或降级自剪贴板。 */
 export type SelectionSource = "accessibility" | "clipboard";
 

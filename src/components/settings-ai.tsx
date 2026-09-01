@@ -10,11 +10,12 @@ import type { ModelRef, ProviderConfig } from "@/lib/config-types";
 import { useT } from "@/lib/i18n";
 import { toast } from "sonner";
 
-type ModelField = "translate" | "naming" | "doc_translate" | "global_default";
+type ModelField = "translate" | "naming" | "explain" | "doc_translate" | "global_default";
 
 const FUNC_ROWS: ModelField[] = [
   "translate",
   "naming",
+  "explain",
   "doc_translate",
   "global_default",
 ];
@@ -22,6 +23,7 @@ const FUNC_ROWS: ModelField[] = [
 const ALL_MODEL_FIELDS = [
   "translate",
   "naming",
+  "explain",
   "doc_translate",
   "global_default",
 ] as const;
@@ -220,6 +222,8 @@ export function SettingsAi() {
                   ? t("translate")
                   : field === "naming"
                     ? t("naming")
+                    : field === "explain"
+                      ? t("termExplanation")
                     : field === "doc_translate"
                       ? t("documentModel")
                       : t("globalDefault");

@@ -124,3 +124,11 @@ deleteFavorites(ids: string[]): Promise<void>
 | 同词、同解释，仅空白/大小写不同 | 视为已收藏，点击后删除全部匹配项   |
 | 同词、不同解释                  | 仍视为已收藏，点击后删除全部同词项 |
 | 批量删除中途失败                | DB 与 Zustand 列表均保持操作前状态 |
+
+### 手动批量收藏的解释生命周期
+
+- 列表式新增最多 10 行；提交时用当前已加载的收藏身份集合再次校验空值、批内重复和历史重复。
+- `putFavorites` 原子成功是“收藏完成”边界，之后的 AI 解释由 store 会话队列异步执行；视图卸载不能取消任务。
+- `explanation.language` 固定为提交时的界面语言；ready 写入 `meaning`，failed 保留收藏并允许重试。
+- 结果写入必须调用 `updateFavoriteIfExists`，不能用 `putFavorite`；否则用户删除后，迟到的 AI 回调会重建记录。
+- 重启把 pending 转为 failed，禁止自动重新请求；导出只投影原公开字段。完整 IPC、错误矩阵和测试契约见 [收藏批量新增与后台术语解释](../backend/ipc-commands.md#scenario收藏批量新增与后台术语解释)。

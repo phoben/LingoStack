@@ -9,6 +9,7 @@ import {
   parseImport,
   sortByNewest,
   toExportJson,
+  validateManualFavorites,
 } from "./favorites";
 
 function fav(over: Partial<Favorite> = {}): Favorite {
@@ -159,5 +160,21 @@ describe("toExportJson", () => {
     ]);
     expect(json).toContain("\n");
     expect(JSON.parse(json).map((f: Favorite) => f.id)).toEqual(["new", "old"]);
+  });
+
+  it("does not expose internal explanation lifecycle metadata", () => {
+    const json = toExportJson([fav({ explanation: { status: "failed", language: "zh", error: "secret" } })]);
+    expect(json).not.toContain("explanation");
+    expect(json).not.toContain("secret");
+  });
+});
+
+describe("manual favorite validation", () => {
+  it("rejects empty, batch duplicate, and saved duplicate while retaining valid rows", () => {
+    const result = validateManualFavorites(["  ", "Redis", " redis ", "Kafka"], [fav({ term: "Kafka" })]);
+    expect(result.valid).toEqual(["Redis"]);
+    expect(result.errors.get(0)).toBe("empty");
+    expect(result.errors.get(2)).toBe("duplicate");
+    expect(result.errors.get(3)).toBe("alreadySaved");
   });
 });

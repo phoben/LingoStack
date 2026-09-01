@@ -1,0 +1,14 @@
+{"file":".trellis/spec/lingostack-app/frontend/index.md","reason":"Frontend package entrypoint and required UI/store guideline routing."}
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"Current production window, overlay, toolbar, status and minimum-size visual contract."}
+{"file":".trellis/spec/lingostack-app/frontend/components-and-styling.md","reason":"Handwritten UI primitive and feature-component boundaries; avoid a second component system."}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"Zustand service layer, favorites rollback, IndexedDB layering and term identity rules."}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"Dialog focus, async live-region, RTL and real desktop evidence requirements."}
+{"file":".trellis/spec/lingostack-app/backend/index.md","reason":"Tauri app boundary and command registration responsibilities."}
+{"file":".trellis/spec/lingostack-app/backend/ipc-commands.md","reason":"Typed IPC, provider factory, retry/cooldown and command registration contract."}
+{"file":".trellis/spec/lingostack-app/backend/e2e-testing.md","reason":"Feature-gated fixture provider, production isolation and real Tauri E2E contract."}
+{"file":".trellis/spec/lingostack-core/backend/index.md","reason":"Core purity and public pure-function test requirements."}
+{"file":".trellis/spec/lingostack-core/backend/prompt-templates.md","reason":"Explain Prompt ownership, protected protocol and snapshot-invariant discipline."}
+{"file":".trellis/spec/lingostack-core/backend/module-responsibilities.md","reason":"Keep prompt logic pure and Tauri/network behavior outside core."}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"Rust/TypeScript mirror and Tauri camelCase command-parameter hazards."}
+{"file":".trellis/spec/guides/testing-strategy-guide.md","reason":"Choose unit, IPC, E2E and manual evidence without overstating results."}
+{"file":".trellis/tasks/09-01-favorites-batch-add-ai-explanations/research/codebase-findings.md","reason":"Current CodeGraph findings, overlapping uncommitted task boundaries and blast radius."}

@@ -116,3 +116,28 @@ export async function deleteFavorites(ids: readonly string[]): Promise<void> {
     db.close();
   }
 }
+
+/** Update a record only if it still exists, preventing late AI results recreating deletions. */
+export async function updateFavoriteIfExists(
+  id: string,
+  update: (favorite: Favorite) => Favorite,
+): Promise<boolean> {
+  const db = await openDb();
+  try {
+    return await new Promise<boolean>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      const store = tx.objectStore(STORE);
+      const request = store.get(id) as IDBRequest<Favorite | undefined>;
+      let updated = false;
+      request.onsuccess = () => {
+        if (request.result) {
+          store.put(update(request.result));
+          updated = true;
+        }
+      };
+      tx.oncomplete = () => resolve(updated);
+      tx.onerror = () => reject(tx.error ?? new Error("IndexedDB 更新失败"));
+      tx.onabort = () => reject(tx.error ?? new Error("IndexedDB 更新中断"));
+    });
+  } finally { db.close(); }
+}

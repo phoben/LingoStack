@@ -20,6 +20,53 @@ export interface Favorite {
   source: FavSource;
   /** 创建时间戳（毫秒）。 */
   createdAt: number;
+  /** Internal lifecycle for manually requested AI explanations. Never exported. */
+  explanation?: FavoriteExplanationState;
+}
+
+export type ExplanationLanguage = "zh" | "en";
+export type FavoriteExplanationState =
+  | { status: "pending"; language: ExplanationLanguage }
+  | { status: "ready"; language: ExplanationLanguage }
+  | { status: "failed"; language: ExplanationLanguage; error: string };
+
+export const MAX_MANUAL_FAVORITES = 10;
+
+export interface ManualFavoriteValidation {
+  valid: string[];
+  errors: Map<number, "empty" | "duplicate" | "alreadySaved">;
+}
+
+/** Validate a dialog batch against its own rows and the persisted identity set. */
+export function validateManualFavorites(
+  contents: readonly string[],
+  existing: readonly Favorite[],
+): ManualFavoriteValidation {
+  const errors = new Map<number, "empty" | "duplicate" | "alreadySaved">();
+  const seen = new Set<string>();
+  const saved = new Set(existing.map((item) => normalizeFavoriteContent(item.term)));
+  const valid: string[] = [];
+  contents.slice(0, MAX_MANUAL_FAVORITES).forEach((content, index) => {
+    const term = content.trim();
+    const normalized = normalizeFavoriteContent(term);
+    if (!normalized) errors.set(index, "empty");
+    else if (seen.has(normalized)) errors.set(index, "duplicate");
+    else if (saved.has(normalized)) errors.set(index, "alreadySaved");
+    else {
+      seen.add(normalized);
+      valid.push(term);
+    }
+  });
+  return { valid, errors };
+}
+
+export function newManualFavorites(
+  contents: readonly string[], language: ExplanationLanguage, createdAt = Date.now(),
+): Favorite[] {
+  return contents.map((term, index) => ({
+    ...newFavorite(term, "", "手动", createdAt - index),
+    explanation: { status: "pending", language },
+  }));
 }
 
 /** Normalized content identity used only for matching, never for display or export. */
@@ -129,5 +176,8 @@ function isFavSource(v: unknown): v is FavSource {
 
 /** 导出为格式化 JSON（便于人工查看与 diff）。 */
 export function toExportJson(list: Favorite[]): string {
-  return JSON.stringify(sortByNewest(list), null, 2);
+  return JSON.stringify(sortByNewest(list).map((item) => ({
+    id: item.id, term: item.term, meaning: item.meaning, kind: item.kind,
+    source: item.source, createdAt: item.createdAt,
+  })), null, 2);
 }

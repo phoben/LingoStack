@@ -8,6 +8,7 @@ import {
   getAllFavorites,
   putFavorite,
   putFavorites,
+  updateFavoriteIfExists,
 } from "./favorites-db";
 
 const sample = (id: string, createdAt = 1): Favorite => ({
@@ -77,5 +78,14 @@ describe("favorites-db", () => {
     expect((await getAllFavorites()).map((item) => item.id)).toEqual([
       "existing",
     ]);
+  });
+
+  it("updates only an existing record and never recreates a deleted record", async () => {
+    await putFavorite(sample("one"));
+    expect(await updateFavoriteIfExists("one", (item) => ({ ...item, meaning: "updated" }))).toBe(true);
+    expect((await getAllFavorites())[0].meaning).toBe("updated");
+    await deleteFavorite("one");
+    expect(await updateFavoriteIfExists("one", (item) => ({ ...item, meaning: "late" }))).toBe(false);
+    expect(await getAllFavorites()).toEqual([]);
   });
 });

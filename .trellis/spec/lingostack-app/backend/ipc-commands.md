@@ -4,7 +4,7 @@
 
 ## 命令清单
 
-10 个命令，注册顺序见 `src/lib.rs`（配置/热键/Prompt/聊天在前，取词/朗读在后）：
+11 个命令，注册顺序见 `src/lib.rs`（配置/热键/Prompt/聊天在前，取词/朗读在后）：
 
 | 命令                           | 参数                                                                                  | 成功返回                                          | 位置                |
 | ------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------- |
@@ -14,6 +14,7 @@
 | `effective_prompt`             | `feature: Feature`, `state`                                                           | `String`（**含未替换的占位符**）                  | `:51-60`            |
 | `translation_plan`             | `text`, `source_override?`, `target_override?`, `effective_system_language?`, `state` | `TranslationPlan { source, target }`              | `commands.rs`       |
 | `effective_translation_prompt` | `source`, `target`, `explanation_language`, `state`                                   | 已替换语言占位符且追加不可覆盖机器协议的 `String` | `commands.rs`       |
+| `explain_terms`                | `items: ExplainTermInput[]`, `language`, `state`                                      | `ExplainTermsResponse { items }`                  | `commands.rs`       |
 | `chat_stream`                  | `feature`, `messages`, `on_event: Channel<ChatEvent>`, `state`                        | `()`                                              | `:75-104`           |
 | `get_selection`                | 无                                                                                    | `Selection`                                       | `:15-20`            |
 | `speak`                        | `text: String`, `on_event: Channel<TtsEvent>`                                         | `()`                                              | `:23-28`            |
@@ -142,6 +143,78 @@ effectiveTranslationPrompt(plan.source, plan.target, plan.source);
 
 // Correct：解释语言来自当前界面语言
 effectiveTranslationPrompt(plan.source, plan.target, resolveLocale(uiLanguage));
+```
+
+## Scenario：收藏批量新增与后台术语解释
+
+### 1. Scope / Trigger
+
+- Trigger：手动收藏需要在一次操作中保存 1–10 个术语，并在保存成功后通过 Explain 模型异步补全解释；该链路跨 IndexedDB、Zustand、Tauri IPC、Prompt 和 LLM。
+
+### 2. Signatures
+
+```rust
+explain_terms(
+    items: Vec<ExplainTermInput>, // { id, content }
+    language: Language,
+    state: State<'_, AppState>,
+) -> Result<ExplainTermsResponse, String> // { items: [{ id, explanation }] }
+```
+
+```ts
+addManualBatch(contents: string[], language: "zh" | "en"): Promise<AddManualBatchResult>
+retryExplanations(ids: string[]): Promise<void>
+```
+
+### 3. Contracts
+
+- UI 和 Rust 都强制每批 1–10 项；`language` 是保存时解析并冻结的界面语言，不能随原文、目标语言或后续设置变化。
+- 整批收藏先用一个 IndexedDB 事务提交，成功即显示；AI 失败不得撤销收藏。解释命令固定解析 `Feature::Explain`，复用其模型与自定义 Prompt。
+- Prompt 输入/输出都是 JSON 数组，并以 `id` 关联；未知、重复或空解释被过滤，未返回的预期项由前端标记失败，其他成功项照常落库。
+- AI 结果只能通过 `updateFavoriteIfExists` 条件更新，删除中的记录不得被迟到结果重新创建。重启发现 `pending` 时转为 `failed`，禁止自动重发和隐式计费。
+- `Favorite.explanation` 是内部可选元数据，不升级 `DB_VERSION`，也不得进入导出 JSON。
+
+### 4. Validation & Error Matrix
+
+| 条件                                      | 行为                                      |
+| ----------------------------------------- | ----------------------------------------- |
+| 0 项、超过 10 项、空 id/content 或重复 id | Rust 返回 `Err(String)`，不请求模型       |
+| IndexedDB 整批保存失败                    | 恢复旧列表，不入 AI 队列                  |
+| 响应整体不是 JSON 数组                    | 本批仍存在且未成功的项标记 failed         |
+| 单项未知、重复、空解释或缺失              | 仅对应预期项失败，保留其他成功结果        |
+| 条目在请求中被删除                        | 条件更新返回 false，禁止复活              |
+| 应用重启时仍为 pending                    | 按冻结语言持久化为 failed，只允许用户重试 |
+
+### 5. Good/Base/Bad Cases
+
+- Good：一次保存多个术语后立即出现在收藏列表，后台按界面语言逐项补全解释，部分失败可单项重试。
+- Base：只保存一个术语仍走同一数组协议；旧收藏没有 `explanation` 时保持原显示。
+- Bad：先等 AI 再保存会让网络失败吞掉用户输入；普通 `put` 迟到结果会复活已删除收藏；启动时自动续跑会产生不可见请求与费用。
+
+### 6. Tests Required
+
+- core/Rust：Prompt 的 JSON 协议与中英文约束；1–10 项、空值、重复 id；零输出重试和共享 429 冷却。
+- TS/IndexedDB/store：原子保存回滚、最多 10 项、部分成功、条件更新、删除竞争、重启不请求、失败重试与导出字段隔离。
+- RTL：dialog 焦点/Escape/10 行上限/重复提示/加载前禁用；pending/failed/retry 的可观察状态。
+- 真实 Tauri E2E：至少验证多项保存立即可见，并通过 feature-gated fixture 完成解释；不得使用真实 API Key。
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+await explainTerms(items, language);
+await putFavorites(items); // AI 失败会丢失用户明确要求保存的收藏
+```
+
+#### Correct
+
+```ts
+await putFavorites(items); // 单事务完成用户动作
+enqueueExplanation(
+  items.map(({ id }) => id),
+  language,
+); // 会话后台队列
 ```
 
 ## Scenario：设置持久化与热键即时重注册

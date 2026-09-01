@@ -8,7 +8,7 @@ use futures::StreamExt;
 use lingostack_core::config::{AppConfig, Feature, ProviderConfig, ProviderKind};
 use lingostack_core::hotkey::HotkeyBinding;
 use lingostack_core::lang::{Language, TranslationPlan};
-use lingostack_core::prompt::compose_translation_prompt;
+use lingostack_core::prompt::{compose_explain_prompt, compose_translation_prompt};
 use lingostack_document::{DocumentTranslationPort, DocumentTranslationRequest, DocumentView};
 use lingostack_llm::{ChatMessage, ChatRequest, LlmError, LlmProvider};
 use tauri::ipc::Channel;
@@ -589,6 +589,17 @@ mod e2e_fixture {
                     delta: output.into(),
                 })]));
             }
+            if let Ok(items) = serde_json::from_str::<Vec<serde_json::Value>>(input) {
+                let output = items
+                    .into_iter()
+                    .filter_map(|item| item.get("id")?.as_str().map(|id| {
+                        serde_json::json!({ "id": id, "explanation": format!("fixture explanation for {id}") })
+                    }))
+                    .collect::<Vec<_>>();
+                return Box::pin(stream::iter([Ok(ChatChunk {
+                    delta: serde_json::to_string(&output).unwrap_or_else(|_| "[]".into()),
+                })]));
+            }
             Box::pin(stream::iter([
                 Ok(ChatChunk {
                     delta: SUCCESS_OUTPUT[.."确定性的 ".len()].into(),
@@ -779,6 +790,118 @@ pub fn effective_translation_prompt(
     Ok(compose_translation_prompt(&base, explanation_language))
 }
 
+#[derive(Clone, serde::Deserialize)]
+pub struct ExplainTermInput {
+    pub id: String,
+    pub content: String,
+}
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExplainTermOutput {
+    pub id: String,
+    pub explanation: String,
+}
+#[derive(Clone, serde::Serialize)]
+pub struct ExplainTermsResponse {
+    pub items: Vec<ExplainTermOutput>,
+}
+
+fn validate_explain_inputs(items: &[ExplainTermInput]) -> Result<(), String> {
+    if items.is_empty() || items.len() > 10 {
+        return Err("术语解释一次需要 1 到 10 项内容".into());
+    }
+    let mut ids = std::collections::HashSet::new();
+    for item in items {
+        if item.id.trim().is_empty() || item.content.trim().is_empty() {
+            return Err("术语标识和内容不能为空".into());
+        }
+        if !ids.insert(item.id.trim()) {
+            return Err("术语标识不能重复".into());
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn explain_terms(
+    items: Vec<ExplainTermInput>,
+    language: Language,
+    state: State<'_, AppState>,
+) -> Result<ExplainTermsResponse, String> {
+    validate_explain_inputs(&items)?;
+    let cfg = config_store::load(&state.config_path).map_err(|error| error.to_string())?;
+    let (provider_cfg, model_ref) = cfg
+        .resolve_model(Feature::Explain)
+        .map_err(|error| error.to_string())?;
+    let prompt = compose_explain_prompt(cfg.prompt_overrides.explain(), language);
+    let user = serde_json::to_string(
+        &items
+            .iter()
+            .map(|item| serde_json::json!({"id": item.id, "content": item.content.trim()}))
+            .collect::<Vec<_>>(),
+    )
+    .map_err(|error| error.to_string())?;
+    let request = ChatRequest::new(
+        model_ref.model.clone(),
+        vec![ChatMessage::system(prompt), ChatMessage::user(user)],
+    );
+    let output = collect_provider_output(provider_cfg, &request, &state.rate_limit_until).await?;
+    let parsed: Vec<ExplainTermOutput> =
+        serde_json::from_str(&output).map_err(|_| "术语解释返回的不是 JSON 数组".to_string())?;
+    let expected = items
+        .iter()
+        .map(|item| item.id.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    let mut seen = std::collections::HashSet::new();
+    Ok(ExplainTermsResponse {
+        items: parsed
+            .into_iter()
+            .filter(|item| {
+                expected.contains(item.id.as_str())
+                    && !item.explanation.trim().is_empty()
+                    && seen.insert(item.id.clone())
+            })
+            .collect(),
+    })
+}
+
+async fn collect_provider_output(
+    provider_cfg: &ProviderConfig,
+    request: &ChatRequest,
+    cooldown: &Mutex<Option<Instant>>,
+) -> Result<String, String> {
+    let mut retried = false;
+    loop {
+        if let Some(delay) = shared_cooldown_delay(cooldown, Instant::now()) {
+            tokio::time::sleep(delay).await;
+        }
+        let mut output = String::new();
+        // Recreate the provider for every attempt, matching chat_stream. This
+        // keeps retries safe for providers whose stream clients are one-shot.
+        let provider = build_provider(provider_cfg)?;
+        let mut stream = provider.chat_stream(request);
+        let mut retry_error: Option<LlmError> = None;
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(chunk) => output.push_str(&chunk.delta),
+                Err(error) if should_retry(!output.is_empty(), retried, &error) => {
+                    retry_error = Some(error);
+                    break;
+                }
+                Err(error) => return Err(error.to_string()),
+            }
+        }
+        if let Some(error) = retry_error {
+            retried = true;
+            retry_after_zero_output_failure(&error, cooldown).await;
+            continue;
+        }
+        if output.trim().is_empty() {
+            return Err("术语解释未返回内容".into());
+        }
+        return Ok(output);
+    }
+}
+
 /// [`chat_stream`] 经 Channel 推回前端的流式事件。
 #[derive(serde::Serialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -842,15 +965,7 @@ pub async fn chat_stream(
         }
         if let Some(error) = retry_error {
             retried = true;
-            if error.is_rate_limited() {
-                extend_shared_cooldown(
-                    &state.rate_limit_until,
-                    Instant::now(),
-                    Duration::from_secs(1),
-                );
-            } else {
-                tokio::time::sleep(Duration::from_millis(250)).await;
-            }
+            retry_after_zero_output_failure(&error, &state.rate_limit_until).await;
             continue;
         }
         break;
@@ -861,6 +976,17 @@ pub async fn chat_stream(
 
 fn should_retry(sent_chunk: bool, retried: bool, error: &LlmError) -> bool {
     !sent_chunk && !retried && error.is_retryable()
+}
+
+/// The shared retry boundary for streaming and collected LLM work. A 429 sets
+/// the process-wide cooldown; all other retryable zero-output failures back
+/// off once before their next attempt.
+async fn retry_after_zero_output_failure(error: &LlmError, cooldown: &Mutex<Option<Instant>>) {
+    if error.is_rate_limited() {
+        extend_shared_cooldown(cooldown, Instant::now(), Duration::from_secs(1));
+    } else {
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
 }
 
 /// 返回所有请求都必须遵守的限流剩余时间，不在锁内等待。
@@ -987,6 +1113,34 @@ mod tests {
             false,
             &LlmError::Stream("bad envelope".into())
         ));
+    }
+
+    #[test]
+    fn explain_inputs_reject_empty_duplicate_and_over_limit_batches() {
+        assert!(validate_explain_inputs(&[]).is_err());
+        assert!(validate_explain_inputs(&[
+            ExplainTermInput {
+                id: "same".into(),
+                content: "Redis".into()
+            },
+            ExplainTermInput {
+                id: "same".into(),
+                content: "Kafka".into()
+            },
+        ])
+        .is_err());
+        let too_many = (0..11)
+            .map(|index| ExplainTermInput {
+                id: index.to_string(),
+                content: "term".into(),
+            })
+            .collect::<Vec<_>>();
+        assert!(validate_explain_inputs(&too_many).is_err());
+        assert!(validate_explain_inputs(&[ExplainTermInput {
+            id: "one".into(),
+            content: "Redis".into()
+        }])
+        .is_ok());
     }
 
     #[tokio::test]

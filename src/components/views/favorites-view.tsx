@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bookmark, Search, Square, Trash2, Volume2 } from "lucide-react";
+import { Bookmark, Plus, Search, Square, Trash2, Volume2 } from "lucide-react";
+import { AddFavoritesDialog } from "@/components/add-favorites-dialog";
 import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,7 @@ interface FavoriteRowProps {
   speakText: (text: string) => Promise<void>;
   stop: () => Promise<void>;
   remove: (id: string) => Promise<void>;
+  retry: (id: string) => Promise<void>;
 }
 
 function FavoriteRow({
@@ -39,6 +41,7 @@ function FavoriteRow({
   speakText,
   stop,
   remove,
+  retry,
 }: FavoriteRowProps) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
@@ -89,10 +92,11 @@ function FavoriteRow({
           <span ref={termRef} className={`min-w-0 font-mono text-sm font-medium text-foreground ${textClass}`}>
             {favorite.term}
           </span>
-          <span ref={meaningRef} className={`min-w-0 text-sm text-muted-foreground ${textClass}`}>
-            {favorite.meaning}
+          <span ref={meaningRef} aria-live="polite" aria-busy={favorite.explanation?.status === "pending"} className={`min-w-0 text-sm text-muted-foreground ${textClass}`}>
+            {favorite.meaning || (favorite.explanation?.status === "pending" ? t("explanationPending") : "")}
           </span>
         </div>
+        {favorite.explanation?.status === "failed" ? <div role="alert" className="mt-1 flex items-center gap-2 text-xs text-destructive"><span>{t("explanationFailed", { message: favorite.explanation.error })}</span><button type="button" className="text-info hover:underline" onClick={() => void retry(favorite.id)}>{t("retry")}</button></div> : null}
         <div className="mt-1 flex min-w-0 items-center gap-2">
           <span className="min-w-0 font-mono text-[10px] text-muted-foreground">
             {t(favorite.kind)} · {favorite.source} · {formatDate(favorite.createdAt)}
@@ -154,6 +158,7 @@ export function FavoritesView() {
   const load = useFavoritesStore((s) => s.load);
   const remove = useFavoritesStore((s) => s.remove);
   const importAll = useFavoritesStore((s) => s.importAll);
+  const retryExplanations = useFavoritesStore((s) => s.retryExplanations);
   const ttsStatus = useTtsStore((s) => s.status);
   const speakingText = useTtsStore((s) => s.text);
   const speakText = useTtsStore((s) => s.speakText);
@@ -161,6 +166,8 @@ export function FavoritesView() {
 
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | FavKind>("all");
+  const [adding, setAdding] = useState(false);
+  const addButton = useRef<HTMLButtonElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -250,6 +257,7 @@ export function FavoritesView() {
             ))}
           </div>
           <div className="ml-auto flex items-center gap-1.5">
+            <Button ref={addButton} size="sm" onClick={() => setAdding(true)}><Plus className="h-3.5 w-3.5" />{t("addFavorite")}</Button>
             <Button
               variant="outline"
               size="sm"
@@ -308,11 +316,13 @@ export function FavoritesView() {
                 speakText={speakText}
                 stop={stop}
                 remove={remove}
+                retry={(id) => retryExplanations([id])}
               />
             ))
           )}
         </div>
       </div>
+      {adding ? <AddFavoritesDialog onClose={() => { setAdding(false); requestAnimationFrame(() => addButton.current?.focus()); }} /> : null}
     </ViewShell>
   );
 }
