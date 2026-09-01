@@ -17,7 +17,7 @@ interface TtsState {
   clearError: () => void;
 }
 
-/** TTS 只确认引擎已受理；speaking 持续到用户停止或下一次朗读替换它。 */
+/** TTS 的开始与自然完成均由请求级 IPC Channel 驱动。 */
 export const useTtsStore = create<TtsState>((set) => ({
   status: "idle",
   text: null,
@@ -27,8 +27,14 @@ export const useTtsStore = create<TtsState>((set) => ({
     const generation = ++requestGeneration;
     set({ status: "submitting", text, error: null });
     try {
-      await speak(text);
-      if (generation === requestGeneration) set({ status: "speaking", text });
+      await speak(text, (event) => {
+        if (generation !== requestGeneration) return;
+        if (event.type === "started") set({ status: "speaking", text });
+        if (event.type === "done") set({ status: "idle", text: null });
+        if (event.type === "error") {
+          set({ status: "error", text: null, error: event.message });
+        }
+      });
     } catch (error) {
       if (generation === requestGeneration) {
         set({ status: "error", text: null, error: stringifyError(error) });

@@ -1,0 +1,9 @@
+{"file":".trellis/spec/lingostack-app/frontend/index.md","reason":"共享 React/Zustand 朗读状态与前端门禁入口"}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"tts-store 代次守卫、收藏 store 和异步状态契约"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"按钮可观察状态、ARIA 与 RTL 测试要求"}
+{"file":".trellis/spec/lingostack-app/backend/ipc-commands.md","reason":"Tauri command 与请求级 Channel 契约"}
+{"file":".trellis/spec/lingostack-app/backend/e2e-testing.md","reason":"feature-gated 真实 IPC Channel 与生产隔离"}
+{"file":".trellis/spec/lingostack-app/backend/testing-strategy.md","reason":"跨前端、IPC、Rust 和系统验收的证据边界"}
+{"file":".trellis/spec/lingostack-tts/backend/index.md","reason":"SAPI 常驻线程、打断语义和平台测试上限"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"Rust 与 TypeScript IPC 同步规则"}
+{"file":".trellis/spec/guides/platform-isolation-guide.md","reason":"TTS 平台隔离和 Windows COM 约束"}

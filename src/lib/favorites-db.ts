@@ -92,3 +92,27 @@ export async function putFavorites(list: Favorite[]): Promise<void> {
 export async function deleteFavorite(id: string): Promise<void> {
   await withStore("readwrite", (s) => s.delete(id) as IDBRequest<undefined>);
 }
+
+/** Deletes all supplied ids in one transaction. Empty input must not open a transaction. */
+export async function deleteFavorites(ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      const store = tx.objectStore(STORE);
+      try {
+        ids.forEach((id) => store.delete(id));
+      } catch (error) {
+        tx.abort();
+        reject(error);
+        return;
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error ?? new Error("IndexedDB 批量删除失败"));
+      tx.onabort = () => reject(tx.error ?? new Error("IndexedDB 事务中断"));
+    });
+  } finally {
+    db.close();
+  }
+}

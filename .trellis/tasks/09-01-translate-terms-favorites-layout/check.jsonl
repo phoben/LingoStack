@@ -1,0 +1,8 @@
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"检查单层布局、viewport overlay、长文本与最小窗口完整性"}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"检查收藏 toggle 原子性、乐观更新和失败回滚"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"检查语义交互、ARIA、RTL 与真实桌面证据边界"}
+{"file":".trellis/spec/lingostack-core/backend/prompt-templates.md","reason":"检查术语协议兼容和界面语言语义探针"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"检查 Rust/TypeScript 新参数与真实 IPC 往返"}
+{"file":".trellis/spec/lingostack-app/backend/testing-strategy.md","reason":"检查最终门禁和证据等级是否完整"}
+{"file":".trellis/spec/lingostack-app/backend/e2e-testing.md","reason":"检查术语收藏关键桌面链路和生产隔离"}
+{"file":".trellis/tasks/09-01-translate-terms-favorites-layout/research/ui-term-favorites-findings.md","reason":"按已确认根因与运行态风险复核实现"}

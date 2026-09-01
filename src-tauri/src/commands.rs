@@ -611,16 +611,51 @@ pub fn get_selection() -> Result<lingostack_selection::Selection, String> {
         .map_err(|e| e.to_string())
 }
 
+/// [`speak`] 经 Channel 推回前端的播放状态。
+#[derive(serde::Serialize, Clone)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum TtsEvent {
+    Started,
+    Done,
+    Error { message: String },
+}
+
 /// 朗读文本（异步，打断上一句）。
 #[tauri::command]
-pub fn speak(text: String) -> Result<(), String> {
+pub fn speak(text: String, on_event: Channel<TtsEvent>) -> Result<(), String> {
     #[cfg(feature = "e2e")]
     if text == e2e_fixture::TTS_TEXT {
+        std::thread::Builder::new()
+            .name("lingostack-tts-e2e".to_owned())
+            .spawn(move || {
+                let _ = on_event.send(TtsEvent::Started);
+                std::thread::sleep(Duration::from_millis(250));
+                let _ = on_event.send(TtsEvent::Done);
+            })
+            .map_err(|error| format!("E2E 朗读夹具线程启动失败: {error}"))?;
         return Ok(());
     }
-    lingostack_tts::speaker()
+    let completion = lingostack_tts::speaker()
         .speak(&text)
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    on_event
+        .send(TtsEvent::Started)
+        .map_err(|e| e.to_string())?;
+    std::thread::Builder::new()
+        .name("lingostack-tts-completion".to_owned())
+        .spawn(move || match completion.wait() {
+            Ok(lingostack_tts::SpeechOutcome::Finished) => {
+                let _ = on_event.send(TtsEvent::Done);
+            }
+            Ok(lingostack_tts::SpeechOutcome::Interrupted) => {}
+            Err(error) => {
+                let _ = on_event.send(TtsEvent::Error {
+                    message: error.to_string(),
+                });
+            }
+        })
+        .map_err(|error| format!("朗读完成监听线程启动失败: {error}"))?;
+    Ok(())
 }
 
 /// 停止当前朗读。
@@ -732,6 +767,7 @@ pub fn translation_plan(
 pub fn effective_translation_prompt(
     source: Language,
     target: Language,
+    explanation_language: Language,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     let cfg = config_store::load(&state.config_path).map_err(|e| e.to_string())?;
@@ -740,7 +776,7 @@ pub fn effective_translation_prompt(
         .translate()
         .replace("{source_lang}", source.display_name())
         .replace("{target_lang}", target.display_name());
-    Ok(compose_translation_prompt(&base, source))
+    Ok(compose_translation_prompt(&base, explanation_language))
 }
 
 /// [`chat_stream`] 经 Channel 推回前端的流式事件。
@@ -1089,6 +1125,25 @@ mod tests {
         assert_eq!(
             json,
             "{\"type\":\"status\",\"message\":\"服务繁忙，正在短暂等待后重试…\"}"
+        );
+    }
+
+    #[test]
+    fn tts_events_serialize_for_the_typescript_ipc_mirror() {
+        assert_eq!(
+            serde_json::to_string(&TtsEvent::Started).unwrap(),
+            r#"{"type":"started"}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&TtsEvent::Done).unwrap(),
+            r#"{"type":"done"}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&TtsEvent::Error {
+                message: "状态读取失败".into(),
+            })
+            .unwrap(),
+            r#"{"type":"error","message":"状态读取失败"}"#
         );
     }
 

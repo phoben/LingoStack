@@ -6,20 +6,21 @@
 
 10 个命令，注册顺序见 `src/lib.rs`（配置/热键/Prompt/聊天在前，取词/朗读在后）：
 
-| 命令 | 参数 | 成功返回 | 位置 |
-|------|------|----------|------|
-| `load_config` | `state` | `AppConfig` | `commands.rs:37-40` |
-| `save_config` | `cfg: AppConfig`, `state` | `()` | `:43-46` |
-| `register_hotkeys` | `bindings: Vec<HotkeyBinding>`, `app`, `state` | `HotkeyStatus[]` | `commands.rs` |
-| `effective_prompt` | `feature: Feature`, `state` | `String`（**含未替换的占位符**） | `:51-60` |
-| `translation_plan` | `text`, `source_override?`, `target_override?`, `effective_system_language?`, `state` | `TranslationPlan { source, target }` | `commands.rs` |
-| `effective_translation_prompt` | `source`, `target`, `state` | 已替换语言占位符且追加不可覆盖机器协议的 `String` | `commands.rs` |
-| `chat_stream` | `feature`, `messages`, `on_event: Channel<ChatEvent>`, `state` | `()` | `:75-104` |
-| `get_selection` | 无 | `Selection` | `:15-20` |
-| `speak` | `text: String` | `()` | `:23-28` |
-| `stop_speaking` | 无 | `()` | `:31-34` |
+| 命令                           | 参数                                                                                  | 成功返回                                          | 位置                |
+| ------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------- |
+| `load_config`                  | `state`                                                                               | `AppConfig`                                       | `commands.rs:37-40` |
+| `save_config`                  | `cfg: AppConfig`, `state`                                                             | `()`                                              | `:43-46`            |
+| `register_hotkeys`             | `bindings: Vec<HotkeyBinding>`, `app`, `state`                                        | `HotkeyStatus[]`                                  | `commands.rs`       |
+| `effective_prompt`             | `feature: Feature`, `state`                                                           | `String`（**含未替换的占位符**）                  | `:51-60`            |
+| `translation_plan`             | `text`, `source_override?`, `target_override?`, `effective_system_language?`, `state` | `TranslationPlan { source, target }`              | `commands.rs`       |
+| `effective_translation_prompt` | `source`, `target`, `explanation_language`, `state`                                   | 已替换语言占位符且追加不可覆盖机器协议的 `String` | `commands.rs`       |
+| `chat_stream`                  | `feature`, `messages`, `on_event: Channel<ChatEvent>`, `state`                        | `()`                                              | `:75-104`           |
+| `get_selection`                | 无                                                                                    | `Selection`                                       | `:15-20`            |
+| `speak`                        | `text: String`, `on_event: Channel<TtsEvent>`                                         | `()`                                              | `:23-28`            |
+| `stop_speaking`                | 无                                                                                    | `()`                                              | `:31-34`            |
 
 `speak` / `stop_speaking` 由共享 `tts-store` 调用，翻译页与收藏页复用同一 active utterance 状态。
+`speak` 使用请求级 `Channel<TtsEvent>`：引擎受理时发送 `started`，自然结束发送 `done`，完成监测失败发送 `error`；被新的朗读或停止打断的旧请求不发送 `done`。TypeScript 侧仍以 camelCase 传递 `onEvent`。
 
 ## 错误一律拍平为 String
 
@@ -69,6 +70,7 @@ translation_plan(
 effective_translation_prompt(
     source: Language,
     target: Language,
+    explanation_language: Language,
     state: State<'_, AppState>,
 ) -> Result<String, String>
 
@@ -80,41 +82,44 @@ chat_stream(
 ) -> Result<(), String>
 ```
 
-TypeScript 参数必须用 Tauri 的 camelCase 命令参数名：`sourceOverride`、`targetOverride`、`effectiveSystemLanguage`、`onEvent`。
+TypeScript 参数必须用 Tauri 的 camelCase 命令参数名：`sourceOverride`、`targetOverride`、`effectiveSystemLanguage`、`explanationLanguage`、`onEvent`。
 
 ### 3. Contracts
 
 - `TranslationPlan` 两侧均为 `{ source: "zh" | "en" | "ja", target: ... }`；显式选择优先，其次使用 core 的检测、语言映射、界面语言和全局目标规则。`ui_language = system` 时，前端必须把已解析的系统语言作为 `effective_system_language` 传入，缺失时 core 保守回退英文。
-- `effective_translation_prompt` 先替换 `{source_lang}` / `{target_lang}`，再追加 `<<<LINGOSTACK_TERMS_V1>>>` 协议；用户 Prompt 只能改变风格，不能删除协议。
+- `effective_translation_prompt` 先替换 `{source_lang}` / `{target_lang}`，再追加 `<<<LINGOSTACK_TERMS_V1>>>` 协议；`explanation_language` 必须是前端已解析的当前界面语言，只控制术语解释文案，不得用原文或译文语言代替。用户 Prompt 只能改变风格，不能删除协议或解释语言约束。
 - 信封为“译文 + 独立 sentinel 行 + JSON 数组”。前端只流式发布译文；JSON 完成后逐项过滤字段、类别、上下文词面和大小写重复项，最多发布 5 项。不得维护普通词黑名单；专业性由固定 Prompt、类别和验收样例约束。
 - `ChatEvent.status` 只表达仍在处理的诊断状态，不结束任务。`done` 才正常完成；`error` 保留已显示译文。
 - `AppState.rate_limit_until` 是进程共享截止时间；任一请求遇到 429 只延长截止时间，之后进入的请求先发送 `status` 再等待，锁内不得 sleep。
 
 ### 4. Validation & Error Matrix
 
-| 条件 | 行为 |
-|------|------|
-| 无 sentinel 的旧模型输出 | 全部作为译文，术语为空 |
-| JSON 不是数组或无法解析 | 保留译文、隐藏术语、给出非阻塞诊断 |
-| 单项字段/类别/词面无效 | 仅丢弃该项，不污染译文或其他合法项 |
-| 超过 5 个合法项 | 只保留前 5 项 |
-| 网络/超时/5xx/429 且零输出 | 最多自动重试一次 |
-| 401/403、协议错误或已有部分输出 | 不自动重放；发送 `error` 并返回 `Err` |
-| 共享 429 冷却未结束 | 新请求发送 `status` 后等待剩余时间 |
+| 条件                            | 行为                                                            |
+| ------------------------------- | --------------------------------------------------------------- |
+| 无 sentinel 的旧模型输出        | 全部作为译文，术语为空                                          |
+| JSON 不是数组或无法解析         | 保留译文、隐藏术语、给出非阻塞诊断                              |
+| 单项字段/类别/词面无效          | 仅丢弃该项，不污染译文或其他合法项                              |
+| 超过 5 个合法项                 | 只保留前 5 项                                                   |
+| 缺少 `explanationLanguage`      | Tauri 命令拒绝调用；前端封装与 IPC 单测必须阻止该漂移           |
+| 界面语言为中文/英文             | Prompt 明确要求 explanation 使用中文/英文，与原文和目标语言无关 |
+| 网络/超时/5xx/429 且零输出      | 最多自动重试一次                                                |
+| 401/403、协议错误或已有部分输出 | 不自动重放；发送 `error` 并返回 `Err`                           |
+| 共享 429 冷却未结束             | 新请求发送 `status` 后等待剩余时间                              |
 
 ### 5. Good/Base/Bad Cases
 
-- Good：流式译文完成后发布 0–5 个上下文 IT 术语，hover/focus 均可读解释。
+- Good：英文原文翻译为中文且英文界面时，译文仍为中文、术语解释为英文；hover/focus 均可读解释。
 - Base：纯文本旧响应仍完整显示，不渲染空术语区。
-- Bad：把 sentinel/JSON 直接拼进 `output`，或在已有部分译文后自动重放请求，都会造成协议泄漏或重复计费。
+- Bad：把原文语言传给 `explanation_language` 会让解释随输入变化；把 sentinel/JSON 直接拼进 `output` 或在已有部分译文后自动重放会造成协议泄漏或重复计费。
 
 ### 6. Tests Required
 
-- core：显式语言覆盖优先级、固定协议不能被自定义 Prompt 覆盖。
+- core：显式语言覆盖优先级；中文/英文解释语言；固定协议和解释语言不能被自定义 Prompt 覆盖。
 - provider wiremock：OpenAI、Anthropic、Gemini 归一化后都产生相同信封文本。
 - Rust 应用层：零输出重试矩阵、共享冷却只延长、`ChatEvent.status` JSON 形状。
 - TypeScript：sentinel 任意分片、缺失/损坏 JSON、无效项过滤、大小写去重和最多 5 项。
-- RTL：术语区为空时不渲染；tag hover、focus、Escape 可观察。
+- RTL：术语区为空时不渲染；tag hover、focus、Escape 可观察；收藏按钮加载、点亮、取消、并发防重与失败提示可观察。
+- IPC：`effectiveTranslationPrompt` 必须发送 camelCase `explanationLanguage`。
 - 真实边界：IPC 改动后至少运行一次 `pnpm tauri dev` 往返。
 
 ### 7. Wrong vs Correct
@@ -129,6 +134,14 @@ output += event.delta; // sentinel 与 JSON 会进入用户译文
 
 ```ts
 output = parser.push(event.delta); // 只发布已确认不是协议前缀的译文
+```
+
+```ts
+// Wrong：解释语言随输入变化
+effectiveTranslationPrompt(plan.source, plan.target, plan.source);
+
+// Correct：解释语言来自当前界面语言
+effectiveTranslationPrompt(plan.source, plan.target, resolveLocale(uiLanguage));
 ```
 
 ## Scenario：设置持久化与热键即时重注册
@@ -167,13 +180,13 @@ registerHotkeys(bindings: HotkeyBinding[]): Promise<HotkeyStatus[]>
 
 ### 4. Validation & Error Matrix
 
-| 条件 | 行为 |
-|------|------|
-| 空主键或无修饰键 | 前端阻止保存；后端注册层仍返回 `registered=false` |
-| 两个应用动作使用同一组合 | 前端阻止保存并定位重复项 |
-| 系统或其他应用占用 | 保存保留，当前项标红；其他合法项继续生效 |
-| 配置文件读取/写入失败 | IPC 返回 `Err(String)`，前端保留用户输入并展示错误 |
-| 旧 `translate_popup` | 无损迁移到 `translate_selection`，规范化后去重 |
+| 条件                       | 行为                                                 |
+| -------------------------- | ---------------------------------------------------- |
+| 空主键或无修饰键           | 前端阻止保存；后端注册层仍返回 `registered=false`    |
+| 两个应用动作使用同一组合   | 前端阻止保存并定位重复项                             |
+| 系统或其他应用占用         | 保存保留，当前项标红；其他合法项继续生效             |
+| 配置文件读取/写入失败      | IPC 返回 `Err(String)`，前端保留用户输入并展示错误   |
+| 旧 `translate_popup`       | 无损迁移到 `translate_selection`，规范化后去重       |
 | 重注册调用成功但个别项失败 | Promise 正常返回状态数组，不把部分冲突提升为命令失败 |
 
 ### 5. Good/Base/Bad Cases
@@ -223,8 +236,8 @@ fn apply_effect(app: &AppHandle, effect: HotkeyEffect)
 ```
 
 ```ts
-listen<TranslateSelectionPayload | undefined>("translate-selection", handler)
-listen<AppView>("navigate-view", handler)
+listen<TranslateSelectionPayload | undefined>("translate-selection", handler);
+listen<AppView>("navigate-view", handler);
 ```
 
 ### 3. Contracts
@@ -238,14 +251,14 @@ listen<AppView>("navigate-view", handler)
 
 ### 4. Validation & Error Matrix
 
-| 条件 | 行为 |
-|------|------|
-| UIA 有非空选区 | 载荷 source=accessibility，注入原文并自动翻译 |
-| UIA 无选区、剪贴板有文本 | source=clipboard，显示降级提示 |
-| 两级均失败 | error 提示手动粘贴，不无声清空现有输入 |
-| 先聚焦主窗口再调用 `get_selection` | 禁止；会读取 LingoStack 自身焦点并误降级 |
-| 标题栏关闭 / Alt+F4 | main 隐藏，进程和托盘保留 |
-| 第二实例启动 | 新进程短时退出，常驻实例数仍为 1 |
+| 条件                               | 行为                                          |
+| ---------------------------------- | --------------------------------------------- |
+| UIA 有非空选区                     | 载荷 source=accessibility，注入原文并自动翻译 |
+| UIA 无选区、剪贴板有文本           | source=clipboard，显示降级提示                |
+| 两级均失败                         | error 提示手动粘贴，不无声清空现有输入        |
+| 先聚焦主窗口再调用 `get_selection` | 禁止；会读取 LingoStack 自身焦点并误降级      |
+| 标题栏关闭 / Alt+F4                | main 隐藏，进程和托盘保留                     |
+| 第二实例启动                       | 新进程短时退出，常驻实例数仍为 1              |
 
 ### 5. Good/Base/Bad Cases
 

@@ -37,7 +37,7 @@
 | ------------------------ | ----------------------------------------------------------------------------- |
 | 翻译双栏                 | 父级 `divide-x divide-border`（`translate-view.tsx:238-286`）                 |
 | 命名五列和列内行         | `divide-x divide-border` 与 `divide-y`（`naming-view.tsx:88-126`）            |
-| 文档列表 + Markdown 阅读 | 220px 列表与连续 Markdown 阅读区间竖线；导入按钮紧邻原文/译文切换          |
+| 文档列表 + Markdown 阅读 | 220px 列表与连续 Markdown 阅读区间竖线；导入按钮紧邻原文/译文切换             |
 | 收藏列表、提供商或功能行 | 容器 `divide-y divide-border`；hover 如 `hover:bg-accent/40`                  |
 | 设置分节                 | `SetSection` 的 `border-b border-border`；行表接标题只加 `border-t`，避免双线 |
 
@@ -111,6 +111,22 @@ setPosition(clampToViewport({ x, y }, menuRect));
 ## 6. 桌面适配与 overflow
 
 这是最小 `864×576` 的可缩放桌面应用，不承诺响应式网页断点。当前通过可调宽/图标态侧栏、toolbar 换行、局部截断、内容滚动和个别 `sm:` 控制适配。命名五列允许内容区内部滚动；不要承诺所有宽度都禁止水平滚动，也不要在 760px 以下改顶部横向导航或堆叠双栏。
+
+### 术语浮层与收藏长文本
+
+- 术语解释必须 portal 到 `document.body`，使用 `position: fixed` 与顶层 z-index；不得把 absolute tooltip 留在翻译滚动容器内。浮层优先显示在 tag 下方，空间不足时翻到上方，水平位置至少保留 8px viewport 边距，并在祖先滚动、窗口缩放时重新测量。
+- 术语 tag 由文本按钮与独立收藏按钮组成；收藏按钮使用空心/实心书签、`aria-pressed`、加载/写入期间 disabled，不能让点击收藏顺带改变 tooltip 或翻译正文布局。
+- 收藏行固定为“内容区 + 操作栏”；内容区内部原文/释义使用 `minmax(0, 2fr)` / `minmax(0, 3fr)`，所有可伸缩节点必须 `min-w-0`，长连续 token 使用 `overflow-wrap:anywhere`，操作栏不得被挤出可视区。
+- 原文与释义默认最多三行。只有实际 `scrollHeight > clientHeight` 时显示“展开”，展开后显示完整内容并切为“收起”；使用 `ResizeObserver` 与窗口 resize 重新判断，不按字符数猜测溢出。
+
+```tsx
+// Wrong：长文本参与 min-content 计算，tooltip 也撑开滚动容器
+<div className="flex"><span>{term}</span><span className="absolute">{tip}</span></div>
+
+// Correct：有界网格 + 顶层 fixed portal
+<div className="grid grid-cols-[minmax(0,1fr)_auto]">...</div>
+{createPortal(<span className="fixed z-50">{tip}</span>, document.body)}
+```
 
 ## 7. 场景边界
 

@@ -1,0 +1,7 @@
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"检查按钮状态、可访问名称和回归测试覆盖"}
+{"file":".trellis/spec/lingostack-app/backend/ipc-commands.md","reason":"检查 Channel 事件、参数和命令注册一致性"}
+{"file":".trellis/spec/lingostack-app/backend/e2e-testing.md","reason":"检查 E2E fixture 与生产路径隔离"}
+{"file":".trellis/spec/lingostack-app/backend/testing-strategy.md","reason":"检查最终门禁和证据等级"}
+{"file":".trellis/spec/lingostack-tts/backend/index.md","reason":"检查常驻线程、打断、自然完成与平台边界"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"检查 Rust/TS/Channel 跨层同步"}
+{"file":".trellis/spec/guides/platform-isolation-guide.md","reason":"检查没有调用侧平台分支或 COM 越界"}

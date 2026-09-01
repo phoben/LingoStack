@@ -5,7 +5,7 @@
 //!
 //! 当前为占位实现，返回 [`TtsError::Unsupported`]。
 
-use crate::{Speaker, TtsError};
+use crate::{Speaker, SpeechCompletion, TtsError};
 
 /// Linux 朗读提供者（占位）。
 pub struct LinuxSpeaker;
@@ -24,7 +24,7 @@ impl Default for LinuxSpeaker {
 }
 
 impl Speaker for LinuxSpeaker {
-    fn speak(&self, _text: &str) -> Result<(), TtsError> {
+    fn speak(&self, _text: &str) -> Result<SpeechCompletion, TtsError> {
         Err(TtsError::Unsupported)
     }
 

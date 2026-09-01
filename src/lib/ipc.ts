@@ -36,9 +36,19 @@ export function getSelection(): Promise<SystemSelection> {
   return invoke<SystemSelection>("get_selection");
 }
 
-/** 朗读文本（异步，打断上一句）。 */
-export function speak(text: string): Promise<void> {
-  return invoke<void>("speak", { text });
+export type TtsEvent =
+  | { type: "started" }
+  | { type: "done" }
+  | { type: "error"; message: string };
+
+/** 朗读文本（异步，打断上一句）；播放状态经请求级 Channel 回传。 */
+export function speak(
+  text: string,
+  onEvent: (event: TtsEvent) => void,
+): Promise<void> {
+  const channel = new Channel<TtsEvent>();
+  channel.onmessage = onEvent;
+  return invoke<void>("speak", { text, onEvent: channel });
 }
 
 /** 停止当前朗读。 */
@@ -92,8 +102,13 @@ export function translationPlan(
 export function effectiveTranslationPrompt(
   source: Language,
   target: Language,
+  explanationLanguage: Language,
 ): Promise<string> {
-  return invoke<string>("effective_translation_prompt", { source, target });
+  return invoke<string>("effective_translation_prompt", {
+    source,
+    target,
+    explanationLanguage,
+  });
 }
 
 /**

@@ -12,7 +12,7 @@ import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { effectiveTranslationPrompt, translationPlan } from "@/lib/ipc";
-import type { TranslationTerm } from "@/lib/translation-envelope";
+import { TermTags } from "@/components/term-tags";
 import { useAppStore } from "@/stores/app-store";
 import { useFavoritesStore } from "@/stores/favorites-store";
 import { useTtsStore } from "@/stores/tts-store";
@@ -23,57 +23,6 @@ import { type StreamStatus, useStreamStore } from "@/stores/stream-store";
 import { cn, stringifyError } from "@/lib/utils";
 import { toast } from "sonner";
 
-export function TermTags({ terms }: { terms: TranslationTerm[] }) {
-  const t = useT();
-  const [open, setOpen] = useState<number | null>(null);
-  useEffect(() => {
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(null);
-    };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, []);
-  if (terms.length === 0) return null;
-  return (
-    <section
-      className="mt-4 border-t border-border pt-3"
-      aria-label={t("contextualTerms")}
-    >
-      <p className="mb-2 text-xs text-muted-foreground">
-        {t("contextualTerms")}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {terms.map((term, index) => {
-          const id = `term-explanation-${index}`;
-          return (
-            <span key={`${term.category}:${term.term}`} className="relative">
-              <button
-                type="button"
-                className="rounded-md border border-border px-2 py-1 text-xs text-foreground transition-colors duration-fast hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-info/40"
-                aria-describedby={open === index ? id : undefined}
-                onMouseEnter={() => setOpen(index)}
-                onMouseLeave={() => setOpen(null)}
-                onFocus={() => setOpen(index)}
-                onBlur={() => setOpen(null)}
-              >
-                {term.term}
-              </button>
-              {open === index ? (
-                <span
-                  id={id}
-                  role="tooltip"
-                  className="absolute left-0 top-full z-10 mt-1 w-56 border border-border bg-surface px-2 py-1.5 text-xs text-foreground shadow-ring"
-                >
-                  {term.explanation}
-                </span>
-              ) : null}
-            </span>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
 /** 面板标签栏（原型 .pane-label）：与正文之间只隔一条浅色线。 */
 function PaneLabel({ children }: { children: ReactNode }) {
@@ -228,6 +177,8 @@ function PaneActions({ text, onFavorite, label, streaming }: PaneActionsProps) {
  */
 export function TranslateView() {
   const addFavorite = useFavoritesStore((s) => s.add);
+  const favoritesLoaded = useFavoritesStore((s) => s.loaded);
+  const loadFavorites = useFavoritesStore((s) => s.load);
   const injectSource = useAppStore((s) => s.injectSource);
   const setInjectSource = useAppStore((s) => s.setInjectSource);
   const task = useStreamStore((s) => s.tasks.translate);
@@ -237,6 +188,7 @@ export function TranslateView() {
   const t = useT();
   const [sourceLang, setSourceLang] = useState("auto");
   const [targetLang, setTargetLang] = useState("auto");
+  const explanationLanguage = resolveLocale(uiLanguage);
 
   const streaming = task.status === "streaming";
   const source = task.input;
@@ -249,9 +201,13 @@ export function TranslateView() {
         src,
         sourceLang === "auto" ? undefined : (sourceLang as "zh" | "en" | "ja"),
         targetLang === "auto" ? undefined : (targetLang as "zh" | "en" | "ja"),
-        resolveLocale(uiLanguage) === "zh" ? "zh" : "en",
+        explanationLanguage,
       );
-      const system = await effectiveTranslationPrompt(plan.source, plan.target);
+      const system = await effectiveTranslationPrompt(
+        plan.source,
+        plan.target,
+        explanationLanguage,
+      );
       return [
         { role: "system", content: system },
         { role: "user", content: src },
@@ -268,6 +224,10 @@ export function TranslateView() {
     // translate 与 setInjectSource 为稳定引用；仅 injectSource 变化时触发。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [injectSource]);
+
+  useEffect(() => {
+    if (!favoritesLoaded) void loadFavorites();
+  }, [favoritesLoaded, loadFavorites]);
 
   // 收藏「原文 → 译文」，来源标记为翻译。
   const favorite = async () => {

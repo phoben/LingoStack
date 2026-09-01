@@ -1,0 +1,10 @@
+{"file":".trellis/spec/lingostack-app/frontend/index.md","reason":"前端任务入口与必读 UI/state/testing 路由"}
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"单层主面板、overlay 边界、最小窗口与 overflow 验收"}
+{"file":".trellis/spec/lingostack-app/frontend/components-and-styling.md","reason":"手写组件、语义 token 与页面局部组件边界"}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"Zustand 与 IndexedDB 分层及乐观失败回滚约束"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"Tooltip、按钮、ARIA 与 jsdom 证据边界"}
+{"file":".trellis/spec/lingostack-core/backend/index.md","reason":"core 纯净性与公共函数测试要求"}
+{"file":".trellis/spec/lingostack-core/backend/prompt-templates.md","reason":"受保护 Prompt 协议、快照探针与改动纪律"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"Rust command 与 TypeScript invoke 参数同步"}
+{"file":".trellis/spec/lingostack-app/backend/testing-strategy.md","reason":"跨前端、Rust、IPC 与桌面门禁选择"}
+{"file":".trellis/tasks/09-01-translate-terms-favorites-layout/research/ui-term-favorites-findings.md","reason":"四个缺陷的代码证据、推荐实现与运行态风险"}

@@ -9,6 +9,7 @@
 - [ ] **涉及界面、页面或样式**：先读 [UI 设计主契约](./ui-design.md)。先核对当前生产源码，再读已落地规范与决策；`.claude/skills/lingostack-design/` 仅补充仍与源码一致的意图。宿主提供该技能时可以使用，但不是唯一前置条件。
 - [ ] 要调后端？→ 走 `src/lib/ipc.ts`，不直接 `invoke`；新字段先读 [IPC 契约指南](../../guides/ipc-contract-guide.md)。
 - [ ] 要加状态？→ 读 [状态管理](./state-management.md)，两个 store 的失败处理策略相反。
+- [ ] 动自动更新状态、About 或标题栏更新入口？→ 读 [自动更新与稳定版发布契约](../backend/auto-update-release.md)。
 - [ ] 要加组件？→ 读 [组件与样式](./components-and-styling.md)；`ui/` 原语是手写的，不是 shadcn 生成物。
 - [ ] 要新增或修改异步状态区域？→ 读 [测试与可访问性](./testing-and-a11y.md)。翻译、命名、收藏已有 live region；设置与提供商表单等区域仍是缺口。
 - [ ] 已按 [全仓测试策略](../backend/testing-strategy.md) 判断只需 Vitest，还是还要真实桌面 E2E/生产隔离

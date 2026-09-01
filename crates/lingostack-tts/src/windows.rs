@@ -10,27 +10,30 @@
 //! 生效，两个独立实例各自 purge 互不打断。
 
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::Mutex;
 use std::time::Duration;
 
 use windows::core::HSTRING;
-use windows::Win32::Media::Speech::{ISpVoice, SpVoice, SPF_ASYNC, SPF_PURGEBEFORESPEAK};
+use windows::Win32::Media::Speech::{
+    ISpVoice, SpVoice, SPF_ASYNC, SPF_PURGEBEFORESPEAK, SPRS_DONE, SPVOICESTATUS,
+};
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_APARTMENTTHREADED,
 };
 
-use crate::{Speaker, TtsError};
+use crate::{Speaker, SpeechCompletion, SpeechOutcome, TtsError};
 
 /// 等待朗读线程回执的上界。回执只表示「引擎已受理指令」，不含朗读时长
 /// （引擎侧走 `SPF_ASYNC`），故正常在微秒级返回；超时即认为线程失去响应。
 const ACK_TIMEOUT: Duration = Duration::from_secs(2);
+const STATUS_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 /// 递给朗读线程的指令。`ack` 回传引擎是否受理，不等朗读播完。
 enum Cmd {
     Speak {
         text: String,
-        ack: Sender<Result<(), TtsError>>,
+        ack: Sender<Result<SpeechCompletion, TtsError>>,
     },
     Stop {
         ack: Sender<Result<(), TtsError>>,
@@ -88,6 +91,28 @@ fn submit(voice: &ISpVoice, text: &str) -> Result<(), TtsError> {
     }
 }
 
+/// 只在语音线程中读取 SAPI 运行状态，绝不把 COM 对象带出其 apartment。
+fn playback_finished(voice: &ISpVoice) -> Result<bool, TtsError> {
+    let mut status = SPVOICESTATUS::default();
+    // SAFETY: `voice` 在其创建的 STA 线程中使用，status 是有效的输出缓冲区；
+    // 不需要最后 bookmark，因此传入空指针。
+    unsafe {
+        voice
+            .GetStatus(&mut status, std::ptr::null_mut())
+            .map_err(|e| TtsError::Failed(format!("朗读状态读取失败: {e}")))?;
+    }
+    Ok(status.dwRunningState == SPRS_DONE.0 as u32)
+}
+
+fn notify(
+    active: &mut Option<Sender<Result<SpeechOutcome, TtsError>>>,
+    outcome: Result<SpeechOutcome, TtsError>,
+) {
+    if let Some(completion) = active.take() {
+        let _ = completion.send(outcome);
+    }
+}
+
 /// 朗读线程主体：建实例、报初始化结果、循环收指令直至通道关闭。
 fn voice_loop(cmd_rx: &Receiver<Cmd>, ready_tx: &Sender<Result<(), String>>) {
     let voice = match create_voice() {
@@ -100,13 +125,38 @@ fn voice_loop(cmd_rx: &Receiver<Cmd>, ready_tx: &Sender<Result<(), String>>) {
             return;
         }
     };
-    while let Ok(cmd) = cmd_rx.recv() {
-        let (text, ack) = match cmd {
-            Cmd::Speak { text, ack } => (text, ack),
-            // 空串 + PURGEBEFORESPEAK 即清空队列并停止当前朗读。
-            Cmd::Stop { ack } => (String::new(), ack),
-        };
-        let _ = ack.send(submit(&voice, &text));
+    let mut active = None;
+    loop {
+        match cmd_rx.recv_timeout(STATUS_POLL_INTERVAL) {
+            Ok(Cmd::Speak { text, ack }) => {
+                notify(&mut active, Ok(SpeechOutcome::Interrupted));
+                let (completion_tx, completion_rx) = mpsc::channel();
+                match submit(&voice, &text) {
+                    Ok(()) => {
+                        active = Some(completion_tx);
+                        let _ = ack.send(Ok(SpeechCompletion::new(completion_rx)));
+                    }
+                    Err(error) => {
+                        let _ = ack.send(Err(error));
+                    }
+                }
+            }
+            Ok(Cmd::Stop { ack }) => {
+                notify(&mut active, Ok(SpeechOutcome::Interrupted));
+                // 空串 + PURGEBEFORESPEAK 即清空队列并停止当前朗读。
+                let _ = ack.send(submit(&voice, ""));
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                if active.is_some() {
+                    match playback_finished(&voice) {
+                        Ok(true) => notify(&mut active, Ok(SpeechOutcome::Finished)),
+                        Ok(false) => {}
+                        Err(error) => notify(&mut active, Err(error)),
+                    }
+                }
+            }
+            Err(RecvTimeoutError::Disconnected) => return,
+        }
     }
 }
 
@@ -148,10 +198,10 @@ fn clear_thread() {
 }
 
 /// 递指令并等回执。回执只覆盖「引擎已受理」，不等朗读播完（见 [`ACK_TIMEOUT`]）。
-fn dispatch(make_cmd: impl FnOnce(Sender<Result<(), TtsError>>) -> Cmd) -> Result<(), TtsError> {
+fn dispatch_speak(text: String) -> Result<SpeechCompletion, TtsError> {
     let tx = ensure_thread()?;
     let (ack_tx, ack_rx) = mpsc::channel();
-    if tx.send(make_cmd(ack_tx)).is_err() {
+    if tx.send(Cmd::Speak { text, ack: ack_tx }).is_err() {
         clear_thread();
         return Err(TtsError::Failed("朗读线程已退出".to_owned()));
     }
@@ -166,18 +216,34 @@ fn dispatch(make_cmd: impl FnOnce(Sender<Result<(), TtsError>>) -> Cmd) -> Resul
     }
 }
 
+fn dispatch_stop() -> Result<(), TtsError> {
+    let tx = ensure_thread()?;
+    let (ack_tx, ack_rx) = mpsc::channel();
+    if tx.send(Cmd::Stop { ack: ack_tx }).is_err() {
+        clear_thread();
+        return Err(TtsError::Failed("朗读线程已退出".to_owned()));
+    }
+    match ack_rx.recv_timeout(ACK_TIMEOUT) {
+        Ok(result) => result,
+        Err(_) => {
+            clear_thread();
+            Err(TtsError::Failed("朗读线程无响应".to_owned()))
+        }
+    }
+}
+
 impl Speaker for WindowsSpeaker {
-    fn speak(&self, text: &str) -> Result<(), TtsError> {
+    fn speak(&self, text: &str) -> Result<SpeechCompletion, TtsError> {
         // 空文本在触碰 COM 之前就拒绝。
         if text.trim().is_empty() {
             return Err(TtsError::Empty);
         }
         let text = text.to_owned();
-        dispatch(|ack| Cmd::Speak { text, ack })
+        dispatch_speak(text)
     }
 
     fn stop(&self) -> Result<(), TtsError> {
-        dispatch(|ack| Cmd::Stop { ack })
+        dispatch_stop()
     }
 }
 
@@ -199,7 +265,7 @@ mod tests {
     fn speak_does_not_panic() {
         let s = WindowsSpeaker::new();
         match s.speak("t") {
-            Ok(()) => {}
+            Ok(_) => {}
             Err(e) => assert!(matches!(e, TtsError::Failed(_)), "非预期错误: {e}"),
         }
         // 立刻停止，避免测试期间真的持续发声。
@@ -254,7 +320,7 @@ mod tests {
         let s = WindowsSpeaker::new();
         for i in 0..5 {
             match s.speak(&format!("utterance number {i} for the interrupt probe")) {
-                Ok(()) | Err(TtsError::Failed(_)) => {}
+                Ok(_) | Err(TtsError::Failed(_)) => {}
                 Err(e) => panic!("非预期错误: {e}"),
             }
             match s.stop() {

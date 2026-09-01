@@ -129,6 +129,84 @@ describe("LingoStack desktop E2E", () => {
     );
   });
 
+  it("floats term explanations and toggles a persisted term favorite", async () => {
+    await $("button=翻译").click();
+    const input = await $("textarea");
+    await input.clearValue();
+    await input.setValue("E2E_TERMS");
+    await $("button[aria-label='执行翻译']").click();
+    await expect($("section[aria-label='上下文术语']")).toBeDisplayed();
+    const terms = await $("section[aria-label='上下文术语']");
+    const term = await terms.$("button=fixture");
+    const heightBefore = await terms.getSize("height");
+
+    await term.click();
+    const tooltip = await $("[role='tooltip']");
+    await expect(tooltip).toBeDisplayed();
+    await expect(tooltip).toHaveText("确定性测试术语");
+    const placement = await browser.execute(() => {
+      const element = document.querySelector("[role='tooltip']");
+      return {
+        parentIsBody: element?.parentElement === document.body,
+        position: element ? getComputedStyle(element).position : null,
+      };
+    });
+    expect(placement).toEqual({ parentIsBody: true, position: "fixed" });
+    expect(await terms.getSize("height")).toBe(heightBefore);
+
+    const favorite = await terms.$("button[aria-pressed='false']");
+    await favorite.click();
+    await expect(terms.$("button[aria-pressed='true']")).toBeDisplayed();
+    await terms.$("button[aria-pressed='true']").click();
+    await expect(terms.$("button[aria-pressed='false']")).toBeDisplayed();
+  });
+
+  it("keeps a long favorite row bounded and expands it on demand", async () => {
+    await $("button=翻译").click();
+    const longSource = `LONG_FAVORITE_${"unbroken-token-".repeat(36)}`;
+    const input = await $("textarea");
+    await input.clearValue();
+    await input.setValue(longSource);
+    await $("button[aria-label='执行翻译']").click();
+    await expect($("[aria-live='polite'][aria-busy]")).toHaveText(
+      "确定性的 E2E 翻译结果",
+    );
+    await $("button[aria-label='收藏']").click();
+    await $("button=收藏").click();
+
+    const showMore = await $("button=展开");
+    await expect(showMore).toBeDisplayed();
+    await expect(showMore).toHaveAttribute("aria-expanded", "false");
+    const bounded = await browser.execute(() => {
+      const button = [...document.querySelectorAll("button")].find(
+        (element) => element.textContent?.trim() === "展开",
+      );
+      const row = button?.closest(".grid.shrink-0");
+      const clamped = row?.querySelector("span.line-clamp-3");
+      return {
+        rowFits: row ? row.scrollWidth <= row.clientWidth + 1 : false,
+        hasClampedText: Boolean(clamped),
+      };
+    });
+    expect(bounded).toEqual({ rowFits: true, hasClampedText: true });
+
+    await showMore.click();
+    await expect($("button=收起")).toHaveAttribute("aria-expanded", "true");
+    const expanded = await browser.execute(() => {
+      const button = [...document.querySelectorAll("button")].find(
+        (element) => element.textContent?.trim() === "收起",
+      );
+      return (
+        button
+          ?.closest(".grid.shrink-0")
+          ?.querySelector("span.line-clamp-3") === null
+      );
+    });
+    expect(expanded).toBe(true);
+
+    await $("button[aria-label^='删除 LONG_FAVORITE_']").click();
+  });
+
   it("lays five naming candidates across every naming style", async () => {
     await $("button=命名").click();
     const input = await $("input[placeholder]");
@@ -169,12 +247,10 @@ describe("LingoStack desktop E2E", () => {
     );
   });
 
-  it("transitions TTS speaking and stop state through real feature-gated commands", async () => {
+  it("restores the TTS speak icon after fixture playback completes", async () => {
     const speak = await $("button[aria-label='朗读 原文']");
     await speak.click();
-    const stop = await $("button[aria-label='停止朗读']");
-    await expect(stop).toBeDisplayed();
-    await stop.click();
+    await expect($("button[aria-label='停止朗读']")).toBeDisplayed();
     await expect($("button[aria-label='朗读 原文']")).toBeDisplayed();
   });
 

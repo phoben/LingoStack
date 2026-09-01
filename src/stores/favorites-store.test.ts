@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/favorites-db", () => ({
   deleteFavorite: vi.fn(),
+  deleteFavorites: vi.fn(),
   getAllFavorites: vi.fn(),
   putFavorite: vi.fn(),
   putFavorites: vi.fn(),
@@ -9,6 +10,7 @@ vi.mock("@/lib/favorites-db", () => ({
 
 import {
   deleteFavorite,
+  deleteFavorites,
   getAllFavorites,
   putFavorite,
   putFavorites,
@@ -28,6 +30,7 @@ const favorite = (id: string, createdAt = 1): Favorite => ({
 describe("favorites-store", () => {
   beforeEach(() => {
     vi.mocked(deleteFavorite).mockReset();
+    vi.mocked(deleteFavorites).mockReset();
     vi.mocked(getAllFavorites).mockReset();
     vi.mocked(putFavorite).mockReset();
     vi.mocked(putFavorites).mockReset();
@@ -76,5 +79,24 @@ describe("favorites-store", () => {
     useFavoritesStore.setState({ error: "quota exceeded" });
     useFavoritesStore.getState().clearError();
     expect(useFavoritesStore.getState().error).toBeNull();
+  });
+
+  it("removes every historical duplicate even when its explanation differs", async () => {
+    const duplicate = { ...favorite("duplicate"), term: "EXISTING", meaning: "释义" };
+    const different = { ...favorite("different"), term: "existing", meaning: "另一释义" };
+    useFavoritesStore.setState({ list: [favorite("existing"), duplicate, different] });
+    await useFavoritesStore.getState().toggle(" existing ", "释义", "翻译");
+    expect(useFavoritesStore.getState().list).toEqual([]);
+    expect(deleteFavorites).toHaveBeenCalledWith(["existing", "duplicate", "different"]);
+    expect(putFavorite).not.toHaveBeenCalled();
+  });
+
+  it("restores every duplicate when atomic removal fails", async () => {
+    vi.mocked(deleteFavorites).mockRejectedValue("blocked");
+    const duplicate = { ...favorite("duplicate"), term: "existing" };
+    useFavoritesStore.setState({ list: [favorite("existing"), duplicate] });
+    await useFavoritesStore.getState().toggle("existing", "释义", "翻译");
+    expect(useFavoritesStore.getState().list.map((item) => item.id)).toEqual(["existing", "duplicate"]);
+    expect(useFavoritesStore.getState().error).toBe("blocked");
   });
 });

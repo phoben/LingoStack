@@ -10,7 +10,7 @@ Zustand，5 个 store（app / config / favorites / theme / tts）。**无中间�
 
 ```ts
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  mode: readStoredMode(),              // 只用于 Rust 配置加载前的防闪烁
+  mode: readStoredMode(), // 只用于 Rust 配置加载前的防闪烁
   setMode: (mode) => {
     try {
       localStorage.setItem(THEME_STORAGE_KEY, mode);
@@ -43,8 +43,8 @@ Rust `AppConfig.theme` 是持久化事实来源，`localStorage` 仅是 `index.h
 ## 消费一律用选择器
 
 ```ts
-const activeView = useAppStore((s) => s.activeView);     // 对
-const { activeView } = useAppStore();                    // 错，全站零例
+const activeView = useAppStore((s) => s.activeView); // 对
+const { activeView } = useAppStore(); // 错，全站零例
 ```
 
 现有调用点全部是选择器形式（`App.tsx:26-29`、`sidebar.tsx:11-12`、`translate-view.tsx:71-74`）。保持这个约定，避免整 store 订阅导致的无谓重渲染。
@@ -62,10 +62,10 @@ const { activeView } = useAppStore();                    // 错，全站零例
 
 这是最容易改错的地方——两个 store 刻意不同：
 
-| store | 策略 | 依据 |
-|-------|------|------|
-| `config-store` | **不回滚**，只记 `error` | `config-store.ts:14-16` 注释写明是刻意的 |
-| `favorites-store` | **乐观更新 + 失败回滚**，catch 里恢复 `prev` | `favorites-store.ts:46-52`、`:55-61` |
+| store             | 策略                                         | 依据                                     |
+| ----------------- | -------------------------------------------- | ---------------------------------------- |
+| `config-store`    | **不回滚**，只记 `error`                     | `config-store.ts:14-16` 注释写明是刻意的 |
+| `favorites-store` | **乐观更新 + 失败回滚**，catch 里恢复 `prev` | `favorites-store.ts:46-52`、`:55-61`     |
 
 `tts-store` 是跨翻译页与收藏页的瞬时设备状态，不持久化。它用请求代次忽略过期 async 完成，避免“停止后旧 speak resolve 又变回 speaking”；完整契约见 [lingostack-tts 规范](../../lingostack-tts/backend/index.md#scenario前端朗读状态与停止)。
 
@@ -91,11 +91,11 @@ const { activeView } = useAppStore();                    // 错，全站零例
 
 手写原生 API，**不引 `idb` / `dexie`**（理由见 `favorites-db.ts:1-6`：为一个对象仓库不值得加依赖）。
 
-| 层 | 文件 | 职责 |
-|----|------|------|
-| 纯逻辑 | `lib/favorites.ts` | `Favorite` 类型、`inferKind`、`newFavorite`（`createdAt`/`id` 可注入以便测试）、`filterFavorites`、`sortByNewest`、`parseImport`、`toExportJson` |
-| 纯 IO | `lib/favorites-db.ts` | 开库、事务、增删查 |
-| 粘合 | `stores/favorites-store.ts` | 调上面两层，持有 `list`/`loading`/`error` |
+| 层     | 文件                        | 职责                                                                                                                                             |
+| ------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 纯逻辑 | `lib/favorites.ts`          | `Favorite` 类型、`inferKind`、`newFavorite`（`createdAt`/`id` 可注入以便测试）、`filterFavorites`、`sortByNewest`、`parseImport`、`toExportJson` |
+| 纯 IO  | `lib/favorites-db.ts`       | 开库、事务、增删查                                                                                                                               |
+| 粘合   | `stores/favorites-store.ts` | 调上面两层，持有 `list`/`loading`/`error`                                                                                                        |
 
 DB 层要点：`DB_NAME = "lingostack"`、`DB_VERSION = 1`、`STORE = "favorites"`，`keyPath: "id"` 加 `createdAt` 索引（`:20-22`）。通用事务封装 `withStore<T>(mode, run)`（`:30-52`）负责开库、起事务、`oncomplete` 解析、`onerror`/`onabort` 拒绝、`finally` 关连接。
 
@@ -106,3 +106,21 @@ DB 层要点：`DB_NAME = "lingostack"`、`DB_VERSION = 1`、`STORE = "favorites
 新增业务规则优先放 `favorites.ts`（纯函数、可测），别塞进 DB 层或 store。测试环境用 `fake-indexeddb` 注入标准 IndexedDB 边界，覆盖 DB/store 的增删查、导入、回滚与视图刷新。
 
 `putFavorites` 的批量 `put` 必须原子：循环中任何同步 enqueue 异常都要立刻 `tx.abort()` 并 reject，禁止已经入队的前半批在异常后继续提交。测试至少断言“中途失败后旧列表与 DB 均不变”。
+
+### 术语收藏切换契约
+
+```ts
+toggle(term: string, meaning: string, source: string): Promise<void>
+deleteFavorites(ids: string[]): Promise<void>
+```
+
+- 收藏身份仅由规范化后的 `term` 确定：两端 trim、连续空白折叠、大小写归一；解释只用于展示和首次新增，不能让同词因模型措辞变化显示为未收藏。
+- `loaded=false` 时术语收藏按钮必须 disabled；加载完成后空心表示未收藏、实心与 `aria-pressed=true` 表示已收藏。
+- 未匹配时新增一条；匹配时在一次 readwrite 事务中删除所有历史重复项。任何删除失败都 abort 并由 store 恢复完整旧列表，不做加载时去重，也不升级 DB schema。
+- 同一术语的连续点击必须同步防重，不同术语可以并行；成功与失败均给就近可观察反馈。
+
+| 场景                            | 结果                               |
+| ------------------------------- | ---------------------------------- |
+| 同词、同解释，仅空白/大小写不同 | 视为已收藏，点击后删除全部匹配项   |
+| 同词、不同解释                  | 仍视为已收藏，点击后删除全部同词项 |
+| 批量删除中途失败                | DB 与 Zustand 列表均保持操作前状态 |

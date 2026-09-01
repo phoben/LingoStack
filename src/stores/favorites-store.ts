@@ -3,11 +3,13 @@ import { create } from "zustand";
 import {
   type FavSource,
   type Favorite,
+  matchesFavoriteTerm,
   newFavorite,
   sortByNewest,
 } from "@/lib/favorites";
 import {
   deleteFavorite,
+  deleteFavorites,
   getAllFavorites,
   putFavorite,
   putFavorites,
@@ -17,12 +19,15 @@ import { stringifyError } from "@/lib/utils";
 interface FavoritesState {
   list: Favorite[];
   loading: boolean;
+  loaded: boolean;
   error: string | null;
   /** 从 IndexedDB 加载全部收藏（按时间倒序）。 */
   load: () => Promise<void>;
   /** 收藏一个词条；term 为空则忽略。 */
   add: (term: string, meaning: string, source: FavSource) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  /** Adds a term, or removes every historical record with the same normalized term. */
+  toggle: (term: string, meaning: string, source: FavSource) => Promise<void>;
   /** 批量导入（已解析校验过的条目）。 */
   importAll: (items: Favorite[]) => Promise<void>;
   /** Clears an error that has already been presented by a transient UI action. */
@@ -32,12 +37,13 @@ interface FavoritesState {
 export const useFavoritesStore = create<FavoritesState>((set, get) => ({
   list: [],
   loading: false,
+  loaded: false,
   error: null,
   load: async () => {
     set({ loading: true, error: null });
     try {
       const list = await getAllFavorites();
-      set({ list: sortByNewest(list), loading: false });
+      set({ list: sortByNewest(list), loading: false, loaded: true });
     } catch (e) {
       set({ loading: false, error: stringifyError(e) });
     }
@@ -59,6 +65,28 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     set({ list: prev.filter((f) => f.id !== id), error: null });
     try {
       await deleteFavorite(id);
+    } catch (e) {
+      set({ list: prev, error: stringifyError(e) });
+    }
+  },
+  toggle: async (term, meaning, source) => {
+    if (!term.trim()) return;
+    const prev = get().list;
+    const matches = prev.filter((favorite) => matchesFavoriteTerm(favorite, term));
+    if (matches.length === 0) {
+      const favorite = newFavorite(term, meaning, source);
+      set({ list: sortByNewest([favorite, ...prev]), error: null });
+      try {
+        await putFavorite(favorite);
+      } catch (e) {
+        set({ list: prev, error: stringifyError(e) });
+      }
+      return;
+    }
+    const ids = matches.map((favorite) => favorite.id);
+    set({ list: prev.filter((favorite) => !ids.includes(favorite.id)), error: null });
+    try {
+      await deleteFavorites(ids);
     } catch (e) {
       set({ list: prev, error: stringifyError(e) });
     }

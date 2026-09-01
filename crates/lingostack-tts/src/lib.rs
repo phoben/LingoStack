@@ -4,7 +4,34 @@
 //! （见 `windows.rs` / `macos.rs` / `linux.rs`），禁止在调用侧写
 //! `if windows/mac` 分支。
 
+use std::sync::mpsc::Receiver;
+
 use thiserror::Error;
+
+/// 朗读请求的终态。新的朗读或停止会打断当前请求。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SpeechOutcome {
+    Finished,
+    Interrupted,
+}
+
+/// 等待一条已受理朗读的终态。实际播放仍在平台语音线程上进行。
+#[derive(Debug)]
+pub struct SpeechCompletion {
+    receiver: Receiver<Result<SpeechOutcome, TtsError>>,
+}
+
+impl SpeechCompletion {
+    pub(crate) fn new(receiver: Receiver<Result<SpeechOutcome, TtsError>>) -> Self {
+        Self { receiver }
+    }
+
+    pub fn wait(self) -> Result<SpeechOutcome, TtsError> {
+        self.receiver
+            .recv()
+            .map_err(|_| TtsError::Failed("朗读线程在报告完成前退出".to_owned()))?
+    }
+}
 
 /// 朗读统一抽象。具体实现按平台分文件隔离。
 pub trait Speaker: Send + Sync {
@@ -12,7 +39,7 @@ pub trait Speaker: Send + Sync {
     ///
     /// 「打断」是刻意的：用户连续点朗读时应立即切到新内容，而非排队播完旧的。
     /// 调用立即返回，不阻塞等待朗读结束。
-    fn speak(&self, text: &str) -> Result<(), TtsError>;
+    fn speak(&self, text: &str) -> Result<SpeechCompletion, TtsError>;
 
     /// 停止当前朗读。
     fn stop(&self) -> Result<(), TtsError>;
@@ -69,12 +96,14 @@ mod tests {
         spoken: Mutex<Vec<String>>,
     }
     impl Speaker for StubSpeaker {
-        fn speak(&self, text: &str) -> Result<(), TtsError> {
+        fn speak(&self, text: &str) -> Result<SpeechCompletion, TtsError> {
             if text.trim().is_empty() {
                 return Err(TtsError::Empty);
             }
             self.spoken.lock().unwrap().push(text.to_string());
-            Ok(())
+            let (tx, rx) = std::sync::mpsc::channel();
+            tx.send(Ok(SpeechOutcome::Finished)).unwrap();
+            Ok(SpeechCompletion::new(rx))
         }
         fn stop(&self) -> Result<(), TtsError> {
             self.spoken.lock().unwrap().clear();
@@ -85,7 +114,10 @@ mod tests {
     #[test]
     fn trait_is_object_safe() {
         let s: Box<dyn Speaker> = Box::new(StubSpeaker::default());
-        assert!(s.speak("hello").is_ok());
+        assert_eq!(
+            s.speak("hello").unwrap().wait().unwrap(),
+            SpeechOutcome::Finished
+        );
         assert!(s.stop().is_ok());
     }
 
@@ -93,6 +125,18 @@ mod tests {
     fn empty_text_rejected() {
         let s = StubSpeaker::default();
         assert_eq!(s.speak("   ").unwrap_err(), TtsError::Empty);
+    }
+
+    #[test]
+    fn completion_propagates_monitoring_errors() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        tx.send(Err(TtsError::Failed("状态读取失败".into())))
+            .unwrap();
+
+        assert_eq!(
+            SpeechCompletion::new(rx).wait().unwrap_err(),
+            TtsError::Failed("状态读取失败".into())
+        );
     }
 
     #[test]

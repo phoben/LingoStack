@@ -6,7 +6,7 @@
 //!
 //! 当前为占位实现，返回 [`TtsError::Unsupported`]。
 
-use crate::{Speaker, TtsError};
+use crate::{Speaker, SpeechCompletion, TtsError};
 
 /// macOS 朗读提供者（占位）。
 pub struct MacosSpeaker;
@@ -25,7 +25,7 @@ impl Default for MacosSpeaker {
 }
 
 impl Speaker for MacosSpeaker {
-    fn speak(&self, _text: &str) -> Result<(), TtsError> {
+    fn speak(&self, _text: &str) -> Result<SpeechCompletion, TtsError> {
         Err(TtsError::Unsupported)
     }
 

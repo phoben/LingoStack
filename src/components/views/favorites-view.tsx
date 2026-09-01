@@ -4,6 +4,7 @@ import { ViewShell } from "@/components/view-shell";
 import { Button } from "@/components/ui/button";
 import {
   type FavKind,
+  type Favorite,
   filterFavorites,
   parseImport,
   toExportJson,
@@ -22,6 +23,121 @@ function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString();
 }
 
+interface FavoriteRowProps {
+  favorite: Favorite;
+  ttsStatus: string;
+  speakingText: string | null;
+  speakText: (text: string) => Promise<void>;
+  stop: () => Promise<void>;
+  remove: (id: string) => Promise<void>;
+}
+
+function FavoriteRow({
+  favorite,
+  ttsStatus,
+  speakingText,
+  speakText,
+  stop,
+  remove,
+}: FavoriteRowProps) {
+  const t = useT();
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const termRef = useRef<HTMLSpanElement>(null);
+  const meaningRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const measure = () => {
+      if (expanded) return;
+      setOverflows(
+        [termRef.current, meaningRef.current].some(
+          (element) => element !== null && element.scrollHeight > element.clientHeight + 1,
+        ),
+      );
+    };
+    measure();
+    const observer = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(measure);
+    [termRef.current, meaningRef.current].forEach((element) => {
+      if (element) observer?.observe(element);
+    });
+    window.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [expanded, favorite.meaning, favorite.term]);
+
+  const onRemove = async () => {
+    await remove(favorite.id);
+    const error = useFavoritesStore.getState().error;
+    if (error) {
+      toast.error(t("actionFailed", { message: error }), { duration: 4000 });
+      useFavoritesStore.getState().clearError();
+    } else toast.success(t("favoriteDeleted"));
+  };
+
+  const textClass = expanded
+    ? "whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
+    : "line-clamp-3 whitespace-pre-wrap break-words [overflow-wrap:anywhere]";
+
+  return (
+    <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-4 py-3 transition-colors duration-fast hover:bg-accent/40">
+      <div className="min-w-0">
+        <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3">
+          <span ref={termRef} className={`min-w-0 font-mono text-sm font-medium text-foreground ${textClass}`}>
+            {favorite.term}
+          </span>
+          <span ref={meaningRef} className={`min-w-0 text-sm text-muted-foreground ${textClass}`}>
+            {favorite.meaning}
+          </span>
+        </div>
+        <div className="mt-1 flex min-w-0 items-center gap-2">
+          <span className="min-w-0 font-mono text-[10px] text-muted-foreground">
+            {t(favorite.kind)} · {favorite.source} · {formatDate(favorite.createdAt)}
+          </span>
+          {overflows || expanded ? (
+            <button
+              type="button"
+              className="shrink-0 text-xs text-info hover:underline focus-visible:ring-2 focus-visible:ring-info/40"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((value) => !value)}
+            >
+              {t(expanded ? "showLess" : "showMore")}
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex items-start gap-0.5">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={
+            ttsStatus === "speaking" && speakingText === favorite.term
+              ? t("stopSpeaking")
+              : `${t("speak")} ${favorite.term}`
+          }
+          onClick={() =>
+            void (ttsStatus === "speaking" && speakingText === favorite.term
+              ? stop()
+              : speakText(favorite.term))
+          }
+        >
+          {ttsStatus === "speaking" && speakingText === favorite.term ? (
+            <Square className="h-3.5 w-3.5" />
+          ) : (
+            <Volume2 className="h-3.5 w-3.5" />
+          )}
+        </Button>
+        <Button variant="ghost" size="icon" aria-label={`${t("delete")} ${favorite.term}`} onClick={() => void onRemove()}>
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * 收藏视图（§3 场景 5，对齐原型收藏 panel）：
  * 顶部操作行（搜索 + 类型过滤 + 导入导出）+ 列表，数据存 IndexedDB。
@@ -33,6 +149,7 @@ export function FavoritesView() {
   const t = useT();
   const list = useFavoritesStore((s) => s.list);
   const loading = useFavoritesStore((s) => s.loading);
+  const loaded = useFavoritesStore((s) => s.loaded);
   const error = useFavoritesStore((s) => s.error);
   const load = useFavoritesStore((s) => s.load);
   const remove = useFavoritesStore((s) => s.remove);
@@ -47,8 +164,8 @@ export function FavoritesView() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!loaded) void load();
+  }, [loaded, load]);
 
   const shown = useMemo(
     () => filterFavorites(list, q, filter),
@@ -182,59 +299,16 @@ export function FavoritesView() {
               ) : null}
             </div>
           ) : (
-            shown.map((f) => (
-              <div
-                key={f.id}
-                className="flex shrink-0 items-center gap-3.5 px-4 py-3 transition-colors duration-fast hover:bg-accent/40"
-              >
-                <span className="min-w-[160px] font-mono text-sm font-medium text-foreground">
-                  {f.term}
-                </span>
-                <span className="flex-1 text-sm text-muted-foreground">
-                  {f.meaning}
-                </span>
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  {t(f.kind)} · {f.source} · {formatDate(f.createdAt)}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={
-                    ttsStatus === "speaking" && speakingText === f.term
-                      ? t("stopSpeaking")
-                      : `${t("speak")} ${f.term}`
-                  }
-                  onClick={() =>
-                    void (ttsStatus === "speaking" && speakingText === f.term
-                      ? stop()
-                      : speakText(f.term))
-                  }
-                >
-                  {ttsStatus === "speaking" && speakingText === f.term ? (
-                    <Square className="h-3.5 w-3.5" />
-                  ) : (
-                    <Volume2 className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`删除 ${f.term}`}
-                  onClick={() =>
-                    void remove(f.id).then(() => {
-                      const error = useFavoritesStore.getState().error;
-                      if (error) {
-                        toast.error(t("actionFailed", { message: error }), {
-                          duration: 4000,
-                        });
-                        useFavoritesStore.getState().clearError();
-                      } else toast.success(t("favoriteDeleted"));
-                    })
-                  }
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+            shown.map((favorite) => (
+              <FavoriteRow
+                key={favorite.id}
+                favorite={favorite}
+                ttsStatus={ttsStatus}
+                speakingText={speakingText}
+                speakText={speakText}
+                stop={stop}
+                remove={remove}
+              />
             ))
           )}
         </div>

@@ -42,17 +42,21 @@ Rust 侧测试断言的是**内容不变量**，不是字面相等：
 
 改了 `.txt` 后同步检查上述断言是否仍然成立；新增 Prompt 要一并加进 `:116-138` 的表。
 
-## 占位符是跨语言契约
+## 占位符与术语解释语言是跨层契约
 
-模板文本在 Rust，**占位符替换在 TypeScript**：
+翻译 Prompt 的语言替换与不可覆盖术语协议统一在 Rust 完成：
 
-- `{source_lang}` / `{target_lang}` → `src/components/views/translate-view.tsx:101-102` 正则替换
-- `{style}` → `src/components/views/naming-view.tsx:55`
-- `effective_prompt` 命令原样返回带占位符的字符串（`src-tauri/src/commands.rs:50` 注释写明由前端替换）
+```rust
+compose_translation_prompt(base, explanation_language)
+effective_translation_prompt(source, target, explanation_language, state)
+```
 
-这是隐式字符串协议，两侧无共享常量。Rust 测试只保证占位符**存在**，不保证前端真替换了。
+- `effective_translation_prompt` 先替换 `{source_lang}` / `{target_lang}`，再通过 `compose_translation_prompt` 追加机器协议。
+- `explanation_language` 只控制术语 `explanation` 的语言，必须传当前界面语言解析后的 `zh` / `en`，不得复用原文语言或目标语言。
+- 前端 IPC 参数名固定为 camelCase `explanationLanguage`；自定义翻译 Prompt 也不能覆盖这条解释语言约束。
+- `{style}` 仍由命名视图替换；通用 `effective_prompt` 仍可返回原始模板，但翻译业务不得绕过专用命令自行拼协议。
 
-**不要**在 Rust 侧加模板引擎「修复」这个分工——会与前端替换重复。改占位符名必须同步改前端正则，且要实跑 `pnpm tauri dev` 验证。
+测试必须同时覆盖内置和自定义翻译 Prompt，并分别断言中文/英文界面得到对应的解释语言；IPC 测试还要断言参数使用 `explanationLanguage`，避免 Tauri 运行期缺参。
 
 ## 内容规范
 

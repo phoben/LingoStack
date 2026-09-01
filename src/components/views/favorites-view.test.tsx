@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -27,6 +28,7 @@ describe("FavoritesView", () => {
     useFavoritesStore.setState({
       list: [favorite],
       loading: false,
+      loaded: true,
       error: null,
       load: vi.fn().mockResolvedValue(undefined),
       remove: vi.fn().mockResolvedValue(undefined),
@@ -68,7 +70,7 @@ describe("FavoritesView", () => {
         "TypeScript",
       ),
     );
-    fireEvent.click(screen.getByRole("button", { name: "删除 TypeScript" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete TypeScript" }));
     await waitFor(() =>
       expect(useFavoritesStore.getState().remove).toHaveBeenCalledWith("f-1"),
     );
@@ -78,5 +80,62 @@ describe("FavoritesView", () => {
     useTtsStore.setState({ error: "audio unavailable" });
     render(<FavoritesView />);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("only offers expansion for measured overflow and keeps row actions available", async () => {
+    const longFavorite = {
+      ...favorite,
+      term: "https://example.test/" + "unbroken-path-segment/".repeat(24),
+      meaning: "一段很长且没有空格的释义".repeat(24),
+    };
+    useFavoritesStore.setState({ list: [longFavorite] });
+
+    let overflowing = false;
+    const clientHeight = vi
+      .spyOn(HTMLElement.prototype, "clientHeight", "get")
+      .mockReturnValue(48);
+    const scrollHeight = vi
+      .spyOn(HTMLElement.prototype, "scrollHeight", "get")
+      .mockImplementation(() => (overflowing ? 96 : 48));
+    const observers: ResizeObserverCallback[] = [];
+    const originalResizeObserver = globalThis.ResizeObserver;
+    class ResizeObserverMock {
+      constructor(callback: ResizeObserverCallback) {
+        observers.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    }
+    globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+
+    try {
+      render(<FavoritesView />);
+      expect(screen.queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
+
+      act(() => {
+        overflowing = true;
+        observers.forEach((callback) => callback([], {} as ResizeObserver));
+      });
+
+      const expand = await screen.findByRole("button", { name: "Show more" });
+      expect(expand).toHaveAttribute("aria-expanded", "false");
+      expect(screen.getByRole("button", { name: `Speak ${longFavorite.term}` })).toBeEnabled();
+      expect(screen.getByRole("button", { name: `Delete ${longFavorite.term}` })).toBeEnabled();
+
+      fireEvent.click(expand);
+      expect(expand).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByRole("button", { name: "Show less" })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+      expect(screen.getByRole("button", { name: "Show more" })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+    } finally {
+      clientHeight.mockRestore();
+      scrollHeight.mockRestore();
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
   });
 });

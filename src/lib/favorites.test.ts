@@ -3,6 +3,8 @@ import {
   type Favorite,
   filterFavorites,
   inferKind,
+  matchesFavoriteTerm,
+  normalizeFavoriteContent,
   newFavorite,
   parseImport,
   sortByNewest,
@@ -32,6 +34,19 @@ describe("inferKind", () => {
 
   it("忽略首尾空白", () => {
     expect(inferKind("  idempotent  ")).toBe("word");
+  });
+});
+
+describe("favorite content identity", () => {
+  it("normalizes whitespace and case without changing CJK text", () => {
+    expect(normalizeFavoriteContent("  GitHub\n Copilot ")).toBe("github copilot");
+    expect(normalizeFavoriteContent("术语 解释")).toBe("术语 解释");
+  });
+
+  it("matches a term regardless of its explanation", () => {
+    const saved = fav({ term: " GitHub Copilot ", meaning: " AI  编程助手 " });
+    expect(matchesFavoriteTerm(saved, "github copilot")).toBe(true);
+    expect(matchesFavoriteTerm(saved, "other term")).toBe(false);
   });
 });
 

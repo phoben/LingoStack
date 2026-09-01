@@ -37,11 +37,11 @@ pub const TRANSLATION_TERMS_SENTINEL: &str = "<<<LINGOSTACK_TERMS_V1>>>";
 
 /// 把用户可选的翻译风格与不可覆盖的机器协议组合。
 #[must_use]
-pub fn compose_translation_prompt(base: &str, source: Language) -> String {
+pub fn compose_translation_prompt(base: &str, explanation_language: Language) -> String {
     format!(
         "{base}\n\n输出协议（不可替换）：先仅输出译文正文；随后单独一行输出 {sentinel}；紧接着输出 JSON 数组。JSON 每项只能为 {{\"term\":\"…\",\"category\":\"technology|programming|product\",\"explanation\":\"…\"}}。仅提取上下文相关的专业 IT 概念、编程/技术栈术语或产品名，普通词一律省略；最多 5 项，无法确定时输出 []。term 必须出现在原文或译文中，去重。explanation 必须用 {source} 简洁说明。不要输出 Markdown、代码围栏或任何其他元数据。",
         sentinel = TRANSLATION_TERMS_SENTINEL,
-        source = source.display_name(),
+        source = explanation_language.display_name(),
     )
 }
 
@@ -204,11 +204,20 @@ mod tests {
 
     #[test]
     fn translation_protocol_is_appended_even_for_conflicting_custom_prompt() {
-        let prompt = compose_translation_prompt("只输出 XML", Language::En);
+        let prompt = compose_translation_prompt("只输出 XML", Language::Zh);
         assert!(prompt.starts_with("只输出 XML"));
         assert!(prompt.contains(TRANSLATION_TERMS_SENTINEL));
         assert!(prompt.contains("technology|programming|product"));
-        assert!(prompt.contains("English"));
+        assert!(prompt.contains("中文"));
+    }
+
+    #[test]
+    fn translation_protocol_explanation_uses_explicit_interface_language() {
+        let built_in = compose_translation_prompt(TRANSLATE_PROMPT, Language::En);
+        let custom = compose_translation_prompt("自定义风格", Language::Zh);
+        assert!(built_in.contains("explanation 必须用 English"));
+        assert!(custom.contains("explanation 必须用 中文"));
+        assert!(!custom.contains("explanation 必须用 English"));
     }
 
     #[test]

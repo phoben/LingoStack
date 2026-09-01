@@ -22,6 +22,19 @@ export interface Favorite {
   createdAt: number;
 }
 
+/** Normalized content identity used only for matching, never for display or export. */
+export function normalizeFavoriteContent(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+
+/** A translated term is favorited by its normalized text, never by its explanation. */
+export function matchesFavoriteTerm(
+  favorite: Pick<Favorite, "term">,
+  term: string,
+): boolean {
+  return normalizeFavoriteContent(favorite.term) === normalizeFavoriteContent(term);
+}
+
 /** 含空白即视为短句，否则为单词。 */
 export function inferKind(term: string): FavKind {
   return /\s/.test(term.trim()) ? "phrase" : "word";
