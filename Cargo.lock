@@ -2408,7 +2408,7 @@ dependencies = [
 
 [[package]]
 name = "lingostack-app"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "base64 0.22.1",
  "dirs 5.0.1",
@@ -2439,7 +2439,7 @@ dependencies = [
 
 [[package]]
 name = "lingostack-core"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "serde",
  "serde_json",
@@ -2448,7 +2448,7 @@ dependencies = [
 
 [[package]]
 name = "lingostack-docparse"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "encoding_rs",
  "pdf-extract",
@@ -2461,7 +2461,7 @@ dependencies = [
 
 [[package]]
 name = "lingostack-document"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "futures",
  "lingostack-docparse",
@@ -2477,7 +2477,7 @@ dependencies = [
 
 [[package]]
 name = "lingostack-hook"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "lingostack-core",
  "tauri",
@@ -2485,7 +2485,7 @@ dependencies = [
 
 [[package]]
 name = "lingostack-llm"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "async-stream",
  "futures",
@@ -2499,7 +2499,7 @@ dependencies = [
 
 [[package]]
 name = "lingostack-selection"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "serde",
  "serde_json",
@@ -2509,7 +2509,7 @@ dependencies = [
 
 [[package]]
 name = "lingostack-tts"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "thiserror 2.0.19",
  "windows",

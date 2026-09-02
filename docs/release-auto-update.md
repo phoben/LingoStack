@@ -82,6 +82,13 @@ immediately. Do not forward these arguments through an advanced function with
 `-p` as the function's common parameters before the child command starts. The
 Windows behavior test covers dash-prefixed arguments, fail-before-next-action,
 and captured release-note stdout in a real `pwsh` process.
+
+Likewise, never interpolate a Windows file path into `python -c` source: escape
+sequences such as `\a` can silently change the path before the COS SDK sees it.
+The stable write must call `scripts/publish-stable-manifest.py` and pass bucket,
+region, object key, and manifest path as separate arguments. The helper validates
+the local manifest before reading credentials or creating a COS client; its
+offline dry-run neither reads secrets nor contacts COS.
 The immutable helper uses `head_object`, `download_file`, and a conditional
 `put_object`; it does not use SDK multipart ETags for identity.
 

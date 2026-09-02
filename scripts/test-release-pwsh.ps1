@@ -39,6 +39,27 @@ try {
     Set-Content -LiteralPath $notesOutput -NoNewline -Encoding utf8 -Value $notes
     Assert-True ((Get-Content -Raw -LiteralPath $notesOutput) -eq 'release notes') 'captured native stdout must remain available for release notes'
 
+    # This reproduces the former workflow pattern: interpolating a Windows path
+    # into Python source turns `\a` into a bell character before COS is called.
+    $windowsManifest = 'D:\a\_temp\latest.json'
+    $inlinePython = "import json; print(json.dumps('D:\a' + r'\_temp\latest.json'))"
+    $inlineManifest = & python -c $inlinePython
+    if ($LASTEXITCODE -ne 0) { throw "python failed with exit code $LASTEXITCODE" }
+    $corruptedInlinePath = ($inlineManifest -join "`n") | ConvertFrom-Json
+    Assert-True ($corruptedInlinePath -ne $windowsManifest) 'interpolating a Windows manifest path into Python source must corrupt it'
+    Assert-True ($corruptedInlinePath.Contains([char]7)) 'the former inline pattern must turn \\a into a bell character'
+
+    # The stable publisher receives that same path as one argv value instead.
+    $stablePublisher = & python scripts/publish-stable-manifest.py --dry-run --bucket fixture-bucket --region ap-shanghai --key lingostack/channels/stable/latest.json --manifest $windowsManifest
+    if ($LASTEXITCODE -ne 0) { throw "python failed with exit code $LASTEXITCODE" }
+    $stableArguments = ($stablePublisher -join "`n") | ConvertFrom-Json
+    Assert-True ($stableArguments.manifest -eq $windowsManifest) 'stable publisher must receive the untouched Windows manifest path through argv'
+    Assert-True ($stableArguments.key -eq 'lingostack/channels/stable/latest.json') 'stable publisher must receive the target key through argv'
+
+    $missingManifestOutput = & python scripts/publish-stable-manifest.py --bucket fixture-bucket --region ap-shanghai --key lingostack/channels/stable/latest.json --manifest $windowsManifest 2>&1
+    Assert-True ($LASTEXITCODE -ne 0) 'a missing stable manifest must be rejected before publishing'
+    Assert-True (($missingManifestOutput -join "`n") -match '--manifest must name an existing file') 'missing manifest errors must fail locally before reading production credentials'
+
     Write-Host 'PASS: release PowerShell native-command regression tests' -ForegroundColor Green
 }
 finally {

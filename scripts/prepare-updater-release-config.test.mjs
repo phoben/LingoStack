@@ -52,6 +52,18 @@ test("release workflow installs the pinned official tccli package", () => {
   assert.doesNotMatch(releaseWorkflow, /tencentcloud-cli/);
 });
 
+test("stable manifest upload passes the Windows path as an argv value, never Python source", () => {
+  const stableStep = workflowStep(
+    "Publish version manifest then stable manifest last",
+    null,
+  );
+  assert.match(
+    stableStep,
+    /& python scripts\/publish-stable-manifest\.py --bucket "\$env:COS_BUCKET" --region "\$env:COS_REGION" --key "\$prefix\/channels\/stable\/latest\.json" --manifest "\$manifest"/,
+  );
+  assert.doesNotMatch(stableStep, /& python -c /);
+});
+
 test("release workflow fails fast when any native publisher command fails", () => {
   const steps = [
     [

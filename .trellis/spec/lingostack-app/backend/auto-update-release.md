@@ -36,6 +36,7 @@ release bundle config: bundle.createUpdaterArtifacts = true
 node scripts/release-manifest.mjs assert-version --version <semver>
 node scripts/release-manifest.mjs create ... --notes-file <path> --output <path>
 python scripts/publish_immutable.py --bucket ... --region ... --key ... --file ... --cache-control ...
+python scripts/publish-stable-manifest.py --bucket ... --region ... --key ... --manifest ...
 cargo run --release -p lingostack-app --bin verify-updater-signature -- <artifact> <signature-file>
 ```
 
@@ -43,11 +44,14 @@ GitHub `production` secrets：`TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVA
 
 腾讯发布工具固定使用官方 PyPI 包 `cos-python-sdk-v5==1.9.44` 与 `tccli==3.0.1350.1`。`tencentcloud-cli` 不是可安装包名；安装、上传、验签、GitHub Release、manifest 与 CDN purge 所在的 PowerShell 步骤必须直接调用原生命令，并在每次调用的下一行检查 `$LASTEXITCODE`。禁止使用带 `ValueFromRemainingArguments` 的高级函数转发 native 参数：Cargo 的 `-p` 等参数会被 PowerShell 尝试绑定为函数通用参数，导致真正命令尚未运行就失败。
 
+PowerShell 传给 Python 的动态路径、对象 key、bucket 与 region 必须作为独立 argv 值，不得插值进 `python -c` 源码。Windows 路径中的 `\a`、`\t` 等序列会被 Python 字符串再次解释，导致本地文件路径损坏。稳定索引写入必须使用 `scripts/publish-stable-manifest.py`；正式模式须先验证 manifest 是现有文件，再读取 COS 凭据和初始化客户端。dry-run 不得读取、输出凭据或访问网络。
+
 ### 3. Contracts
 
 - 只有带 `VITE_LINGOSTACK_UPDATER_ENABLED=true` 的签名 NSIS release build 启用 updater；dev、E2E 与 portable 不显示自动更新入口。
 - Tauri 2 的 release overlay 必须设置 `bundle.createUpdaterArtifacts: true`，从而为 Windows NSIS 生成 `<installer>.exe.sig`；日常 `tauri.conf.json` 必须保持未启用。禁止仅设置签名环境变量后假定 `.sig` 一定存在。
 - Python/CLI 依赖安装失败必须在同一步立即终止；不得继续执行 fixture、上传或 CDN 读取。安装测试必须校验 workflow 使用官方 `tccli` 包，并逐条覆盖每个 PowerShell native-command 的直接调用与紧邻 `$LASTEXITCODE` 检查。
+- 跨 PowerShell/Python 边界的动态值必须走 argv；禁止把 Windows 文件路径拼进 Python 源码。任何本地输入无效都必须在凭据读取或云端调用之前失败关闭。
 - 启动后和常驻托盘每 24 小时静默检查；自动失败不提示，手动检查必须给“最新版 / 可用 / 失败”结果。发现可用更新或下载失败后仍保留 verified `Update` handle，并暂停周期检查。
 - 两个“立即更新”入口共用单一 in-flight task。用户点击后下载；失败可重试；下载完成由官方 NSIS passive 安装器退出当前进程并自动启动新版本，不调用 process-plugin relaunch。
 - `latest.json` 的 signature 是 `.sig` 文本内容，不是 URL；notes 来自已发布 GitHub Release body，并按纯文本展示。
@@ -66,6 +70,7 @@ GitHub `production` secrets：`TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVA
 | 重复检查/安装                              | 复用当前 Promise，不创建并发任务                       |
 | NSIS 构建成功但 `<installer>.exe.sig` 缺失 | 发布失败，不上传 artifact、不创建 Release、不写 stable |
 | pip 或任一 native CLI 返回非零             | 当前步骤立即失败；不得执行后续云端或 stable 操作       |
+| stable manifest 路径不存在或被转义损坏     | 凭据读取和 COS 初始化前本地失败；不刷新 CDN            |
 | immutable 对象存在且 SHA-256 相同          | 复用                                                   |
 | immutable 对象不同或状态不确定             | 非零退出，不写 stable                                  |
 | 条件 PUT 412                               | 下载并 SHA-256 复验；不同则失败                        |
@@ -101,6 +106,7 @@ git diff --check
 - Release config 测试必须同时断言渲染结果为 `bundle.createUpdaterArtifacts === true`，且日常开发配置未启用该项。
 - Workflow 静态测试必须拒绝 `tencentcloud-cli`，锁定 `tccli==3.0.1350.1`，拒绝高级参数转发 wrapper，并证明发布步骤中的每一条 `node`、`pnpm`、`python`、`cargo`、`gh`、`tccli` 直接调用都紧邻对应的 `$LASTEXITCODE` 检查。
 - Windows PowerShell 行为测试必须真实执行带 `-p` / `--release` 的子进程、返回非零的子进程及捕获 stdout 的子进程，分别证明破折号参数原样到达、失败后不会执行下一动作、GitHub Release notes 类输出仍可写入文件；非 Windows 本地环境可跳过，生产 workflow 必须在 `windows-latest` 执行。
+- Workflow 静态测试必须拒绝 stable 上传使用 `python -c`，并锁定专用 helper 的 bucket、region、key、manifest argv 边界。真实 PowerShell 测试须证明旧内联模式会破坏 `D:\a\_temp\latest.json`，新 helper 保留完全相同的路径值，且缺失文件在读取凭据前失败。
 - Verifier 至少覆盖有效 Tauri wrapped Minisign、篡改 artifact、格式有效但内容篡改的 signature、畸形 material。
 - 真实 Windows 验收必须从旧 NSIS 安装版完成发现、显式下载、安装、自动重启、版本与配置保留；未运行不得称 updater runtime 通过。
 
@@ -111,6 +117,7 @@ git diff --check
 ```text
 inject signing key only → build NSIS → assume <installer>.exe.sig exists
 → forward native args through an advanced PowerShell function or omit exit checks
+→ interpolate a Windows path into python -c source
 → upload artifact → overwrite stable → HEAD artifact → check .sig is non-empty
 ```
 
@@ -120,6 +127,7 @@ inject signing key only → build NSIS → assume <installer>.exe.sig exists
 release overlay sets bundle.createUpdaterArtifacts=true
 → require installer + adjacent .exe.sig
 → invoke each native command directly and immediately fail on nonzero LASTEXITCODE
+→ pass every PowerShell/Python dynamic value as argv and validate local files first
 → conditional immutable publish
 → download final CDN artifact + signature
 → Minisign verify with production public key

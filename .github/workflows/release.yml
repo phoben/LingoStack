@@ -118,7 +118,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "python failed with exit code $LASTEXITCODE" }
           # This is intentionally the only mutable write and comes after every
           # build, signature, CDN and GitHub Release validation step above.
-          & python -c "from qcloud_cos import CosConfig, CosS3Client; import os; CosS3Client(CosConfig(Region=os.environ['COS_REGION'], SecretId=os.environ['COS_SECRET_ID'], SecretKey=os.environ['COS_SECRET_KEY'])).upload_file(os.environ['COS_BUCKET'], '$prefix/channels/stable/latest.json', '$manifest', CacheControl='no-cache')"
+          & python scripts/publish-stable-manifest.py --bucket "$env:COS_BUCKET" --region "$env:COS_REGION" --key "$prefix/channels/stable/latest.json" --manifest "$manifest"
           if ($LASTEXITCODE -ne 0) { throw "python failed with exit code $LASTEXITCODE" }
           & tccli cdn PurgePathCache --Paths "https://$env:CDN_DOMAIN/channels/stable/latest.json" --FlushType delete
           if ($LASTEXITCODE -ne 0) { throw "tccli failed with exit code $LASTEXITCODE" }
