@@ -47,9 +47,15 @@ test("release updater config fails closed without a public key or with a private
   );
 });
 
-test("release workflow installs the pinned official tccli package", () => {
+test("release workflow installs a compatible pinned Tencent CLI and SDK pair", () => {
   assert.match(releaseWorkflow, /"tccli==3\.0\.1350\.1"/);
+  assert.match(releaseWorkflow, /"tencentcloud-sdk-python==3\.0\.1350"/);
   assert.doesNotMatch(releaseWorkflow, /tencentcloud-cli/);
+  const installStep = workflowStep(
+    "Install verified Tencent COS publisher",
+    "Publish immutable artifacts, then verify public signature",
+  );
+  assert.match(installStep, /& python scripts\/check-tccli-compatibility\.py/);
 });
 
 test("stable manifest upload passes the Windows path as an argv value, never Python source", () => {
@@ -111,7 +117,7 @@ test("release workflow fails fast when any native publisher command fails", () =
       /^\s*(?:\$\w+\s*=\s*)?&\s+(node|pnpm|python|cargo|gh|tccli)\b[^\r\n]*\r?\n([^\r\n]*)/gm,
     ),
   ];
-  assert.equal(nativeInvocations.length, 13);
+  assert.equal(nativeInvocations.length, 14);
   for (const [, command, followingLine] of nativeInvocations) {
     assert.match(
       followingLine,

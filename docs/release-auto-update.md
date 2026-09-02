@@ -73,7 +73,13 @@ reinstallation; existing clients cannot be safely migrated by assertion alone.
 ## Tooling evidence and local checks
 
 The release workflow pins Tencent's official `cos-python-sdk-v5==1.9.44` for
-COS object API calls and `tccli==3.0.1350.1` for the narrowly scoped CDN purge.
+COS object API calls, `tccli==3.0.1350.1` for the narrowly scoped CDN purge,
+and its matching `tencentcloud-sdk-python==3.0.1350`. Pinning only `tccli` is
+unsafe because its dependency range permits a newer SDK that the CLI then
+rejects at runtime. Before any publication write,
+`scripts/check-tccli-compatibility.py` validates both installed distributions
+and executes the CLI's own `--version` path without credentials or a network
+request.
 Every native command in a PowerShell release step is invoked directly and followed
 immediately by an explicit `$LASTEXITCODE` check, so dependency installation,
 upload, signing, GitHub Release, manifest, or CDN purge failures stop publication
