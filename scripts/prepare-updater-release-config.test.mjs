@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { updaterReleaseConfig } from "./prepare-updater-release-config.mjs";
@@ -56,41 +57,71 @@ test("release workflow fails fast when any native publisher command fails", () =
     [
       "Create ephemeral updater config",
       "Build signed NSIS installer",
-      /Invoke-External node/,
+      /& node/,
     ],
     [
       "Build signed NSIS installer",
       "Install verified Tencent COS publisher",
-      /Invoke-External pnpm/,
+      /& pnpm/,
     ],
     [
       "Install verified Tencent COS publisher",
       "Publish immutable artifacts, then verify public signature",
-      /Invoke-External python -m pip install/,
+      /& python -m pip install/,
     ],
     [
       "Publish immutable artifacts, then verify public signature",
       "Publish GitHub release before stable index",
-      /Invoke-External cargo run/,
+      /& cargo run/,
     ],
     [
       "Publish GitHub release before stable index",
       "Publish version manifest then stable manifest last",
-      /Invoke-External gh release create/,
+      /& gh release create/,
     ],
     [
       "Publish version manifest then stable manifest last",
       null,
-      /Invoke-External tccli cdn PurgePathCache/,
+      /& tccli cdn PurgePathCache/,
     ],
   ];
 
   for (const [name, nextName, command] of steps) {
     const step = workflowStep(name, nextName);
     assert.match(step, /\$ErrorActionPreference = 'Stop'/);
-    assert.match(step, /function Invoke-External/);
     assert.match(step, command);
     assert.match(step, /if \(\$LASTEXITCODE -ne 0\) \{ throw/);
-    assert.doesNotMatch(step, /^\s+(?:cargo|gh|node|pnpm|python|tccli)\s/m);
+    assert.doesNotMatch(step, /Invoke-External/);
+  }
+
+  const nativeInvocations = [
+    ...releaseWorkflow.matchAll(
+      /^\s*(?:\$\w+\s*=\s*)?&\s+(node|pnpm|python|cargo|gh|tccli)\b[^\r\n]*\r?\n([^\r\n]*)/gm,
+    ),
+  ];
+  assert.equal(nativeInvocations.length, 13);
+  for (const [, command, followingLine] of nativeInvocations) {
+    assert.match(
+      followingLine,
+      new RegExp(
+        `^\\s*if \\(\\$LASTEXITCODE -ne 0\\) \\{ throw "${command} failed with exit code \\$LASTEXITCODE" \\}$`,
+      ),
+      `${command} must be immediately followed by its exit-code guard`,
+    );
   }
 });
+
+test(
+  "PowerShell release checks preserve native arguments, failures, and captured notes",
+  { skip: process.platform !== "win32" },
+  () => {
+    execFileSync(
+      "pwsh",
+      ["-NoProfile", "-File", "scripts/test-release-pwsh.ps1"],
+      {
+        cwd: process.cwd(),
+        stdio: "inherit",
+      },
+    );
+  },
+);

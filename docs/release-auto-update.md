@@ -74,9 +74,14 @@ reinstallation; existing clients cannot be safely migrated by assertion alone.
 
 The release workflow pins Tencent's official `cos-python-sdk-v5==1.9.44` for
 COS object API calls and `tccli==3.0.1350.1` for the narrowly scoped CDN purge.
-Every native command in a multi-command PowerShell release step is wrapped with
-an explicit `$LASTEXITCODE` check, so dependency installation, upload, signing,
-GitHub Release, manifest, or CDN purge failures stop publication immediately.
+Every native command in a PowerShell release step is invoked directly and followed
+immediately by an explicit `$LASTEXITCODE` check, so dependency installation,
+upload, signing, GitHub Release, manifest, or CDN purge failures stop publication
+immediately. Do not forward these arguments through an advanced function with
+`ValueFromRemainingArguments`: PowerShell may bind native flags such as Cargo's
+`-p` as the function's common parameters before the child command starts. The
+Windows behavior test covers dash-prefixed arguments, fail-before-next-action,
+and captured release-note stdout in a real `pwsh` process.
 The immutable helper uses `head_object`, `download_file`, and a conditional
 `put_object`; it does not use SDK multipart ETags for identity.
 

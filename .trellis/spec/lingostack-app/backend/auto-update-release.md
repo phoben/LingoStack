@@ -41,13 +41,13 @@ cargo run --release -p lingostack-app --bin verify-updater-signature -- <artifac
 
 GitHub `production` secrets：`TAURI_SIGNING_PRIVATE_KEY`、`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`、`TAURI_UPDATER_PUBLIC_KEY`、`COS_SECRET_ID`、`COS_SECRET_KEY`。Variables：`COS_BUCKET`、`COS_REGION`、`COS_PREFIX`、`CDN_DOMAIN`。这些值不得进入仓库、缓存、artifact 或日志；workflow 必须从 `vars.CDN_DOMAIN` 读取域名，禁止再次硬编码。
 
-腾讯发布工具固定使用官方 PyPI 包 `cos-python-sdk-v5==1.9.44` 与 `tccli==3.0.1350.1`。`tencentcloud-cli` 不是可安装包名；安装、上传、验签、GitHub Release、manifest 与 CDN purge 所在的 PowerShell 步骤必须经统一 wrapper 检查 `$LASTEXITCODE`，禁止假定原生命令非零会自动终止脚本。
+腾讯发布工具固定使用官方 PyPI 包 `cos-python-sdk-v5==1.9.44` 与 `tccli==3.0.1350.1`。`tencentcloud-cli` 不是可安装包名；安装、上传、验签、GitHub Release、manifest 与 CDN purge 所在的 PowerShell 步骤必须直接调用原生命令，并在每次调用的下一行检查 `$LASTEXITCODE`。禁止使用带 `ValueFromRemainingArguments` 的高级函数转发 native 参数：Cargo 的 `-p` 等参数会被 PowerShell 尝试绑定为函数通用参数，导致真正命令尚未运行就失败。
 
 ### 3. Contracts
 
 - 只有带 `VITE_LINGOSTACK_UPDATER_ENABLED=true` 的签名 NSIS release build 启用 updater；dev、E2E 与 portable 不显示自动更新入口。
 - Tauri 2 的 release overlay 必须设置 `bundle.createUpdaterArtifacts: true`，从而为 Windows NSIS 生成 `<installer>.exe.sig`；日常 `tauri.conf.json` 必须保持未启用。禁止仅设置签名环境变量后假定 `.sig` 一定存在。
-- Python/CLI 依赖安装失败必须在同一步立即终止；不得继续执行 fixture、上传或 CDN 读取。安装测试必须校验 workflow 使用官方 `tccli` 包，并覆盖每个多命令 PowerShell 发布步骤的 native-command fail-fast 包装。
+- Python/CLI 依赖安装失败必须在同一步立即终止；不得继续执行 fixture、上传或 CDN 读取。安装测试必须校验 workflow 使用官方 `tccli` 包，并逐条覆盖每个 PowerShell native-command 的直接调用与紧邻 `$LASTEXITCODE` 检查。
 - 启动后和常驻托盘每 24 小时静默检查；自动失败不提示，手动检查必须给“最新版 / 可用 / 失败”结果。发现可用更新或下载失败后仍保留 verified `Update` handle，并暂停周期检查。
 - 两个“立即更新”入口共用单一 in-flight task。用户点击后下载；失败可重试；下载完成由官方 NSIS passive 安装器退出当前进程并自动启动新版本，不调用 process-plugin relaunch。
 - `latest.json` 的 signature 是 `.sig` 文本内容，不是 URL；notes 来自已发布 GitHub Release body，并按纯文本展示。
@@ -99,7 +99,8 @@ git diff --check
 - RTL 断言 About/TitleBar 的角色、名称、进度和动态入口，不断言 Tailwind 内部类。
 - Immutable publisher 至少覆盖 absent、same、different、probe error、412 same、412 different。
 - Release config 测试必须同时断言渲染结果为 `bundle.createUpdaterArtifacts === true`，且日常开发配置未启用该项。
-- Workflow 静态测试必须拒绝 `tencentcloud-cli`，锁定 `tccli==3.0.1350.1`，并证明发布步骤中的 `node`、`pnpm`、`python`、`cargo`、`gh`、`tccli` 都通过检查 `$LASTEXITCODE` 的 wrapper 调用。
+- Workflow 静态测试必须拒绝 `tencentcloud-cli`，锁定 `tccli==3.0.1350.1`，拒绝高级参数转发 wrapper，并证明发布步骤中的每一条 `node`、`pnpm`、`python`、`cargo`、`gh`、`tccli` 直接调用都紧邻对应的 `$LASTEXITCODE` 检查。
+- Windows PowerShell 行为测试必须真实执行带 `-p` / `--release` 的子进程、返回非零的子进程及捕获 stdout 的子进程，分别证明破折号参数原样到达、失败后不会执行下一动作、GitHub Release notes 类输出仍可写入文件；非 Windows 本地环境可跳过，生产 workflow 必须在 `windows-latest` 执行。
 - Verifier 至少覆盖有效 Tauri wrapped Minisign、篡改 artifact、格式有效但内容篡改的 signature、畸形 material。
 - 真实 Windows 验收必须从旧 NSIS 安装版完成发现、显式下载、安装、自动重启、版本与配置保留；未运行不得称 updater runtime 通过。
 
@@ -109,7 +110,7 @@ git diff --check
 
 ```text
 inject signing key only → build NSIS → assume <installer>.exe.sig exists
-→ run pip/native commands without checking exit codes
+→ forward native args through an advanced PowerShell function or omit exit checks
 → upload artifact → overwrite stable → HEAD artifact → check .sig is non-empty
 ```
 
@@ -118,7 +119,7 @@ inject signing key only → build NSIS → assume <installer>.exe.sig exists
 ```text
 release overlay sets bundle.createUpdaterArtifacts=true
 → require installer + adjacent .exe.sig
-→ install pinned official COS SDK/tccli and fail immediately on any nonzero native exit
+→ invoke each native command directly and immediately fail on nonzero LASTEXITCODE
 → conditional immutable publish
 → download final CDN artifact + signature
 → Minisign verify with production public key
