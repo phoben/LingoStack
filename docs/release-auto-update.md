@@ -73,9 +73,12 @@ reinstallation; existing clients cannot be safely migrated by assertion alone.
 ## Tooling evidence and local checks
 
 The release workflow pins Tencent's official `cos-python-sdk-v5==1.9.44` for
-COS object API calls and `tencentcloud-cli==3.0.1350` for the narrowly scoped
-CDN purge. The immutable helper uses `head_object`, `download_file`, and a
-conditional `put_object`; it does not use SDK multipart ETags for identity.
+COS object API calls and `tccli==3.0.1350.1` for the narrowly scoped CDN purge.
+Every native command in a multi-command PowerShell release step is wrapped with
+an explicit `$LASTEXITCODE` check, so dependency installation, upload, signing,
+GitHub Release, manifest, or CDN purge failures stop publication immediately.
+The immutable helper uses `head_object`, `download_file`, and a conditional
+`put_object`; it does not use SDK multipart ETags for identity.
 
 Tauri CLI has no signer verification subcommand. The release verifier therefore
 uses `minisign-verify==0.2.5`, the audited verifier already used by

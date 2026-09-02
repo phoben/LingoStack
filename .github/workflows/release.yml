@@ -46,41 +46,74 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Create ephemeral updater config
         shell: pwsh
-        run: node scripts/prepare-updater-release-config.mjs "$env:RUNNER_TEMP/tauri.release.conf.json"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Invoke-External {
+            param([string]$Command, [Parameter(ValueFromRemainingArguments)][string[]]$Arguments)
+            & $Command @Arguments
+            if ($LASTEXITCODE -ne 0) { throw "$Command failed with exit code $LASTEXITCODE" }
+          }
+          Invoke-External node scripts/prepare-updater-release-config.mjs "$env:RUNNER_TEMP/tauri.release.conf.json"
       - name: Build signed NSIS installer
         shell: pwsh
         env:
           VITE_LINGOSTACK_UPDATER_ENABLED: "true"
-        run: pnpm tauri build --bundles nsis --config "$env:RUNNER_TEMP/tauri.release.conf.json"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Invoke-External {
+            param([string]$Command, [Parameter(ValueFromRemainingArguments)][string[]]$Arguments)
+            & $Command @Arguments
+            if ($LASTEXITCODE -ne 0) { throw "$Command failed with exit code $LASTEXITCODE" }
+          }
+          Invoke-External pnpm tauri build --bundles nsis --config "$env:RUNNER_TEMP/tauri.release.conf.json"
       - name: Install verified Tencent COS publisher
         shell: pwsh
         run: |
-          python -m pip install --disable-pip-version-check "cos-python-sdk-v5==1.9.44" "tencentcloud-cli==3.0.1350"
+          $ErrorActionPreference = 'Stop'
+          function Invoke-External {
+            param([string]$Command, [Parameter(ValueFromRemainingArguments)][string[]]$Arguments)
+            & $Command @Arguments
+            if ($LASTEXITCODE -ne 0) { throw "$Command failed with exit code $LASTEXITCODE" }
+          }
+          Invoke-External python -m pip install --disable-pip-version-check "cos-python-sdk-v5==1.9.44" "tccli==3.0.1350.1"
           if (-not $env:COS_BUCKET -or -not $env:COS_REGION -or -not $env:COS_PREFIX -or -not $env:CDN_DOMAIN) { throw "production COS/CDN variables are required" }
-          python scripts/test_publish_immutable.py
+          Invoke-External python scripts/test_publish_immutable.py
       - name: Publish immutable artifacts, then verify public signature
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+          function Invoke-External {
+            param([string]$Command, [Parameter(ValueFromRemainingArguments)][string[]]$Arguments)
+            & $Command @Arguments
+            if ($LASTEXITCODE -ne 0) { throw "$Command failed with exit code $LASTEXITCODE" }
+          }
           $version = $env:GITHUB_REF_NAME.Substring(1)
           $artifact = Get-ChildItem target/release/bundle/nsis -Filter '*.exe' | Select-Object -First 1
           if (-not $artifact) { throw 'signed NSIS artifact was not produced' }
           $signature = Get-Item "$($artifact.FullName).sig"
           $remoteBase = "$($env:COS_PREFIX.Trim('/'))/releases/$version/windows-x86_64"
-          python scripts/publish_immutable.py --bucket "$env:COS_BUCKET" --region "$env:COS_REGION" --key "$remoteBase/$($artifact.Name)" --file "$($artifact.FullName)" --cache-control "public, max-age=31536000, immutable"
-          python scripts/publish_immutable.py --bucket "$env:COS_BUCKET" --region "$env:COS_REGION" --key "$remoteBase/$($signature.Name)" --file "$($signature.FullName)" --cache-control "public, max-age=31536000, immutable"
+          Invoke-External python scripts/publish_immutable.py --bucket "$env:COS_BUCKET" --region "$env:COS_REGION" --key "$remoteBase/$($artifact.Name)" --file "$($artifact.FullName)" --cache-control "public, max-age=31536000, immutable"
+          Invoke-External python scripts/publish_immutable.py --bucket "$env:COS_BUCKET" --region "$env:COS_REGION" --key "$remoteBase/$($signature.Name)" --file "$($signature.FullName)" --cache-control "public, max-age=31536000, immutable"
           $cdnBase = "https://$env:CDN_DOMAIN/releases/$version/windows-x86_64/$($artifact.Name)"
           $publicArtifact = Join-Path $env:RUNNER_TEMP 'public-updater.exe'
           $publicSignature = Join-Path $env:RUNNER_TEMP 'public-updater.exe.sig'
           Invoke-WebRequest -UseBasicParsing $cdnBase -OutFile $publicArtifact
           Invoke-WebRequest -UseBasicParsing "$cdnBase.sig" -OutFile $publicSignature
-          cargo run --release -p lingostack-app --bin verify-updater-signature -- $publicArtifact $publicSignature
+          Invoke-External cargo run --release -p lingostack-app --bin verify-updater-signature -- $publicArtifact $publicSignature
           "ARTIFACT=$($artifact.FullName)" | Out-File -Append -FilePath $env:GITHUB_ENV
           "SIGNATURE=$($signature.FullName)" | Out-File -Append -FilePath $env:GITHUB_ENV
       - name: Publish GitHub release before stable index
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$env:GITHUB_REF_NAME" "$env:ARTIFACT" "$env:SIGNATURE" --generate-notes --verify-tag
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Invoke-External {
+            param([string]$Command, [Parameter(ValueFromRemainingArguments)][string[]]$Arguments)
+            & $Command @Arguments
+            if ($LASTEXITCODE -ne 0) { throw "$Command failed with exit code $LASTEXITCODE" }
+          }
+          Invoke-External gh release create "$env:GITHUB_REF_NAME" "$env:ARTIFACT" "$env:SIGNATURE" --generate-notes --verify-tag
       - name: Publish version manifest then stable manifest last
         shell: pwsh
         env:
@@ -88,16 +121,23 @@ jobs:
           TENCENTCLOUD_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
           TENCENTCLOUD_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
         run: |
+          $ErrorActionPreference = 'Stop'
+          function Invoke-External {
+            param([string]$Command, [Parameter(ValueFromRemainingArguments)][string[]]$Arguments)
+            & $Command @Arguments
+            if ($LASTEXITCODE -ne 0) { throw "$Command failed with exit code $LASTEXITCODE" }
+          }
           $version = $env:GITHUB_REF_NAME.Substring(1)
           $manifest = Join-Path $env:RUNNER_TEMP 'latest.json'
           $notes = Join-Path $env:RUNNER_TEMP 'release-notes.md'
-          gh release view "$env:GITHUB_REF_NAME" --json body --jq '.body' | Set-Content -NoNewline $notes
-          node scripts/release-manifest.mjs create --version $version --artifact "$env:ARTIFACT" --signature "$env:SIGNATURE" --base-url "https://$env:CDN_DOMAIN" --notes-file $notes --output $manifest
+          $releaseNotes = Invoke-External gh release view "$env:GITHUB_REF_NAME" --json body --jq '.body'
+          Set-Content -NoNewline $notes -Value $releaseNotes
+          Invoke-External node scripts/release-manifest.mjs create --version $version --artifact "$env:ARTIFACT" --signature "$env:SIGNATURE" --base-url "https://$env:CDN_DOMAIN" --notes-file $notes --output $manifest
           $prefix = $env:COS_PREFIX.Trim('/')
-          python scripts/publish_immutable.py --bucket "$env:COS_BUCKET" --region "$env:COS_REGION" --key "$prefix/manifests/$version/latest.json" --file $manifest --cache-control "public, max-age=31536000, immutable"
+          Invoke-External python scripts/publish_immutable.py --bucket "$env:COS_BUCKET" --region "$env:COS_REGION" --key "$prefix/manifests/$version/latest.json" --file $manifest --cache-control "public, max-age=31536000, immutable"
           # This is intentionally the only mutable write and comes after every
           # build, signature, CDN and GitHub Release validation step above.
-          python -c "from qcloud_cos import CosConfig, CosS3Client; import os; CosS3Client(CosConfig(Region=os.environ['COS_REGION'], SecretId=os.environ['COS_SECRET_ID'], SecretKey=os.environ['COS_SECRET_KEY'])).upload_file(os.environ['COS_BUCKET'], '$prefix/channels/stable/latest.json', '$manifest', CacheControl='no-cache')"
-          tccli cdn PurgePathCache --Paths "https://$env:CDN_DOMAIN/channels/stable/latest.json" --FlushType delete
+          Invoke-External python -c "from qcloud_cos import CosConfig, CosS3Client; import os; CosS3Client(CosConfig(Region=os.environ['COS_REGION'], SecretId=os.environ['COS_SECRET_ID'], SecretKey=os.environ['COS_SECRET_KEY'])).upload_file(os.environ['COS_BUCKET'], '$prefix/channels/stable/latest.json', '$manifest', CacheControl='no-cache')"
+          Invoke-External tccli cdn PurgePathCache --Paths "https://$env:CDN_DOMAIN/channels/stable/latest.json" --FlushType delete
           $published = Invoke-WebRequest -UseBasicParsing "https://$env:CDN_DOMAIN/channels/stable/latest.json" | Select-Object -Expand Content | ConvertFrom-Json
           if ($published.version -ne $version) { throw 'stable manifest verification returned the wrong version' }
