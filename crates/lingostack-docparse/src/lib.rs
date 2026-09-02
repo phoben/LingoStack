@@ -269,10 +269,18 @@ pub fn parse_docx(bytes: &[u8], limits: ParseLimits) -> Result<ParsedDocument, D
                 push_segment(
                     &mut current_segments,
                     Segment::Translatable(
-                        text.unescape()
+                        text.decode()
                             .map_err(|_| DocParseError::Corrupt)?
                             .into_owned(),
                     ),
+                );
+            }
+            // quick-xml 0.41 emits XML references separately from text. Preserve
+            // the user-visible text that older versions returned via unescape.
+            Ok(XmlEvent::GeneralRef(reference)) if in_text => {
+                push_segment(
+                    &mut current_segments,
+                    Segment::Translatable(resolve_xml_reference(&reference)?),
                 );
             }
             Ok(XmlEvent::Empty(event)) => match event.local_name().as_ref() {
@@ -315,6 +323,30 @@ pub fn parse_docx(bytes: &[u8], limits: ParseLimits) -> Result<ParsedDocument, D
         blocks,
         warnings: vec![ParseWarning::FormattingSimplified],
     })
+}
+
+fn resolve_xml_reference(
+    reference: &quick_xml::events::BytesRef<'_>,
+) -> Result<String, DocParseError> {
+    if let Some(character) = reference
+        .resolve_char_ref()
+        .map_err(|_| DocParseError::Corrupt)?
+    {
+        return Ok(character.to_string());
+    }
+
+    match reference
+        .decode()
+        .map_err(|_| DocParseError::Corrupt)?
+        .as_ref()
+    {
+        "amp" => Ok("&".into()),
+        "apos" => Ok("'".into()),
+        "gt" => Ok(">".into()),
+        "lt" => Ok("<".into()),
+        "quot" => Ok("\"".into()),
+        _ => Err(DocParseError::Corrupt),
+    }
 }
 
 /// Parse CommonMark into source-ordered blocks and protected inline/code segments.
@@ -709,6 +741,22 @@ mod tests {
         assert!(parsed.blocks[5].segments.iter().any(|segment| {
             matches!(segment, Segment::Protected(value) if value == "[image: Architecture; System diagram]")
         }));
+    }
+
+    #[test]
+    fn docx_text_entities_are_extracted_as_displayed_text() {
+        let parsed = parse_docx(
+            &docx_fixture(
+                r#"<w:document><w:body><w:p><w:r><w:t>Tom &amp; Jerry</w:t></w:r></w:p></w:body></w:document>"#,
+            ),
+            ParseLimits::default(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            parsed.blocks[0].segments,
+            vec![Segment::Translatable("Tom & Jerry".into())]
+        );
     }
 
     #[test]

@@ -62,6 +62,67 @@ Key 出现在 URL 里时（Gemini）必须在错误路径主动擦除，见 `lin
 - **零遥测**：不引入任何统计 / 崩溃上报依赖
 - 小需求不引库：手写 bitfield 而非 `bitflags`（`hotkey.rs:7`），手写 IndexedDB 封装而非 `idb`（前端同理）
 
+## Rust 工具链与 MSRV 契约
+
+### 1. Scope / Trigger
+
+新增或升级 workspace Rust 依赖、调整 CI 工具链、修改 `rust-version`，或安全公告要求跨 MSRV 升级时，必须核对本节。该契约用于避免 `Cargo.toml` 宣称的最低版本低于实际依赖要求。
+
+### 2. Signatures
+
+```toml
+[workspace.package]
+edition = "2021"
+rust-version = "1.85"
+```
+
+`rust-toolchain.toml` 继续使用 `stable`，不固定具体 patch 版本；所有 8 个 workspace package 通过 `rust-version.workspace = true` 继承最低 Rust 1.85。
+
+### 3. Contracts
+
+- 新依赖及其完整传递依赖必须支持 Rust 1.85 或更低；不能只检查直接依赖的 MSRV。
+- 安全公告的 patched range 优先于维持旧 MSRV。若安全版本要求更高 Rust，必须先明确记录兼容性影响，再同步 workspace `rust-version`。
+- 不得通过 audit ignore、选取仍受影响的中间版本或把 `rust-version` 留在虚假低值来保持门禁表面通过。
+- 2026-09 安全基线至少包含 `h2 >= 0.4.16`、`lopdf >= 0.42.0`、`quick-xml >= 0.41.0`；升级后必须保留文档解析回归测试与第三方声明同步。
+
+### 4. Validation & Error Matrix
+
+| 条件                                          | 必须结果                                                      |
+| --------------------------------------------- | ------------------------------------------------------------- |
+| 依赖声明的 MSRV 高于 workspace `rust-version` | 提升并记录 workspace MSRV，或选择同样已修复且受维护的兼容依赖 |
+| RustSec patched range 与候选版本不符          | 拒绝候选版本，不允许 audit ignore                             |
+| 升级改变解析器事件/API                        | 适配行为并新增真实输入回归测试                                |
+| 许可证/依赖树变化                             | 重新生成 `THIRD_PARTY_NOTICES` 并核对锁文件                   |
+
+### 5. Good / Base / Bad Cases
+
+- **Good**：官方公告、crate metadata、依赖树和 workspace MSRV 一致，完整门禁通过。
+- **Base**：本机缺少 `cargo-audit` 时，可先核对官方 patched range 与精确依赖树，但仍必须由 CI `cargo audit` 给最终实时公告证据。
+- **Bad**：公告要求 `lopdf >= 0.42`，却为了保留 Rust 1.80 选择仍受影响的 `lopdf 0.36`。
+
+### 6. Tests Required
+
+```powershell
+cargo metadata --format-version 1
+cargo tree -i h2
+cargo tree -i lopdf
+cargo tree -i quick-xml
+cargo fmt --all --check
+cargo clippy --all-targets -- -D warnings
+cargo test --workspace
+pnpm notices:generate
+git diff --check
+```
+
+CI 还必须在 Windows、Linux、macOS 运行 Rust 门禁并执行 `cargo audit`；单平台本地通过不能代替跨平台证据。
+
+### 7. Wrong vs Correct
+
+```text
+Wrong: 保留 rust-version=1.80 → 选择未修复依赖或忽略公告 → 门禁假绿
+Correct: 核对官方 patched range → 升级安全依赖 → 将 workspace MSRV 同步为 1.85 → 全仓与三平台验证
+```
+
 ## crate 纯净性只约束 `lingostack-core`
 
 `lingostack-core` 禁依赖 `tauri`，CI 在三平台上跑 `cargo tree -p lingostack-core | grep -iw tauri` 强制（`.github/workflows/ci.yml:58-65`）。

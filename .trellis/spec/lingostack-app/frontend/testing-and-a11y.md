@@ -61,6 +61,8 @@ UI 变更测试应覆盖键盘可达、可见焦点、选中/禁用语义，以�
 
 根目录 `e2e/` 使用 WebdriverIO 操作真实 Tauri 窗口。选择器继续遵守 RTL 的语义优先原则：role、accessible name、`aria-current`、`aria-busy`、`role=alert`；不要用 Tailwind class 或 DOM 层级。若导航与页面动作可见文案相同（例如都叫“翻译”），给动作补准确的 `aria-label`（当前为“执行翻译”），不要用模糊的 `button=翻译` 碰运气。
 
+`aria-busy=true` 是请求期间的瞬时状态，确定性 fixture 可能在 WebDriver 下一轮轮询前完成。桌面 E2E 验证最终结果时必须定位稳定的 `aria-live="polite"` 容器并断言完成文案，不得用 `[aria-busy]` 作为成功结果选择器；忙碌语义由组件测试覆盖，或由明确控制完成时机的 E2E fixture 单独验证。Toast 场景按用户可见类型/文案定位目标提示，不能用页面中第一个 `aria-live` 冒充 Toast。
+
 术语与收藏布局的真实桌面 E2E 至少断言：tooltip 的父节点是 `body`、computed position 为 `fixed` 且打开前后术语区高度不变；术语收藏按钮能从 `aria-pressed=false` 切到 true 并再次取消；超长连续文本所在行 `scrollWidth <= clientWidth`，默认存在三行 clamp，展开后目标行移除 clamp 且 `aria-expanded=true`。测试创建的收藏必须在用例结束前删除。
 
 guest bridge 只允许在 `import.meta.env.MODE === "e2e"` 时动态加载。普通 `pnpm build` 必须保持无 WDIO bridge，完整 feature/capability/fixture 契约见 [后端真实桌面 E2E](../backend/e2e-testing.md)。

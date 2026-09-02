@@ -1001,7 +1001,7 @@ fn shared_cooldown_delay(cooldown: &Mutex<Option<Instant>>, now: Instant) -> Opt
 fn extend_shared_cooldown(cooldown: &Mutex<Option<Instant>>, now: Instant, duration: Duration) {
     if let Ok(mut until) = cooldown.lock() {
         let next = now + duration;
-        if until.map_or(true, |current| current < next) {
+        if until.is_none_or(|current| current < next) {
             *until = Some(next);
         }
     }

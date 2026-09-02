@@ -471,7 +471,7 @@ impl DocumentModule {
             .collect::<Result<Vec<_>, _>>()?;
         if rows.is_empty()
             || rows.iter().any(|(_, translation, status)| {
-                status != "succeeded" || translation.as_deref().map_or(true, str::is_empty)
+                status != "succeeded" || translation.as_deref().is_none_or(str::is_empty)
             })
         {
             return Ok(None);

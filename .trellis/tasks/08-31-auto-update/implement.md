@@ -25,7 +25,7 @@
 ## Phase 4 — 质量门禁与分层验收
 
 - [x] 运行前端 lint、Vitest、TypeScript/Vite build；运行 Rust fmt、clippy、workspace test/build。
-- [ ] 运行 production isolation、app E2E feature test、Windows Tauri E2E 与 release build；除桌面 E2E 11 个场景中 2 个既有无关失败外均通过，整套 E2E 不称通过。
+- [x] 运行 production isolation、app E2E feature test、Windows Tauri E2E 与 release build；2026-09-02 修复既有断言与瞬时 `aria-busy` 选择器后，Windows 桌面 E2E 14/14 连续两次通过，release build 退出码为 0。
 - [x] 重新生成并核对 `THIRD_PARTY_NOTICES`，运行 workflow/PowerShell/JSON 格式检查与 `git diff --check`。
 - [ ] 在 DNS、TLS、COS、CDN 与测试签名密钥就绪后，从旧 Windows x64 NSIS 安装版完成一次真实 staging 更新：发现、下载、安装、重启、版本确认与配置保留。
 - [ ] 真实 production 发布前完成签名私钥独立备份和恢复演练；未完成时不得发布 stable manifest。

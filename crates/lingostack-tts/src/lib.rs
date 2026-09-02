@@ -22,6 +22,10 @@ pub struct SpeechCompletion {
 }
 
 impl SpeechCompletion {
+    // Only the Windows SAPI implementation creates real completion channels.
+    // Keep the constructor out of macOS/Linux production builds while retaining
+    // it for platform-neutral contract tests.
+    #[cfg(any(target_os = "windows", test))]
     pub(crate) fn new(receiver: Receiver<Result<SpeechOutcome, TtsError>>) -> Self {
         Self { receiver }
     }
