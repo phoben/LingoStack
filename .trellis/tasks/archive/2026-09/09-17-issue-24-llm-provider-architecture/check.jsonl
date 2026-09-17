@@ -1,0 +1,6 @@
+{"file":".trellis/spec/lingostack-app/backend/testing-strategy.md","reason":"跨 crate、IPC、真实桌面与证据等级的最终门禁"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"检查配置镜像、命令注册、fixture 与真实往返是否同步"}
+{"file":".trellis/spec/lingostack-llm/backend/testing.md","reason":"wiremock、协议错误、分片与敏感信息回归测试要求"}
+{"file":".trellis/spec/lingostack-llm/backend/errors-and-secrets.md","reason":"检查重试分类和 API Key 全错误路径脱敏"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"检查模型配置交互、忙碌/错误播报与键盘语义"}
+{"file":"docs/research/issue-24-llm-provider-architecture.md","reason":"逐项核对首批预设、Responses、发现、能力和范围边界"}

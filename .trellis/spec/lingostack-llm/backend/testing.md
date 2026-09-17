@@ -4,7 +4,8 @@
 
 | 文件                                       | 手段           |
 | ------------------------------------------ | -------------- |
-| `openai.rs` / `anthropic.rs` / `gemini.rs` | wiremock       |
+| `openai.rs` / `responses.rs` / `anthropic.rs` / `gemini.rs` | wiremock |
+| `discovery.rs` | wiremock（分页、鉴权、过滤、错误） |
 | `sse.rs` / `json_array_stream.rs`          | 手工分片       |
 | `lib.rs`                                   | 纯同步错误分类 |
 
@@ -47,7 +48,7 @@ Mock::given(method("POST"))
 - `skips_chunks_without_content`
 - `request_body_carries_model_messages_and_stream`
 
-新增 provider 时**把这批同名测试补齐**，形成横向可比的最低覆盖面。
+新增 provider 时**把这批同名测试补齐**，形成横向可比的最低覆盖面。Responses 还必须覆盖具名 delta/failure 事件；discovery 必须覆盖分页、空结果、重复 ID、坏 JSON、状态错误与 secret 回显。
 
 ## 减少样板
 

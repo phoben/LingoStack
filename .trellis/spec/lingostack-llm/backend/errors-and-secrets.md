@@ -2,7 +2,7 @@
 
 ## `LlmError`
 
-`src/lib.rs:100-114`：
+`src/lib.rs`：
 
 ```rust
 #[derive(Debug, thiserror::Error)]
@@ -52,7 +52,7 @@ pub enum LlmError {
 
 **1. provider 结构体不 derive `Debug`**
 
-`OpenAiProvider` / `AnthropicProvider` / `GeminiProvider` 完全没有 derive（`openai.rs:52`、`anthropic.rs:73`、`gemini.rs:84`）。没有 `Debug` 实现 → `{:?}` 泄漏在结构上不可能发生。
+`OpenAiProvider` / `OpenAiResponsesProvider` / `AnthropicProvider` / `GeminiProvider` 完全不 derive `Debug`。没有 `Debug` 实现 → `{:?}` 泄漏在结构上不可能发生。
 
 **加 derive 前先想清楚**：给这些结构体加 `#[derive(Debug)]` 会直接把明文 key 暴露给任何 `{:?}`。真需要 `Debug`，照 `core` 里 `ProviderConfig` 的做法手写脱敏 impl。
 
@@ -60,14 +60,9 @@ pub enum LlmError {
 
 `lib.rs:96-99` 写明不变量：`LlmError` 永不含 API Key。
 
-Gemini 的 key 在 URL 里，所以两条错误路径都必须主动擦除：
+所有 provider 和 discovery 的外部错误正文统一通过 `safe_error_text(raw, secret)`：擦除 secret 后最多保留 2048 字符。Gemini chat 的 key 在 URL 里，因此网络错误路径也必须主动擦除；空 key 不得执行 `replace("", ...)`。
 
-- 网络错误：`.replace(self.api_key.as_str(), "<redacted>")`（`gemini.rs:194-198`）
-- HTTP 状态错误的响应体：`.replace(api_key, "<redacted>")`（`gemini.rs:157-174`，这也是它的 `ensure_success` 需要额外 `api_key` 参数的原因）
-
-有测试守护：`surfaces_non_ok_status_with_key_redacted`（`gemini.rs:340-364`）用故意回显 key 的 mock 响应，断言 `!body.contains("gk-test")` 且 `body.contains("<redacted>")`。
-
-OpenAI / Anthropic 不需要擦除，因为 key 只在头部，主流提供商不回显（依据见 `openai.rs:109` 注释）。
+不能假设 header key 永远不会被代理或测试服务回显；OpenAI、Responses、Anthropic、Gemini 与 discovery 的状态正文都走统一 helper。每条新增外部错误路径必须用 mock 回显假 key，并断言原文消失、`<redacted>` 保留且长度有界。
 
 **3. 本 crate 无日志调用**
 

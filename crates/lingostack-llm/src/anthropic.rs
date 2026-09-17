@@ -20,8 +20,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::sse::parse_data_lines;
 use crate::{
-    response_body_error, streaming_http_client, ChatChunk, ChatRequest, ChatRole, LlmError,
-    LlmProvider,
+    response_body_error, safe_error_text, streaming_http_client, ChatChunk, ChatRequest, ChatRole,
+    LlmError, LlmProvider, MaxOutputField,
 };
 /// Anthropic 要求的 API 版本 header 值。
 const ANTHROPIC_VERSION: &str = "2023-06-01";
@@ -120,7 +120,11 @@ impl AnthropicProvider {
         AnthropicRequest {
             model: request.model.clone(),
             messages,
-            max_tokens: self.max_tokens,
+            max_tokens: if request.max_output_field == Some(MaxOutputField::MaxTokens) {
+                request.max_output_tokens.unwrap_or(self.max_tokens)
+            } else {
+                self.max_tokens
+            },
             stream: true,
             system: if systems.is_empty() {
                 None
@@ -133,13 +137,17 @@ impl AnthropicProvider {
 }
 
 /// 校验响应状态：2xx 放行，否则读 body 包成 [`LlmError::Status`]。
-async fn ensure_success(resp: reqwest::Response) -> Result<reqwest::Response, LlmError> {
+async fn ensure_success(
+    resp: reqwest::Response,
+    api_key: &str,
+) -> Result<reqwest::Response, LlmError> {
     let status = resp.status();
     if status.is_success() {
         Ok(resp)
     } else {
         let code = status.as_u16();
-        let body = resp.text().await.unwrap_or_default();
+        let raw = resp.text().await.unwrap_or_default();
+        let body = safe_error_text(&raw, api_key);
         Err(LlmError::Status { status: code, body })
     }
 }
@@ -164,10 +172,10 @@ impl LlmProvider for AnthropicProvider {
                     if e.is_timeout() {
                         LlmError::Timeout
                     } else {
-                        LlmError::Network(e.to_string())
+                        LlmError::Network(safe_error_text(&e.to_string(), &self.api_key))
                     }
                 })?;
-            let resp = ensure_success(resp).await?;
+            let resp = ensure_success(resp, &self.api_key).await?;
             let bytes = resp
                 .bytes_stream()
                 .map(move |result| result.map_err(|error| response_body_error(error, &api_key)));
@@ -363,7 +371,9 @@ mod tests {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/v1/messages"))
-            .respond_with(ResponseTemplate::new(401).set_body_string("invalid x-api-key"))
+            .respond_with(
+                ResponseTemplate::new(401).set_body_string("invalid x-api-key sk-ant-test"),
+            )
             .mount(&server)
             .await;
         let provider = AnthropicProvider::new(server.uri(), "sk-ant-test").unwrap();
@@ -372,6 +382,7 @@ mod tests {
             Err(LlmError::Status { status, body }) => {
                 assert_eq!(*status, 401);
                 assert!(body.contains("invalid x-api-key"));
+                assert!(!body.contains("sk-ant-test"));
             }
             other => panic!("期望 Status 错误，实际: {other:?}"),
         }

@@ -17,7 +17,7 @@ vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: ... }));
 
 新测试把 `vi.mock` 写在相应模块 import 前（Vitest 会提升该调用）；现有窗口控制测试可参照 `title-bar.test.tsx` 的 `getCurrentWindow` mock。RTL 查询优先 `getByRole("button", { name })`，断言 `aria-current`、`aria-pressed`、`aria-busy` 等语义，而非实现类名。effect 有异步 promise 时用 `findByRole` 等待，以避免 `act(...)` 警告；模块加载期行为用 `vi.resetModules()` 加动态 import，参照 `theme-store.test.ts`。
 
-当前覆盖包含 `lib/utils`、`lib/naming`、`lib/favorites`、`favorites-db`、app/theme/config/favorites/tts stores、`use-theme`、`Sidebar`、`TitleBar` 与 `App` 桌面事件。IndexedDB 测试用 `fake-indexeddb`，并必须清理数据库与 store 状态以避免用例串扰。各业务 views、`provider-form.tsx`、`settings-ai.tsx`、所有 `ui/` 原语和 `view-shell.tsx` 尚未完整覆盖；新功能必须随功能补测试，视图难测时先将纯逻辑抽到 `lib/`。
+当前覆盖包含常用纯逻辑、stores、主要 views，以及设置页中的 provider preset/discovery/model capability/generation 行为。ProviderForm 的 merge/filter/control 判定优先抽到 `lib/provider-catalog.ts` 做纯函数测试，SettingsView RTL 负责用户可见交互；仍不能用纯函数测试替代 loading/live region/保存失败等组件语义。IndexedDB 测试用 `fake-indexeddb`，并必须清理数据库与 store 状态以避免用例串扰。
 
 ## 已有语义契约
 
@@ -40,7 +40,128 @@ vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: ... }));
 
 新增会异步更新、但不必打断用户的结果或进度区域：在稳定容器上设置 `aria-live="polite"`，请求期间同步 `aria-busy`，完成后清除。需要立即打断且需要持续观察的失败信息使用 `role="alert"`，不要同时把同一错误重复置入 polite region。文档翻译的持久失败原因例外：按失败周期用 Toast 播报一次，列表状态和重试入口持续可见，reader 不重复放置该原因。测试至少断言忙碌、成功或空态、错误三种语义和文案变化。
 
-设置加载/保存、提供商表单等异步文本尚未统一为 live region；改到这些区域时按上表补齐，而非声称全站已覆盖。设置二级导航不是完整 ARIA tabs，没有方向键焦点漫游；`docs-view.tsx` 三个占位图标按钮仍可聚焦；没有自动化 axe/jest-axe 门禁。它们都是当前缺口，不是已完成能力。
+提供商模型发现区域已使用稳定的 `aria-live` / `aria-busy` 与失败 `role="alert"`；设置保存等其他异步文本仍未全部统一。改到这些区域时按上表补齐，而非声称全站已覆盖。设置二级导航不是完整 ARIA tabs，没有方向键焦点漫游；`docs-view.tsx` 三个占位图标按钮仍可聚焦；没有自动化 axe/jest-axe 门禁。它们都是当前缺口，不是已完成能力。
+
+## Scenario：设置配置加载失败不得伪装成永久加载
+
+### 1. Scope / Trigger
+
+- 配置 schema、`config-store.load()` 或依赖 `config === null` 的设置页分支发生变化时适用。
+
+### 2. Signatures
+
+```ts
+type ConfigLoadState = {
+  config: AppConfig | null;
+  loading: boolean;
+  error: string | null;
+};
+```
+
+### 3. Contracts
+
+- `config === null` 不能单独解释为“正在加载”；必须同时读取 `loading` 和 `error`。
+- `loading=true && error=null` 显示 `aria-live="polite"` 的加载提示。
+- `config=null && loading=false && error!=null` 显示 `role="alert"` 和后端实际错误，不得继续显示加载文案。
+- schema 不兼容时不得在前端构造默认配置并静默覆盖旧文件；恢复操作必须是用户明确触发的独立流程。
+
+### 4. Validation & Error Matrix
+
+| 状态 | 可观察结果 |
+|---|---|
+| `config=null, loading=true, error=null` | “正在加载设置…” |
+| `config=null, loading=false, error=message` | “配置加载失败：message”，`role=alert` |
+| `config=null, loading=false, error=null` | “设置尚未初始化”，`role=alert`；不得伪装为 loading |
+| `config!=null` | 渲染完整设置 UI；保存错误仍在业务区域或 Toast 可观察 |
+
+### 5. Good/Base/Bad Cases
+
+- Good：旧 schema 被 Rust 拒绝后，设置页立即显示“需重新配置”的真实原因。
+- Base：首次加载期间短暂显示 loading，成功后原位进入设置 UI。
+- Bad：写成 `if (!config) return loading`，会把所有磁盘/JSON/schema 错误伪装成永久等待。
+
+### 6. Tests Required
+
+- RTL 直接构造上述三态；失败态必须断言 `role=alert` 且 loading 文案不存在。
+- Rust 配置测试继续断言旧 schema 返回可操作错误，不能改成静默默认值。
+- 改动真实配置 IPC 后，用本机旧 schema fixture 或真实隔离配置验证 Tauri 窗口最终文本。
+
+### 7. Wrong vs Correct
+
+```tsx
+// Wrong
+if (!config) return <p>正在加载设置…</p>;
+
+// Correct
+if (!config) {
+  if (error) return <p role="alert">{error}</p>;
+  if (loading) return <p aria-live="polite">正在加载设置…</p>;
+  return <p role="alert">设置尚未初始化</p>;
+}
+```
+
+## Scenario：提供商模型输入与发现选择共享同一选中集合
+
+### 1. Scope / Trigger
+
+- 修改 `ProviderForm` 的模型手工输入、远端发现、选择、取消选择或保存逻辑时适用。
+
+### 2. Signatures
+
+```ts
+const modelIds = useMemo(() => parseModelIds(modelsText), [modelsText]);
+const selected = modelIds.includes(discoveredModel.id);
+```
+
+`modelIds` 是用户当前选择的事实来源；`draft.models` 保存已知 descriptor 与来源数据，但不得另设一份需要二次确认才能合并的 `selectedDiscovered`。
+
+### 3. Contracts
+
+- 模型输入框与“刷新模型”同排；发现候选只进入该输入框附属的多选 `listbox`，不再渲染第二套复选框结果区。
+- 手工输入继续接受逗号、中文逗号、空白或换行分隔，并按模型 ID 去重。
+- 点击候选或在组合框中按 Enter 必须在同一次交互中更新 `modelsText` 与对应 descriptor 缓存；保存不得依赖额外的“添加所选模型”动作。
+- `option[aria-selected]` 始终从 `modelIds` 派生。保存后重新编辑、再次刷新时，已保存模型必须继续显示为已选。
+- 刷新只提供候选，不自动加入全部远端模型；失败或空结果不得清空手工输入和既有草稿。
+- 焦点保持在组合框输入：ArrowUp/Down 移动活动候选，Enter 切换，Escape、Tab 或点击外部关闭；option 不新增 Tab 停靠点。
+
+### 4. Validation & Error Matrix
+
+| 条件 | 可观察结果 |
+|---|---|
+| 首次刷新成功 | 下拉展开，已有模型 `aria-selected=true`，新候选为 false |
+| 选择新候选 | 模型 ID 立即进入输入框和详情区；随后直接保存可持久化 |
+| 取消已选候选 | 模型 ID 从输入框和待保存集合移除 |
+| 再次刷新 | 已保存/当前草稿模型仍为已选，不重复追加 |
+| 刷新失败或空结果 | 原输入不变；失败为 `role=alert`，空结果为 polite 状态 |
+
+### 5. Good/Base/Bad Cases
+
+- Good：选择候选后直接点“保存”，重新编辑并刷新仍显示已选。
+- Base：用户只手工输入模型 ID，不执行发现也能保存。
+- Bad：把勾选暂存在独立数组，只有再点“添加所选模型”才写入 `modelsText`；直接保存会静默丢失选择。
+
+### 6. Tests Required
+
+- RTL 必须覆盖点击与 Arrow/Enter 选择、取消、手工输入去重、Escape/Tab/外部点击关闭及 option 不进入 Tab 序列。
+- 保存回归必须通过真实 `config-store.update()`：选择候选后直接保存，重新编辑、再次刷新并断言 `aria-selected=true`。
+- 失败和空结果分别断言原输入未变化；测试只 mock Tauri IPC 边界，不 mock `ProviderForm` 或 store。
+- UI 变更至少运行聚焦 RTL、全量 `pnpm test`、lint、build，并在真实 Tauri 窗口确认输入框、按钮和下拉布局。
+
+### 7. Wrong vs Correct
+
+```tsx
+// Wrong：选择状态与保存状态分离
+setSelectedDiscovered(ids);
+const submitModels = parseModelIds(modelsText);
+
+// Correct：选择动作立即更新保存所读的同一集合
+setModelsText((current) =>
+  selected
+    ? parseModelIds(current).filter((id) => id !== model.id).join(", ")
+    : mergeSelectedModelIds(current, [model.id]),
+);
+const submitModels = parseModelIds(modelsText);
+```
 
 ### AI 功能默认模型
 

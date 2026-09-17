@@ -1,0 +1,31 @@
+{
+  "id": "issue-24-llm-provider-architecture",
+  "name": "issue-24-llm-provider-architecture",
+  "title": "实施 Issue 24 LLM 提供商架构升级",
+  "description": "基于 GitHub Issue #24 规划并实施轻量的内置提供商预设、自定义实例、协议适配与模型能力体系。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "phoben",
+  "assignee": "phoben",
+  "createdAt": "2026-09-17",
+  "completedAt": "2026-09-18",
+  "branch": "codex/issue-24-clean-delivery",
+  "base_branch": "develop",
+  "worktree_path": null,
+  "commit": "176f2344e8da4572d3d9a1a75d0328b97783b383",
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "source_kind": "github_issue",
+    "github_repo": "phoben/LingoStack",
+    "github_issue": "24",
+    "github_issue_url": "https://github.com/phoben/LingoStack/issues/24"
+  }
+}

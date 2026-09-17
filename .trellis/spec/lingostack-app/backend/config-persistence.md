@@ -16,14 +16,15 @@ dirs::config_dir()  /  "lingostack"  /  "config.json"
 
 - 文件不存在 → `Ok(AppConfig::default())`，视为首次运行，**不是错误**（`:34`）
 - 其他 IO 错误 → 向上传播
-- JSON 解析失败 → `ConfigError::Json`
-- 反序列化成功后调用 `normalize_hotkeys()`：旧动作别名先由 serde 接收，再按动作去重并转成当前 V1 绑定集合
+- 先解析为 `serde_json::Value` 并检查必填 `schema_version = 2`；缺失或旧版本返回可操作的 `UnsupportedSchema`，不尝试迁移旧 provider 配置
+- JSON 结构失败 → `ConfigError::Json`
+- 反序列化成功后调用 `AppConfig::validate()` 与 `normalize_hotkeys()`：provider/auth/protocol/model 不变量在磁盘边界再次校验
 
 首次运行返回默认值这条依赖 `lingostack-core` 的 `impl Default for AppConfig`——加配置字段时记得同步那份清单（见 [配置模型](../../lingostack-core/backend/config-model.md)）。
 
 ## 写
 
-`save()`（`:43-54`）：克隆并 `normalize_hotkeys()` → `create_dir_all(parent)` → `to_string_pretty` → `fs::write` → `restrict_permissions`。调用方对象不被原地修改，磁盘上永远写规范化后的动作名与每动作一条绑定。
+`save()`：先 `AppConfig::validate()`，再克隆并 `normalize_hotkeys()` → `create_dir_all(parent)` → `to_string_pretty` → `fs::write` → `restrict_permissions`。调用方对象不被原地修改，非法 schema/provider 不能落盘。
 
 用 `to_string_pretty` 是刻意的——用户可能手工编辑配置文件。
 
@@ -40,7 +41,7 @@ dirs::config_dir()  /  "lingostack"  /  "config.json"
 
 ## 测试
 
-配置 IO 测试用 `tempfile::tempdir()` 覆盖读写往返、文件缺失、损坏 JSON；旧热键动作名的迁移规则由 `lingostack-core` 测试覆盖（见 `hotkey.rs` 的 `legacy_popup_deserializes_as_selection_and_reserializes_new_name`）。
+配置 IO 测试用 `tempfile::tempdir()` 覆盖读写往返、文件缺失、损坏 JSON与旧 schema 的可操作错误；旧热键动作名的迁移规则由 `lingostack-core` 测试覆盖。
 
 **`normalize_hotkeys`（去重合并）本身没有任何测试**——不要假设它已被覆盖，改这个函数前先补测试。
 

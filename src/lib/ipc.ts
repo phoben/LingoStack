@@ -14,6 +14,7 @@ import type {
   HotkeyBinding,
   Language,
   TranslationPlan,
+  ProviderConfig,
 } from "./config-types";
 import type {
   DocumentContent,
@@ -23,11 +24,22 @@ import type {
   ImportOutcome,
 } from "./document-types";
 
-export interface ExplainTermInput { id: string; content: string; }
-export interface ExplainTermOutput { id: string; explanation: string; }
-export interface ExplainTermsResponse { items: ExplainTermOutput[]; }
+export interface ExplainTermInput {
+  id: string;
+  content: string;
+}
+export interface ExplainTermOutput {
+  id: string;
+  explanation: string;
+}
+export interface ExplainTermsResponse {
+  items: ExplainTermOutput[];
+}
 
-export function explainTerms(items: ExplainTermInput[], language: "zh" | "en"): Promise<ExplainTermsResponse> {
+export function explainTerms(
+  items: ExplainTermInput[],
+  language: "zh" | "en",
+): Promise<ExplainTermsResponse> {
   return invoke<ExplainTermsResponse>("explain_terms", { items, language });
 }
 
@@ -45,9 +57,7 @@ export function getSelection(): Promise<SystemSelection> {
 }
 
 export type TtsEvent =
-  | { type: "started" }
-  | { type: "done" }
-  | { type: "error"; message: string };
+  { type: "started" } | { type: "done" } | { type: "error"; message: string };
 
 /** 朗读文本（异步，打断上一句）；播放状态经请求级 Channel 回传。 */
 export function speak(
@@ -72,6 +82,36 @@ export function loadConfig(): Promise<AppConfig> {
 /** 保存应用配置（Unix 权限 0600）。 */
 export function saveConfig(cfg: AppConfig): Promise<void> {
   return invoke<void>("save_config", { cfg });
+}
+
+export interface ProviderPreset {
+  id: string;
+  brand: string;
+  display_name: string;
+  protocol: ProviderConfig["protocol"];
+  suggested_endpoints: string[];
+  auth: ProviderConfig["auth"];
+  docs_url: string;
+  discovery: "open_ai" | "anthropic" | "gemini" | "ollama_tags" | null;
+  initial_model_ids: string[];
+}
+/** 读取随应用发布的公开预设；不会发送密钥。 */
+export function listProviderPresets(): Promise<ProviderPreset[]> {
+  return invoke<ProviderPreset[]>("list_provider_presets");
+}
+/** 后端复制预设为可编辑且独立的本地草稿。 */
+export function instantiateProviderPreset(
+  presetId: string,
+): Promise<ProviderConfig> {
+  return invoke<ProviderConfig>("instantiate_provider_preset", { presetId });
+}
+/** 用户显式触发的模型发现；调用不保存或覆盖配置。 */
+export function discoverProviderModels(
+  provider: ProviderConfig,
+): Promise<ProviderConfig["models"]> {
+  return invoke<ProviderConfig["models"]>("discover_provider_models", {
+    provider,
+  });
 }
 
 export interface HotkeyStatus {

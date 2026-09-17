@@ -11,9 +11,11 @@ use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 
 pub mod anthropic;
+pub mod discovery;
 pub mod gemini;
 mod json_array_stream;
 pub mod openai;
+pub mod responses;
 mod sse;
 mod utf8;
 
@@ -63,6 +65,14 @@ pub struct ChatRequest {
     /// 采样温度；`None` 表示用提供商默认。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
+    /// 已由 core policy 校验的最大输出；协议 adapter 只负责字段映射。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
+    /// 最大输出值对应的协议字段；只有 core 审核过的 profile 才会填入。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_output_field: Option<MaxOutputField>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<ReasoningEffort>,
 }
 
 impl ChatRequest {
@@ -72,8 +82,29 @@ impl ChatRequest {
             model: model.into(),
             messages,
             temperature: None,
+            max_output_tokens: None,
+            max_output_field: None,
+            reasoning_effort: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReasoningEffort {
+    Low,
+    Medium,
+    High,
+}
+
+/// 各协议审核过的最大输出字段映射。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MaxOutputField {
+    MaxTokens,
+    MaxCompletionTokens,
+    MaxOutputTokens,
+    GeminiMaxOutputTokens,
 }
 
 /// 流式返回的单个增量文本片段。
@@ -154,6 +185,24 @@ pub(crate) fn response_body_error(error: reqwest::Error, secret: &str) -> LlmErr
     LlmError::Network(format!("响应正文读取失败: {message}"))
 }
 
+/// 对外部错误正文做密钥擦除与长度限制，避免完整敏感响应进入日志或 UI。
+#[must_use]
+pub(crate) fn safe_error_text(raw: &str, secret: &str) -> String {
+    const MAX_CHARS: usize = 2_048;
+    let redacted = if secret.is_empty() {
+        raw.to_owned()
+    } else {
+        raw.replace(secret, "<redacted>")
+    };
+    let mut chars = redacted.chars();
+    let shortened: String = chars.by_ref().take(MAX_CHARS).collect();
+    if chars.next().is_some() {
+        format!("{shortened}…")
+    } else {
+        shortened
+    }
+}
+
 /// Build the HTTP client used by every streaming provider.
 ///
 /// A model may legitimately take longer than the inactivity threshold to
@@ -212,5 +261,14 @@ mod tests {
         }
         .is_retryable());
         assert!(!LlmError::Stream("bad json".into()).is_retryable());
+    }
+
+    #[test]
+    fn external_error_text_is_redacted_and_bounded() {
+        let text = format!("sk-secret {}", "x".repeat(3_000));
+        let safe = safe_error_text(&text, "sk-secret");
+        assert!(!safe.contains("sk-secret"));
+        assert!(safe.contains("<redacted>"));
+        assert!(safe.chars().count() <= 2_049);
     }
 }

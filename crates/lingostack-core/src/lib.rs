@@ -12,6 +12,7 @@ pub mod hotkey;
 pub mod lang;
 pub mod naming;
 pub mod prompt;
+pub mod provider_catalog;
 
 /// 标识本 crate，供 `app_info` IPC 链路自检。
 pub const CRATE_NAME: &str = "lingostack-core";

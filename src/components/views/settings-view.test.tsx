@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -8,15 +9,30 @@ import {
   within,
 } from "@testing-library/react";
 import { SettingsView } from "./settings-view";
-import { defaultConfig } from "@/lib/config-types";
+import { defaultConfig, type Feature } from "@/lib/config-types";
 import { useConfigStore } from "@/stores/config-store";
 
-const { registerHotkeys, saveConfig } = vi.hoisted(() => ({
+const {
+  registerHotkeys,
+  saveConfig,
+  listProviderPresets,
+  instantiateProviderPreset,
+  discoverProviderModels,
+} = vi.hoisted(() => ({
   registerHotkeys: vi.fn(),
   saveConfig: vi.fn(),
+  listProviderPresets: vi.fn().mockResolvedValue([]),
+  instantiateProviderPreset: vi.fn(),
+  discoverProviderModels: vi.fn(),
 }));
 const sonner = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
-vi.mock("@/lib/ipc", () => ({ registerHotkeys, saveConfig }));
+vi.mock("@/lib/ipc", () => ({
+  registerHotkeys,
+  saveConfig,
+  listProviderPresets,
+  instantiateProviderPreset,
+  discoverProviderModels,
+}));
 vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn().mockResolvedValue(vi.fn()),
 }));
@@ -30,10 +46,61 @@ describe("SettingsView", () => {
     saveConfig.mockReset();
     registerHotkeys.mockResolvedValue([]);
     saveConfig.mockResolvedValue(undefined);
+    listProviderPresets.mockResolvedValue([
+      {
+        id: "openai-responses",
+        brand: "OpenAI",
+        display_name: "OpenAI Responses",
+        protocol: "open_ai_responses",
+        suggested_endpoints: ["https://api.openai.com"],
+        auth: "bearer",
+        docs_url: "https://platform.openai.com/docs/api-reference/responses",
+        discovery: "open_ai",
+        initial_model_ids: ["gpt"],
+      },
+    ]);
     useConfigStore.setState({
       config: { ...defaultConfig(), ui_language: "zh" },
       error: null,
     });
+  });
+
+  it("配置加载失败时显示可操作错误而不是永久加载提示", () => {
+    useConfigStore.setState({
+      config: null,
+      loading: false,
+      error: "配置版本不兼容，请重新配置",
+    });
+
+    render(<SettingsView />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "配置版本不兼容，请重新配置",
+    );
+    expect(screen.queryByText("正在加载设置…")).not.toBeInTheDocument();
+  });
+
+  it("配置正在加载时才显示加载提示", () => {
+    useConfigStore.setState({ config: null, loading: true, error: null });
+
+    render(<SettingsView />);
+
+    expect(screen.getByText("Loading settings…")).toHaveAttribute(
+      "aria-live",
+      "polite",
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("既未加载也无错误时不会伪装为永久加载", () => {
+    useConfigStore.setState({ config: null, loading: false, error: null });
+
+    render(<SettingsView />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Settings did not initialize",
+    );
+    expect(screen.queryByText("Loading settings…")).not.toBeInTheDocument();
   });
 
   it("rejects same-language mappings in the visible form", async () => {
@@ -70,11 +137,26 @@ describe("SettingsView", () => {
         providers: [
           {
             id: "deepseek",
-            kind: "open_ai_compatible",
+            protocol: "open_ai_chat_completions",
             name: "DeepSeek",
             base_url: "https://api.deepseek.com",
             api_key: "sk-test",
-            models: ["deepseek-chat"],
+            auth: "bearer",
+            models: [
+              {
+                id: "deepseek-chat",
+                origin: "user_entered",
+                supported_features: [
+                  "translate",
+                  "naming",
+                  "explain",
+                  "doc_translate",
+                ],
+                supports_temperature: false,
+                supports_max_output: false,
+                supports_reasoning: false,
+              },
+            ],
           },
         ],
         models: {
@@ -147,11 +229,26 @@ describe("SettingsView", () => {
         providers: [
           {
             id: "deepseek",
-            kind: "open_ai_compatible",
+            protocol: "open_ai_chat_completions",
             name: "DeepSeek",
             base_url: "https://api.deepseek.com",
             api_key: "sk-test",
-            models: ["deepseek-chat"],
+            auth: "bearer",
+            models: [
+              {
+                id: "deepseek-chat",
+                origin: "user_entered",
+                supported_features: [
+                  "translate",
+                  "naming",
+                  "explain",
+                  "doc_translate",
+                ],
+                supports_temperature: false,
+                supports_max_output: false,
+                supports_reasoning: false,
+              },
+            ],
           },
         ],
       },
@@ -170,6 +267,354 @@ describe("SettingsView", () => {
     ).toBeInTheDocument();
   });
 
+  it("新增提供商表单中的 API Key 默认掩码且可临时显隐", async () => {
+    render(<SettingsView />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "AI" }));
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "添加提供商" }));
+    await screen.findByRole("option", { name: "OpenAI Responses" });
+    const input = screen.getByPlaceholderText("sk-...");
+    expect(input).toHaveAttribute("type", "password");
+    fireEvent.click(screen.getByRole("button", { name: "显示 API Key" }));
+    expect(input).toHaveAttribute("type", "text");
+    expect(
+      screen.getByRole("button", { name: "隐藏 API Key" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "取消" }));
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "添加提供商" }));
+    await screen.findByRole("option", { name: "OpenAI Responses" });
+    expect(screen.getByPlaceholderText("sk-...")).toHaveAttribute(
+      "type",
+      "password",
+    );
+  });
+
+  it("将自定义入口置首并可从全部首批预设实例化独立草稿", async () => {
+    const presetIds = [
+      "openai-chat",
+      "openai-responses",
+      "anthropic",
+      "gemini",
+      "deepseek",
+      "zhipu",
+      "minimax",
+      "bailian",
+      "ollama",
+    ];
+    listProviderPresets.mockResolvedValueOnce(
+      presetIds.map((id) => ({
+        id,
+        brand: id,
+        display_name: id,
+        protocol: "open_ai_chat_completions",
+        suggested_endpoints: ["https://example.test"],
+        auth: "bearer",
+        docs_url: "https://example.test/docs",
+        discovery: id === "zhipu" || id === "bailian" ? null : "open_ai",
+        initial_model_ids: ["model"],
+      })),
+    );
+    instantiateProviderPreset.mockResolvedValueOnce({
+      id: "",
+      preset_id: "ollama",
+      protocol: "open_ai_chat_completions",
+      name: "Ollama（OpenAI 兼容）",
+      base_url: "http://localhost:11434",
+      api_key: "",
+      auth: "none",
+      parameter_profile: {
+        protocol: "open_ai_chat_completions",
+        endpoint_scope: "http://localhost:11434",
+        supports_temperature: true,
+        max_output_field: "max_tokens",
+        supports_reasoning: false,
+      },
+      models: [
+        {
+          id: "llama3.2",
+          origin: "bundled_verified",
+          supported_features: ["translate", "naming", "explain", "doc_translate"],
+          supports_temperature: true,
+          supports_max_output: true,
+          supports_reasoning: false,
+        },
+      ],
+    });
+
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole("button", { name: "AI" }));
+    fireEvent.click(screen.getByRole("button", { name: "添加提供商" }));
+    const presetSelect = await screen.findByLabelText("提供商预设");
+    const options = within(presetSelect).getAllByRole("option");
+    expect(options).toHaveLength(10);
+    expect(options[0]).toHaveTextContent("自定义提供商");
+
+    fireEvent.change(presetSelect, { target: { value: "ollama" } });
+    expect(await screen.findByDisplayValue("Ollama（OpenAI 兼容）")).toBeInTheDocument();
+    expect(screen.getByLabelText("认证方式")).toHaveValue("none");
+    expect(screen.getByDisplayValue("http://localhost:11434")).toBeInTheDocument();
+  });
+
+  it("编辑提供商时默认掩码，并在保存关闭后重新掩码", async () => {
+    useConfigStore.setState({
+      config: {
+        ...defaultConfig(),
+        ui_language: "zh",
+        providers: [
+          {
+            id: "deepseek",
+            protocol: "open_ai_chat_completions",
+            name: "DeepSeek",
+            base_url: "https://api.deepseek.com",
+            api_key: "secret",
+            auth: "bearer",
+            models: [
+              {
+                id: "deepseek-chat",
+                origin: "user_entered",
+                supported_features: [
+                  "translate",
+                  "naming",
+                  "explain",
+                  "doc_translate",
+                ],
+                supports_temperature: false,
+                supports_max_output: false,
+                supports_reasoning: false,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole("button", { name: "AI" }));
+    fireEvent.click(screen.getByRole("button", { name: "编辑 DeepSeek" }));
+    const input = screen.getByDisplayValue("secret");
+    expect(input).toHaveAttribute("type", "password");
+
+    fireEvent.click(screen.getByRole("button", { name: "显示 API Key" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() =>
+      expect(screen.queryByDisplayValue("secret")).not.toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑 DeepSeek" }));
+    expect(screen.getByDisplayValue("secret")).toHaveAttribute(
+      "type",
+      "password",
+    );
+  });
+
+  it("刷新模型后选择即进入草稿，保存并再次刷新仍显示为已选", async () => {
+    const provider = {
+      id: "openai",
+      preset_id: "openai-responses",
+      protocol: "open_ai_responses" as const,
+      name: "OpenAI",
+      base_url: "https://api.openai.com",
+      api_key: "sk-test",
+      auth: "bearer" as const,
+      parameter_profile: {
+        protocol: "open_ai_responses" as const,
+        endpoint_scope: "https://api.openai.com",
+        supports_temperature: true,
+        max_output_field: "max_output_tokens" as const,
+        supports_reasoning: true,
+      },
+      models: [
+        {
+          id: "manual",
+          origin: "bundled_verified" as const,
+          supported_features: [
+            "translate",
+            "naming",
+            "explain",
+            "doc_translate",
+          ] as Feature[],
+          supports_temperature: true,
+          supports_max_output: true,
+          supports_reasoning: false,
+        },
+      ],
+    };
+    useConfigStore.setState({
+      config: { ...defaultConfig(), ui_language: "zh", providers: [provider] },
+      error: null,
+    });
+    discoverProviderModels.mockResolvedValue([
+      {
+        id: "remote-a",
+        supported_features: ["translate"],
+        supports_temperature: true,
+        supports_max_output: true,
+        supports_reasoning: false,
+      },
+      {
+        id: "remote-b",
+        supported_features: ["translate"],
+        supports_temperature: true,
+        supports_max_output: true,
+        supports_reasoning: false,
+      },
+    ]);
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole("button", { name: "AI" }));
+    fireEvent.click(screen.getByRole("button", { name: "编辑 OpenAI" }));
+    fireEvent.click(await screen.findByRole("button", { name: "刷新模型" }));
+    const modelInput = screen.getByRole("combobox", {
+      name: "模型（逗号或换行分隔）",
+    });
+    expect(await screen.findByRole("option", { name: "remote-a" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    const listbox = screen.getByRole("listbox");
+    expect(modelInput).toHaveAttribute("aria-expanded", "true");
+    expect(modelInput).toHaveAttribute("aria-controls", listbox.id);
+    expect(screen.getByRole("option", { name: "remote-a" })).toHaveAttribute(
+      "tabindex",
+      "-1",
+    );
+    expect(modelInput).not.toHaveValue(
+      expect.stringContaining("remote-a"),
+    );
+    fireEvent.change(modelInput, { target: { value: "manual, custom-model" } });
+    fireEvent.click(screen.getByRole("option", { name: "remote-a" }));
+    expect(modelInput).toHaveValue("manual, custom-model, remote-a");
+    fireEvent.click(screen.getByRole("option", { name: "remote-a" }));
+    expect(modelInput).toHaveValue("manual, custom-model");
+    expect(screen.getByRole("option", { name: "remote-a" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    fireEvent.keyDown(modelInput, { key: "Escape" });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    fireEvent.keyDown(modelInput, { key: "ArrowDown" });
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(modelInput).toHaveAttribute(
+      "aria-activedescendant",
+      `${listbox.id}-0`,
+    );
+    fireEvent.keyDown(modelInput, { key: "Enter" });
+    expect(modelInput).toHaveValue("manual, custom-model, remote-a");
+    expect(
+      screen.queryByRole("button", { name: "添加所选模型" }),
+    ).not.toBeInTheDocument();
+    fireEvent.keyDown(modelInput, { key: "Tab" });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(modelInput).toHaveAttribute("aria-expanded", "false");
+    expect(modelInput).not.toHaveAttribute("aria-controls");
+    fireEvent.focus(modelInput);
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() =>
+      expect(useConfigStore.getState().config?.providers[0].models).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: "remote-a" })]),
+      ),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑 OpenAI" }));
+    fireEvent.click(await screen.findByRole("button", { name: "刷新模型" }));
+    expect(await screen.findByRole("option", { name: "remote-a" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("刷新失败或空结果不清空草稿，规格覆盖和 Responses 参数会保存", async () => {
+    const provider = {
+      id: "openai",
+      preset_id: "openai-responses",
+      protocol: "open_ai_responses" as const,
+      name: "OpenAI",
+      base_url: "https://api.openai.com",
+      api_key: "sk-test",
+      auth: "bearer" as const,
+      parameter_profile: {
+        protocol: "open_ai_responses" as const,
+        endpoint_scope: "https://api.openai.com",
+        supports_temperature: true,
+        max_output_field: "max_output_tokens" as const,
+        supports_reasoning: true,
+      },
+      models: [
+        {
+          id: "gpt",
+          origin: "bundled_verified" as const,
+          source_url: "https://platform.openai.com/docs/models",
+          verified_at: "2026-09-17",
+          supported_features: [
+            "translate",
+            "naming",
+            "explain",
+            "doc_translate",
+          ] as Feature[],
+          supports_temperature: true,
+          supports_max_output: true,
+          supports_reasoning: true,
+        },
+      ],
+    };
+    useConfigStore.setState({
+      config: {
+        ...defaultConfig(),
+        ui_language: "zh",
+        providers: [provider],
+        models: { translate: { provider_id: "openai", model: "gpt" } },
+      },
+      error: null,
+    });
+    discoverProviderModels
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce([]);
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole("button", { name: "AI" }));
+    fireEvent.click(screen.getByRole("button", { name: "编辑 OpenAI" }));
+    expect(screen.getByRole("link", { name: "官方来源" })).toHaveAttribute(
+      "href",
+      "https://platform.openai.com/docs/models",
+    );
+    expect(screen.getByText("核验于 2026-09-17")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("gpt 上下文窗口"), {
+      target: { value: "128000" },
+    });
+    fireEvent.change(screen.getByLabelText("gpt 最大输出"), {
+      target: { value: "4096" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "刷新模型" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByLabelText("模型（逗号或换行分隔）")).toHaveValue("gpt");
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() =>
+      expect(useConfigStore.getState().config?.providers[0].models[0]).toEqual(
+        expect.objectContaining({
+          context_window: expect.objectContaining({ source: "user_override" }),
+          max_output_tokens: expect.objectContaining({
+            source: "user_override",
+          }),
+        }),
+      ),
+    );
+    fireEvent.change(screen.getByLabelText("翻译 最大输出"), {
+      target: { value: "512" },
+    });
+    fireEvent.change(screen.getByLabelText("翻译 思考强度"), {
+      target: { value: "high" },
+    });
+    await waitFor(() =>
+      expect(
+        useConfigStore.getState().config?.models.translate?.generation,
+      ).toMatchObject({ max_output_tokens: 512, reasoning_effort: "high" }),
+    );
+  });
+
   it("reports provider create, edit, and delete completion", async () => {
     useConfigStore.setState({
       config: {
@@ -178,11 +623,26 @@ describe("SettingsView", () => {
         providers: [
           {
             id: "deepseek",
-            kind: "open_ai_compatible",
+            protocol: "open_ai_chat_completions",
             name: "DeepSeek",
             base_url: "https://api.deepseek.com",
             api_key: "sk-test",
-            models: ["deepseek-chat"],
+            auth: "bearer",
+            models: [
+              {
+                id: "deepseek-chat",
+                origin: "user_entered",
+                supported_features: [
+                  "translate",
+                  "naming",
+                  "explain",
+                  "doc_translate",
+                ],
+                supports_temperature: false,
+                supports_max_output: false,
+                supports_reasoning: false,
+              },
+            ],
           },
         ],
       },

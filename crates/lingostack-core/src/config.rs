@@ -5,6 +5,7 @@
 //! [`ProviderConfig`] 自定义的 `Debug` 实现保证，配合 [`ProviderConfig::redact`]
 //! 给出可展示的首尾预览。
 
+use std::collections::HashSet;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
@@ -14,19 +15,124 @@ use crate::lang::Language;
 use crate::naming::NamingStyle;
 use crate::prompt::PromptOverrides;
 
-/// LLM 提供商协议类型，决定请求体格式与响应流的解析方式。
+/// LLM 请求协议，决定请求体格式与响应流的解析方式。
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ProviderKind {
-    /// OpenAI 兼容协议（覆盖 OpenAI / DeepSeek / 通义千问 / 智谱 / 本地 Ollama 等）。
+pub enum Protocol {
+    /// OpenAI Chat Completions（也用于 Ollama 的兼容面）。
     #[default]
-    OpenAiCompatible,
-    /// Anthropic 原生协议。
-    Anthropic,
-    /// Google Gemini 原生协议。
-    Gemini,
-    /// Ollama 本地（OpenAI 兼容子类，UI 单列以便预填 `http://localhost:11434`）。
-    Ollama,
+    OpenAiChatCompletions,
+    /// OpenAI Responses，仅允许官方端点。
+    OpenAiResponses,
+    /// Anthropic Messages。
+    AnthropicMessages,
+    /// Google Gemini Generate Content。
+    GeminiGenerateContent,
+}
+
+/// 认证方式。认证策略属于实例，不由品牌名称隐式推断。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthScheme {
+    Bearer,
+    AnthropicApiKey,
+    GeminiApiKey,
+    None,
+}
+
+/// 提供商/用户给出的规格来源。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ValueSource {
+    BundledVerified,
+    ProviderReported,
+    UserOverride,
+}
+
+/// 模型条目本身的来源。远端只返回 ID 时也必须保留其来源，不能伪装成内置审核数据。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelOrigin {
+    BundledVerified,
+    ProviderReported,
+    UserEntered,
+}
+
+/// 带来源的模型规格。用户覆盖永远优先于在线发现。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourcedValue<T> {
+    pub value: T,
+    pub source: ValueSource,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verified_at: Option<String>,
+}
+
+/// 已审核的参数字段映射。未匹配 profile 时一律不发送可选参数。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MaxOutputField {
+    MaxTokens,
+    MaxCompletionTokens,
+    MaxOutputTokens,
+    GeminiMaxOutputTokens,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ParameterProfile {
+    pub protocol: Protocol,
+    pub endpoint_scope: String,
+    #[serde(default)]
+    pub supports_temperature: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_output_field: Option<MaxOutputField>,
+    #[serde(default)]
+    pub supports_reasoning: bool,
+}
+
+/// 单个模型的可调用能力及规格。手工模型可用但标明未核验。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelDescriptor {
+    pub id: String,
+    pub origin: ModelOrigin,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verified_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(default)]
+    pub supported_features: Vec<Feature>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_window: Option<SourcedValue<u32>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<SourcedValue<u32>>,
+    #[serde(default)]
+    pub supports_temperature: bool,
+    #[serde(default)]
+    pub supports_max_output: bool,
+    #[serde(default)]
+    pub supports_reasoning: bool,
+}
+
+/// 功能分配的封闭式生成设置，禁止透传任意高级参数字典。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct GenerationSettings {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<ReasoningEffort>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReasoningEffort {
+    Low,
+    Medium,
+    High,
 }
 
 /// 一个 LLM 提供商实例。用户可配多个同协议实例（如两个 DeepSeek 账号）。
@@ -34,26 +140,33 @@ pub enum ProviderKind {
 /// `Debug` 实现自动把 `api_key` 显示为 `"<redacted>"`，杜绝 Key 泄漏进
 /// 日志 / 错误 / 崩溃报告。
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ProviderConfig {
+pub struct ProviderInstance {
     /// 用户定义的唯一 id（如 `"deepseek-1"`），模型引用据此关联。
     pub id: String,
     /// 协议类型。
-    pub kind: ProviderKind,
+    pub protocol: Protocol,
+    /// 创建来源，仅用于展示、发现资格和审计；运行时不反查预设覆盖实例。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset_id: Option<String>,
     /// 显示名（如 `"DeepSeek"`）。
     pub name: String,
     /// API 基地址（如 `https://api.deepseek.com`）。
     pub base_url: String,
     /// API Key（敏感）。调试输出自动脱敏；需展示首尾预览用 [`redact`](Self::redact)。
     pub api_key: String,
-    /// 可用模型列表（如 `["deepseek-chat", "deepseek-reasoner"]`）。
-    pub models: Vec<String>,
+    pub auth: AuthScheme,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parameter_profile: Option<ParameterProfile>,
+    /// 可用模型及其能力。
+    #[serde(default)]
+    pub models: Vec<ModelDescriptor>,
 }
 
-impl fmt::Debug for ProviderConfig {
+impl fmt::Debug for ProviderInstance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ProviderConfig")
+        f.debug_struct("ProviderInstance")
             .field("id", &self.id)
-            .field("kind", &self.kind)
+            .field("protocol", &self.protocol)
             .field("name", &self.name)
             .field("base_url", &self.base_url)
             .field("api_key", &"<redacted>")
@@ -62,13 +175,13 @@ impl fmt::Debug for ProviderConfig {
     }
 }
 
-impl ProviderConfig {
+impl ProviderInstance {
     /// 返回脱敏视图（含 Key 首尾预览），用于 UI「已配置」提示或详细日志。
     #[must_use]
     pub fn redact(&self) -> RedactedProvider<'_> {
         RedactedProvider {
             id: &self.id,
-            kind: self.kind,
+            protocol: self.protocol,
             name: &self.name,
             base_url: &self.base_url,
             api_key_preview: mask_secret(&self.api_key),
@@ -81,12 +194,15 @@ impl ProviderConfig {
 #[derive(Debug, Clone)]
 pub struct RedactedProvider<'a> {
     pub id: &'a str,
-    pub kind: ProviderKind,
+    pub protocol: Protocol,
     pub name: &'a str,
     pub base_url: &'a str,
     pub api_key_preview: String,
-    pub models: &'a [String],
+    pub models: &'a [ModelDescriptor],
 }
+
+/// 兼容旧调用点的类型别名；JSON schema 已由 `schema_version` 严格隔离。
+pub type ProviderConfig = ProviderInstance;
 
 /// Key 脱敏：长度 ≤ 8 全掩码；否则首 2 位 + 星号 + 末 2 位。
 fn mask_secret(secret: &str) -> String {
@@ -101,10 +217,12 @@ fn mask_secret(secret: &str) -> String {
 }
 
 /// 指向某提供商的某个模型。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ModelRef {
     pub provider_id: String,
     pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation: Option<GenerationSettings>,
 }
 
 /// AI 功能。每功能可指定默认模型。
@@ -136,12 +254,24 @@ pub struct ModelAssignment {
 /// 模型解析错误。
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ResolveError {
+    #[error("配置版本不兼容（检测到 {found}），请重新配置 AI 提供商")]
+    UnsupportedSchema { found: u32 },
     /// 功能既无默认模型也无全局兜底。
     #[error("功能 {feature:?} 未配置默认模型，亦无全局兜底")]
     Unassigned { feature: Feature },
     /// 模型引用的 `provider_id` 不存在（配置不一致）。
     #[error("模型引用的提供商 `{provider_id}` 不存在")]
     UnknownProvider { provider_id: String },
+    #[error("模型 `{model}` 不存在于当前提供商配置中")]
+    UnknownModel { model: String },
+    #[error("模型 `{model}` 不支持功能 {feature:?}")]
+    FeatureUnsupported { feature: Feature, model: String },
+    #[error("模型或协议不支持参数 `{parameter}`")]
+    ParameterUnsupported { parameter: String },
+    #[error("参数 `{parameter}` 的值无效")]
+    ParameterInvalid { parameter: String },
+    #[error("OpenAI Responses 首期仅支持 OpenAI 官方预设与官方端点")]
+    ResponsesEndpointUnsupported,
 }
 
 impl ModelAssignment {
@@ -197,6 +327,8 @@ impl UiLanguage {
 /// 应用配置根。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
+    /// 破坏性 provider schema 的显式版本；缺失版本绝不按新配置静默解释。
+    pub schema_version: u32,
     #[serde(default)]
     pub providers: Vec<ProviderConfig>,
     #[serde(default)]
@@ -217,6 +349,22 @@ pub struct AppConfig {
     pub prompt_overrides: PromptOverrides,
 }
 
+/// 保存配置前的结构校验错误；消息不得包含密钥。
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum ConfigValidationError {
+    #[error("配置版本不兼容（检测到 {found}），请重新配置 AI 提供商")]
+    UnsupportedSchema { found: u32 },
+    #[error("提供商配置无效: {0}")]
+    InvalidProvider(String),
+    #[error("提供商 ID 重复: {0}")]
+    DuplicateProvider(String),
+    #[error("提供商 `{provider_id}` 的模型 ID 重复: {model_id}")]
+    DuplicateModel {
+        provider_id: String,
+        model_id: String,
+    },
+}
+
 fn default_target_language() -> Language {
     Language::Zh
 }
@@ -228,6 +376,7 @@ fn default_naming_styles() -> Vec<NamingStyle> {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
+            schema_version: CONFIG_SCHEMA_VERSION,
             providers: Vec::new(),
             models: ModelAssignment::default(),
             ui_language: UiLanguage::default(),
@@ -242,6 +391,91 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
+    /// 校验可持久化配置的安全边界；不读取 catalog 去覆盖任何实例字段。
+    pub fn validate(&self) -> Result<(), ConfigValidationError> {
+        if self.schema_version != CONFIG_SCHEMA_VERSION {
+            return Err(ConfigValidationError::UnsupportedSchema {
+                found: self.schema_version,
+            });
+        }
+        let mut provider_ids = HashSet::new();
+        for provider in &self.providers {
+            if provider.id.trim().is_empty()
+                || provider.name.trim().is_empty()
+                || provider.base_url.trim().is_empty()
+            {
+                return Err(ConfigValidationError::InvalidProvider(
+                    "ID、名称和端点不能为空".into(),
+                ));
+            }
+            if !provider_ids.insert(provider.id.as_str()) {
+                return Err(ConfigValidationError::DuplicateProvider(
+                    provider.id.clone(),
+                ));
+            }
+            if provider.auth != AuthScheme::None && provider.api_key.trim().is_empty() {
+                return Err(ConfigValidationError::InvalidProvider(format!(
+                    "`{}` 缺少 API Key",
+                    provider.id
+                )));
+            }
+            let auth_matches = matches!(
+                (provider.protocol, provider.auth),
+                (
+                    Protocol::OpenAiChatCompletions,
+                    AuthScheme::Bearer | AuthScheme::None
+                ) | (Protocol::OpenAiResponses, AuthScheme::Bearer)
+                    | (Protocol::AnthropicMessages, AuthScheme::AnthropicApiKey)
+                    | (Protocol::GeminiGenerateContent, AuthScheme::GeminiApiKey)
+            );
+            if !auth_matches {
+                return Err(ConfigValidationError::InvalidProvider(format!(
+                    "`{}` 的协议与认证方式不匹配",
+                    provider.id
+                )));
+            }
+            if provider.protocol == Protocol::OpenAiResponses
+                && (provider.preset_id.as_deref() != Some("openai-responses")
+                    || provider.base_url != "https://api.openai.com")
+            {
+                return Err(ConfigValidationError::InvalidProvider(
+                    "OpenAI Responses 首期仅支持 OpenAI 官方预设与官方端点".into(),
+                ));
+            }
+
+            let mut model_ids = HashSet::new();
+            for model in &provider.models {
+                if model.id.trim().is_empty() {
+                    return Err(ConfigValidationError::InvalidProvider(format!(
+                        "`{}` 含空模型 ID",
+                        provider.id
+                    )));
+                }
+                if !model_ids.insert(model.id.as_str()) {
+                    return Err(ConfigValidationError::DuplicateModel {
+                        provider_id: provider.id.clone(),
+                        model_id: model.id.clone(),
+                    });
+                }
+                if model
+                    .context_window
+                    .as_ref()
+                    .is_some_and(|value| value.value == 0)
+                    || model
+                        .max_output_tokens
+                        .as_ref()
+                        .is_some_and(|value| value.value == 0)
+                {
+                    return Err(ConfigValidationError::InvalidProvider(format!(
+                        "`{}` 的模型规格必须大于 0",
+                        provider.id
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// 旧浮窗动作归并为划词翻译；重复动作以最后一条为准。
     pub fn normalize_hotkeys(&mut self) {
         use std::collections::BTreeMap;
@@ -272,6 +506,127 @@ impl AppConfig {
             })?;
         Ok((provider, model_ref))
     }
+
+    /// 在调用边界再次校验模型存在、能力与参数。UI 过滤不是安全边界。
+    pub fn resolve_request(
+        &self,
+        feature: Feature,
+    ) -> Result<ResolvedModelRequest<'_>, ResolveError> {
+        if self.schema_version != CONFIG_SCHEMA_VERSION {
+            return Err(ResolveError::UnsupportedSchema {
+                found: self.schema_version,
+            });
+        }
+        let (provider, model_ref) = self.resolve_model(feature)?;
+        if provider.protocol == Protocol::OpenAiResponses
+            && (provider.preset_id.as_deref() != Some("openai-responses")
+                || provider.base_url != "https://api.openai.com")
+        {
+            return Err(ResolveError::ResponsesEndpointUnsupported);
+        }
+        let model = provider
+            .models
+            .iter()
+            .find(|candidate| candidate.id == model_ref.model)
+            .ok_or_else(|| ResolveError::UnknownModel {
+                model: model_ref.model.clone(),
+            })?;
+        if !model.supported_features.contains(&feature) {
+            return Err(ResolveError::FeatureUnsupported {
+                feature,
+                model: model.id.clone(),
+            });
+        }
+        let profile_matches = provider.parameter_profile.as_ref().is_some_and(|profile| {
+            profile.protocol == provider.protocol && profile.endpoint_scope == provider.base_url
+        });
+        // 端点或协议改离审核范围时，保留已保存值供用户改回，但本次请求保守地不发送可选参数。
+        let generation = if profile_matches {
+            model_ref.generation.clone().unwrap_or_default()
+        } else {
+            GenerationSettings::default()
+        };
+        if let Some(temperature) = generation.temperature {
+            if !temperature.is_finite() || !(0.0..=2.0).contains(&temperature) {
+                return Err(ResolveError::ParameterInvalid {
+                    parameter: "temperature".into(),
+                });
+            }
+            if !profile_matches
+                || !model.supports_temperature
+                || !provider
+                    .parameter_profile
+                    .as_ref()
+                    .is_some_and(|profile| profile.supports_temperature)
+            {
+                return Err(ResolveError::ParameterUnsupported {
+                    parameter: "temperature".into(),
+                });
+            }
+        }
+        if let Some(max_output_tokens) = generation.max_output_tokens {
+            if max_output_tokens == 0
+                || model
+                    .max_output_tokens
+                    .as_ref()
+                    .is_some_and(|limit| max_output_tokens > limit.value)
+            {
+                return Err(ResolveError::ParameterInvalid {
+                    parameter: "max_output_tokens".into(),
+                });
+            }
+            let field_matches_protocol = provider
+                .parameter_profile
+                .as_ref()
+                .and_then(|profile| profile.max_output_field)
+                .is_some_and(|field| match provider.protocol {
+                    Protocol::OpenAiChatCompletions => matches!(
+                        field,
+                        MaxOutputField::MaxTokens | MaxOutputField::MaxCompletionTokens
+                    ),
+                    Protocol::OpenAiResponses => field == MaxOutputField::MaxOutputTokens,
+                    Protocol::AnthropicMessages => field == MaxOutputField::MaxTokens,
+                    Protocol::GeminiGenerateContent => {
+                        field == MaxOutputField::GeminiMaxOutputTokens
+                    }
+                });
+            if !profile_matches || !field_matches_protocol || !model.supports_max_output {
+                return Err(ResolveError::ParameterUnsupported {
+                    parameter: "max_output_tokens".into(),
+                });
+            }
+        }
+        if generation.reasoning_effort.is_some()
+            && (!profile_matches
+                || provider.protocol != Protocol::OpenAiResponses
+                || !model.supports_reasoning
+                || !provider
+                    .parameter_profile
+                    .as_ref()
+                    .is_some_and(|p| p.supports_reasoning))
+        {
+            return Err(ResolveError::ParameterUnsupported {
+                parameter: "reasoning_effort".into(),
+            });
+        }
+        Ok(ResolvedModelRequest {
+            provider,
+            model,
+            model_ref,
+            generation,
+        })
+    }
+}
+
+/// 新 provider 配置 schema 版本。
+pub const CONFIG_SCHEMA_VERSION: u32 = 2;
+
+/// 已完成资格校验的调用输入。
+pub struct ResolvedModelRequest<'a> {
+    pub provider: &'a ProviderInstance,
+    pub model: &'a ModelDescriptor,
+    pub model_ref: &'a ModelRef,
+    pub generation: GenerationSettings,
 }
 
 #[cfg(test)]
@@ -286,11 +641,52 @@ mod tests {
     fn sample_provider() -> ProviderConfig {
         ProviderConfig {
             id: "deepseek-1".into(),
-            kind: ProviderKind::OpenAiCompatible,
+            protocol: Protocol::OpenAiChatCompletions,
+            preset_id: Some("deepseek".into()),
             name: "DeepSeek".into(),
             base_url: "https://api.deepseek.com".into(),
             api_key: "sk-abcdef1234567890".into(),
-            models: vec!["deepseek-chat".into(), "deepseek-reasoner".into()],
+            auth: AuthScheme::Bearer,
+            parameter_profile: Some(ParameterProfile {
+                protocol: Protocol::OpenAiChatCompletions,
+                endpoint_scope: "https://api.deepseek.com".into(),
+                supports_temperature: true,
+                max_output_field: Some(MaxOutputField::MaxTokens),
+                supports_reasoning: false,
+            }),
+            models: vec![
+                ModelDescriptor {
+                    id: "deepseek-chat".into(),
+                    origin: ModelOrigin::BundledVerified,
+                    source_url: Some("https://api-docs.deepseek.com/".into()),
+                    verified_at: Some("2026-09-17".into()),
+                    display_name: None,
+                    supported_features: vec![
+                        Feature::Translate,
+                        Feature::Naming,
+                        Feature::Explain,
+                        Feature::DocTranslate,
+                    ],
+                    context_window: None,
+                    max_output_tokens: None,
+                    supports_temperature: true,
+                    supports_max_output: true,
+                    supports_reasoning: false,
+                },
+                ModelDescriptor {
+                    id: "deepseek-reasoner".into(),
+                    origin: ModelOrigin::BundledVerified,
+                    source_url: Some("https://api-docs.deepseek.com/".into()),
+                    verified_at: Some("2026-09-17".into()),
+                    display_name: None,
+                    supported_features: vec![Feature::Translate],
+                    context_window: None,
+                    max_output_tokens: None,
+                    supports_temperature: false,
+                    supports_max_output: true,
+                    supports_reasoning: true,
+                },
+            ],
         }
     }
 
@@ -358,10 +754,12 @@ mod tests {
             translate: Some(ModelRef {
                 provider_id: "a".into(),
                 model: "t-model".into(),
+                generation: None,
             }),
             global_default: Some(ModelRef {
                 provider_id: "b".into(),
                 model: "g-model".into(),
+                generation: None,
             }),
             ..Default::default()
         };
@@ -375,6 +773,7 @@ mod tests {
             global_default: Some(ModelRef {
                 provider_id: "b".into(),
                 model: "g-model".into(),
+                generation: None,
             }),
             ..Default::default()
         };
@@ -388,6 +787,7 @@ mod tests {
             global_default: Some(ModelRef {
                 provider_id: "b".into(),
                 model: "g-model".into(),
+                generation: None,
             }),
             ..Default::default()
         };
@@ -414,6 +814,7 @@ mod tests {
         cfg.models.translate = Some(ModelRef {
             provider_id: "deepseek-1".into(),
             model: "deepseek-chat".into(),
+            generation: None,
         });
         let (provider, model_ref) = cfg.resolve_model(Feature::Translate).unwrap();
         assert_eq!(provider.id, "deepseek-1");
@@ -423,6 +824,7 @@ mod tests {
         cfg.models.naming = Some(ModelRef {
             provider_id: "ghost".into(),
             model: "x".into(),
+            generation: None,
         });
         let err = cfg.resolve_model(Feature::Naming).unwrap_err();
         assert!(matches!(err, ResolveError::UnknownProvider { .. }));
@@ -459,6 +861,7 @@ mod tests {
         cfg.models.global_default = Some(ModelRef {
             provider_id: "deepseek-1".into(),
             model: "deepseek-chat".into(),
+            generation: None,
         });
         let json = serde_json::to_string(&cfg).unwrap();
         let back: AppConfig = serde_json::from_str(&json).unwrap();
@@ -472,12 +875,99 @@ mod tests {
     }
 
     #[test]
-    fn missing_fields_fill_defaults_on_deserialize() {
-        // 空对象 → 全部字段走默认值（向前兼容旧 / 残缺配置）。
-        let cfg: AppConfig = serde_json::from_str("{}").unwrap();
-        assert_eq!(cfg.ui_language, UiLanguage::System);
-        assert_eq!(cfg.hotkeys.len(), 2);
-        assert_eq!(cfg.naming_styles.len(), 5);
-        assert!(cfg.providers.is_empty());
+    fn old_schema_is_not_silently_interpreted_as_new_config() {
+        // Issue 24 明确不做旧 ProviderConfig 自动迁移。
+        assert!(serde_json::from_str::<AppConfig>("{}").is_err());
+    }
+
+    #[test]
+    fn validate_rejects_missing_key_and_allows_no_auth_provider() {
+        let mut config = AppConfig::default();
+        let mut provider = sample_provider();
+        provider.api_key.clear();
+        config.providers.push(provider);
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigValidationError::InvalidProvider(_))
+        ));
+
+        config.providers[0].auth = AuthScheme::None;
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn responses_requires_official_preset_and_endpoint() {
+        let mut config = AppConfig::default();
+        let mut provider = sample_provider();
+        provider.protocol = Protocol::OpenAiResponses;
+        provider.preset_id = Some("openai-responses".into());
+        provider.base_url = "https://proxy.example".into();
+        config.providers.push(provider);
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigValidationError::InvalidProvider(_))
+        ));
+    }
+
+    #[test]
+    fn resolve_request_validates_parameter_range_and_profile_mapping() {
+        let mut config = AppConfig::default();
+        let mut provider = sample_provider();
+        provider.models[0].max_output_tokens = Some(SourcedValue {
+            value: 1_024,
+            source: ValueSource::BundledVerified,
+            source_url: Some("https://example.test/spec".into()),
+            verified_at: Some("2026-09-17".into()),
+        });
+        config.providers.push(provider);
+        config.models.translate = Some(ModelRef {
+            provider_id: "deepseek-1".into(),
+            model: "deepseek-chat".into(),
+            generation: Some(GenerationSettings {
+                temperature: Some(0.5),
+                max_output_tokens: Some(512),
+                reasoning_effort: None,
+            }),
+        });
+        assert!(config.resolve_request(Feature::Translate).is_ok());
+
+        config.models.translate.as_mut().unwrap().generation = Some(GenerationSettings {
+            temperature: Some(2.5),
+            max_output_tokens: None,
+            reasoning_effort: None,
+        });
+        assert!(matches!(
+            config.resolve_request(Feature::Translate),
+            Err(ResolveError::ParameterInvalid { .. })
+        ));
+
+        config.models.translate.as_mut().unwrap().generation = Some(GenerationSettings {
+            temperature: None,
+            max_output_tokens: Some(2_048),
+            reasoning_effort: None,
+        });
+        assert!(matches!(
+            config.resolve_request(Feature::Translate),
+            Err(ResolveError::ParameterInvalid { .. })
+        ));
+
+        config.models.translate.as_mut().unwrap().generation = Some(GenerationSettings {
+            temperature: None,
+            max_output_tokens: Some(512),
+            reasoning_effort: None,
+        });
+        config.providers[0]
+            .parameter_profile
+            .as_mut()
+            .unwrap()
+            .max_output_field = Some(MaxOutputField::MaxOutputTokens);
+        assert!(matches!(
+            config.resolve_request(Feature::Translate),
+            Err(ResolveError::ParameterUnsupported { .. })
+        ));
+
+        config.providers[0].base_url = "https://custom.example".into();
+        let resolved = config.resolve_request(Feature::Translate).unwrap();
+        assert_eq!(resolved.generation, GenerationSettings::default());
     }
 }

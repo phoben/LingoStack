@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::json_array_stream::parse_json_objects;
 use crate::{
-    response_body_error, streaming_http_client, ChatChunk, ChatRequest, ChatRole, LlmError,
-    LlmProvider,
+    response_body_error, safe_error_text, streaming_http_client, ChatChunk, ChatRequest, ChatRole,
+    LlmError, LlmProvider, MaxOutputField,
 };
 
 /// Gemini `streamGenerateContent` 请求体。
@@ -51,7 +51,10 @@ struct GeminiPart {
 
 #[derive(Serialize)]
 struct GenerationConfig {
-    temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    temperature: Option<f32>,
+    #[serde(rename = "maxOutputTokens", skip_serializing_if = "Option::is_none")]
+    max_output_tokens: Option<u32>,
 }
 
 /// 流式响应的单个数组元素（仅提取增量文本）。
@@ -139,9 +142,20 @@ impl GeminiProvider {
                     }],
                 })
             },
-            generation_config: request
-                .temperature
-                .map(|temperature| GenerationConfig { temperature }),
+            generation_config: if request.temperature.is_some()
+                || (request.max_output_tokens.is_some()
+                    && request.max_output_field == Some(MaxOutputField::GeminiMaxOutputTokens))
+            {
+                Some(GenerationConfig {
+                    temperature: request.temperature,
+                    max_output_tokens: (request.max_output_field
+                        == Some(MaxOutputField::GeminiMaxOutputTokens))
+                    .then_some(request.max_output_tokens)
+                    .flatten(),
+                })
+            } else {
+                None
+            },
         }
     }
 }
@@ -160,11 +174,7 @@ async fn ensure_success(
     } else {
         let code = status.as_u16();
         let raw = resp.text().await.unwrap_or_default();
-        let body = if api_key.is_empty() {
-            raw
-        } else {
-            raw.replace(api_key, "<redacted>")
-        };
+        let body = safe_error_text(&raw, api_key);
         Err(LlmError::Status { status: code, body })
     }
 }
@@ -189,9 +199,7 @@ impl LlmProvider for GeminiProvider {
                         LlmError::Timeout
                     } else {
                         // reqwest 的错误消息可能含 URL（内含 Key），做脱敏。
-                        LlmError::Network(
-                            e.to_string().replace(self.api_key.as_str(), "<redacted>"),
-                        )
+                        LlmError::Network(safe_error_text(&e.to_string(), &self.api_key))
                     }
                 })?;
             let resp = ensure_success(resp, &self.api_key).await?;
