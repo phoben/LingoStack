@@ -100,6 +100,8 @@
 ### 2026-09-18 最终交付验收
 
 - 用户确认验收通过，并授权提交、推送、创建正式 PR、结束 Trellis 任务与工作区状态。
+- 干净交付工作提交：`176f2344e8da4572d3d9a1a75d0328b97783b383`（`feat: 升级 LLM 提供商架构`，`Refs #24`，含 DCO 签署）；从 `origin/develop` 重放，未夹带本地未交付的 Issue #23、OCR 或 GitHub 生命周期任务。
 - 最终复跑通过：`cargo fmt --all --check`、`cargo clippy --all-targets -- -D warnings`、`cargo test --workspace`、`cargo test -p lingostack-app --features e2e`（39 项）、`cargo build --workspace`（使用独立 target 目录避免占用中的调试程序文件锁）、`pnpm lint`、`pnpm test`（267 项）、`pnpm build`、`pnpm test:production-isolation`、`git diff --check`。
 - `pnpm test:e2e` 沿用本轮此前通过的 Windows 真实 Tauri 15 项结果；最终复跑未再次占用用户正在运行的调试实例。
+- 干净交付分支复跑通过：Rust fmt、Clippy、workspace build/tests、Tauri E2E feature 39 项、前端 lint/build/生产隔离与 257 项基线全量 Vitest；相比原工作区的 267 项，排除了尚未交付的 Issue #23 测试，Issue #24 设置页 19 项保持全量通过。
 - PR 使用 `Closes #24`，Issue 在 PR 合并前保持 OPEN，符合生命周期契约；本轮不执行合并。

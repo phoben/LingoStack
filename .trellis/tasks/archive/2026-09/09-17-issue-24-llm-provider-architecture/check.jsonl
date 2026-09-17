@@ -4,4 +4,3 @@
 {"file":".trellis/spec/lingostack-llm/backend/errors-and-secrets.md","reason":"检查重试分类和 API Key 全错误路径脱敏"}
 {"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"检查模型配置交互、忙碌/错误播报与键盘语义"}
 {"file":"docs/research/issue-24-llm-provider-architecture.md","reason":"逐项核对首批预设、Responses、发现、能力和范围边界"}
-{"file":".trellis/spec/guides/github-issue-lifecycle.md","reason":"交付时区分本地完成、远端授权、回读与 Issue 关闭边界"}
