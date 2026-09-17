@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::sse::parse_data_lines;
 use crate::{
-    response_body_error, streaming_http_client, ChatChunk, ChatRequest, LlmError, LlmProvider,
+    response_body_error, safe_error_text, streaming_http_client, ChatChunk, ChatRequest, LlmError,
+    LlmProvider, MaxOutputField,
 };
 
 /// OpenAI 兼容协议的请求体。
@@ -21,6 +22,10 @@ struct OpenAiRequest {
     stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    max_completion_tokens: Option<u32>,
 }
 
 #[derive(Serialize)]
@@ -68,7 +73,11 @@ impl OpenAiProvider {
 
     #[must_use]
     fn endpoint(&self) -> String {
-        format!("{}/v1/chat/completions", self.base_url)
+        if self.base_url.ends_with("/v1") || self.base_url.ends_with("/v4") {
+            format!("{}/chat/completions", self.base_url)
+        } else {
+            format!("{}/v1/chat/completions", self.base_url)
+        }
     }
 
     /// 把 [`ChatRequest`] 转为 OpenAI 协议的请求体。
@@ -90,19 +99,29 @@ impl OpenAiProvider {
             messages,
             stream: true,
             temperature: request.temperature,
+            max_tokens: (request.max_output_field == Some(MaxOutputField::MaxTokens))
+                .then_some(request.max_output_tokens)
+                .flatten(),
+            max_completion_tokens: (request.max_output_field
+                == Some(MaxOutputField::MaxCompletionTokens))
+            .then_some(request.max_output_tokens)
+            .flatten(),
         }
     }
 }
 
 /// 校验响应状态：2xx 放行，否则读 body 包成 [`LlmError::Status`]。
-async fn ensure_success(resp: reqwest::Response) -> Result<reqwest::Response, LlmError> {
+async fn ensure_success(
+    resp: reqwest::Response,
+    api_key: &str,
+) -> Result<reqwest::Response, LlmError> {
     let status = resp.status();
     if status.is_success() {
         Ok(resp)
     } else {
         let code = status.as_u16();
-        // body 可能含提供商的错误说明；不应回显 API Key，各主流提供商均不回显。
-        let body = resp.text().await.unwrap_or_default();
+        let raw = resp.text().await.unwrap_or_default();
+        let body = safe_error_text(&raw, api_key);
         Err(LlmError::Status { status: code, body })
     }
 }
@@ -113,24 +132,26 @@ impl LlmProvider for OpenAiProvider {
         request: &'a ChatRequest,
     ) -> BoxStream<'a, Result<ChatChunk, LlmError>> {
         let body = self.build_body(request);
-        let auth_header = format!("Bearer {}", self.api_key);
         let api_key = self.api_key.clone();
         try_stream! {
-            let resp = self
+            let mut request_builder = self
                 .http
                 .post(self.endpoint())
-                .header(reqwest::header::AUTHORIZATION, auth_header)
-                .json(&body)
+                .json(&body);
+            if !self.api_key.is_empty() {
+                request_builder = request_builder.bearer_auth(&self.api_key);
+            }
+            let resp = request_builder
                 .send()
                 .await
                 .map_err(|e| {
                     if e.is_timeout() {
                         LlmError::Timeout
                     } else {
-                        LlmError::Network(e.to_string())
+                        LlmError::Network(safe_error_text(&e.to_string(), &api_key))
                     }
                 })?;
-            let resp = ensure_success(resp).await?;
+            let resp = ensure_success(resp, &api_key).await?;
             let bytes = resp
                 .bytes_stream()
                 .map(move |result| result.map_err(|error| response_body_error(error, &api_key)));
@@ -406,6 +427,46 @@ mod tests {
             .collect()
             .await;
         assert_eq!(deltas, vec!["ok".to_string()]);
+    }
+
+    #[test]
+    fn maps_only_the_profile_selected_max_output_field() {
+        let provider = OpenAiProvider::new("https://example.test", "sk-test").unwrap();
+        let mut req = request();
+        req.max_output_tokens = Some(512);
+        req.max_output_field = Some(MaxOutputField::MaxTokens);
+        let value = serde_json::to_value(provider.build_body(&req)).unwrap();
+        assert_eq!(
+            value.get("max_tokens").and_then(|item| item.as_u64()),
+            Some(512)
+        );
+        assert!(value.get("max_completion_tokens").is_none());
+
+        req.max_output_field = Some(MaxOutputField::MaxCompletionTokens);
+        let value = serde_json::to_value(provider.build_body(&req)).unwrap();
+        assert!(value.get("max_tokens").is_none());
+        assert_eq!(
+            value
+                .get("max_completion_tokens")
+                .and_then(|item| item.as_u64()),
+            Some(512)
+        );
+    }
+
+    #[test]
+    fn respects_versioned_openai_compatible_base_urls() {
+        let v1 = OpenAiProvider::new("https://api.minimax.io/v1", "key").unwrap();
+        let v4 = OpenAiProvider::new("https://open.bigmodel.cn/api/paas/v4", "key").unwrap();
+        let root = OpenAiProvider::new("https://api.openai.com", "key").unwrap();
+        assert_eq!(v1.endpoint(), "https://api.minimax.io/v1/chat/completions");
+        assert_eq!(
+            v4.endpoint(),
+            "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+        );
+        assert_eq!(
+            root.endpoint(),
+            "https://api.openai.com/v1/chat/completions"
+        );
     }
 
     #[tokio::test]

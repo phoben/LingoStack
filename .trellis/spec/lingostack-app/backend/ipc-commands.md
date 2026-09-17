@@ -4,12 +4,15 @@
 
 ## 命令清单
 
-11 个命令，注册顺序见 `src/lib.rs`（配置/热键/Prompt/聊天在前，取词/朗读在后）：
+命令注册顺序见 `src/lib.rs`。下表列出配置、提供商与核心交互命令；文档工作流命令仍以源码及其专门场景契约为准：
 
 | 命令                           | 参数                                                                                  | 成功返回                                          | 位置                |
 | ------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------- |
 | `load_config`                  | `state`                                                                               | `AppConfig`                                       | `commands.rs:37-40` |
 | `save_config`                  | `cfg: AppConfig`, `state`                                                             | `()`                                              | `:43-46`            |
+| `list_provider_presets`        | 无                                                                                    | `ProviderPreset[]`                                | provider catalog    |
+| `instantiate_provider_preset` | `preset_id: String`                                                                   | `ProviderInstance`                                | provider catalog    |
+| `discover_provider_models`     | `provider: ProviderInstance`                                                          | `ModelDescriptor[]`                               | provider discovery  |
 | `register_hotkeys`             | `bindings: Vec<HotkeyBinding>`, `app`, `state`                                        | `HotkeyStatus[]`                                  | `commands.rs`       |
 | `effective_prompt`             | `feature: Feature`, `state`                                                           | `String`（**含未替换的占位符**）                  | `:51-60`            |
 | `translation_plan`             | `text`, `source_override?`, `target_override?`, `effective_system_language?`, `state` | `TranslationPlan { source, target }`              | `commands.rs`       |
@@ -25,7 +28,63 @@
 
 ## 错误一律拍平为 String
 
-10 个命令全部返回 `Result<T, String>`，Rust 错误在边界处 `.map_err(|e| e.to_string())`。前端无法按错误种类分支，只能展示文本。
+可失败命令统一返回 `Result<T, String>`，Rust 错误在边界处 `.map_err(|e| e.to_string())`。前端无法按错误种类分支，只能展示文本。
+
+## Scenario：提供商预设、实例与模型发现
+
+### 1. Scope / Trigger
+
+- 修改 provider catalog、schema v2、模型发现或设置页保存链路时适用。
+
+### 2. Signatures
+
+```rust
+list_provider_presets() -> Vec<ProviderPreset>
+instantiate_provider_preset(preset_id: String) -> Result<ProviderInstance, String>
+discover_provider_models(provider: ProviderInstance) -> Result<Vec<ModelDescriptor>, String>
+```
+
+TypeScript 参数继续使用 Tauri camelCase：`presetId`；struct 字段保持 serde 的 snake_case。
+
+### 3. Contracts
+
+- catalog 随应用发布；实例化返回独立复制，命令不保存配置。
+- discovery 只在 `preset_id + protocol + endpoint` 精确匹配审核 profile 时执行；不匹配返回可读错误。
+- discovery 命令不保存、不删除模型，只把 provider 结果规范化为 `provider_reported` descriptor；前端明确选择后再写入草稿。
+- `save_config` 与 `load_config` 都经过 schema v2 和 provider validation。
+- 所有功能调用在建 provider 前统一执行 `resolve_request(feature)`，不能依赖 UI 隐藏非法模型/参数。
+
+### 4. Validation & Error Matrix
+
+| 条件 | 结果 |
+|---|---|
+| preset ID 不存在 | 实例化返回 `Err(String)`，不创建空实例 |
+| endpoint/protocol 已离开审核范围 | discovery 拒绝；实例仍可手工配置和保存（Responses 官方边界除外） |
+| 发现超时/状态/格式/分页失败 | 返回错误，调用方保留草稿与已有模型 |
+| 发现为空 | 返回空数组，由 UI 显示空态，不清空配置 |
+| 非法 provider/model/feature/generation | `resolve_request` 拒绝，HTTP 请求不得发出 |
+
+### 5. Good/Base/Bad Cases
+
+- Good：实例化 OpenAI Chat，用户改名和 key，保存后回读仍保留 `preset_id` 与独立 instance ID。
+- Base：自定义实例无 `preset_id`，手工模型仍可用于已声明功能。
+- Bad：打开设置即自动发现，或 discovery 成功后直接覆盖并保存整个 model list。
+
+### 6. Tests Required
+
+- Rust：命令 JSON 形状、factory 协议穷尽、resolve generation 转发、非法配置不触达 provider。
+- TypeScript/RTL：九个预设与自定义首位、显式刷新、多选/手工共存、空态/失败保留、来源与参数控件。
+- 真实 Tauri E2E：实例化预设 → 补测试 key → save → load 回读；模型分配与 Responses fixture Channel 流。
+
+### 7. Wrong vs Correct
+
+```ts
+// Wrong：刷新成功后立即替换并保存。
+await saveConfig({ ...config, models: await discoverProviderModels(provider) });
+
+// Correct：发现只更新候选；用户勾选后按 ID 非破坏性合入草稿。
+setDiscovered(await discoverProviderModels(provider));
+```
 
 这是有意的规模取舍，不是疏漏。新增命令照此办理——**不要**为单个命令引入自定义可序列化错误枚举，那会让边界出现两套约定。真要做结构化错误，是一次统一改造。
 

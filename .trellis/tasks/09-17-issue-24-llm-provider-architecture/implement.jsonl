@@ -1,0 +1,8 @@
+{"file":"docs/research/issue-24-llm-provider-architecture.md","reason":"Issue 24 已确认的三层架构、首批范围、协议事实与方案取舍"}
+{"file":".trellis/tasks/09-17-issue-24-llm-provider-architecture/research/provider-ecosystem.md","reason":"DeepSeek、Ollama、分页发现和模型来源的一手资料补充及修正"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"Rust serde、TypeScript 镜像、fixture 与真实 IPC 往返约束"}
+{"file":".trellis/spec/lingostack-core/backend/config-model.md","reason":"配置默认值、serde、模型解析与密钥脱敏约定"}
+{"file":".trellis/spec/lingostack-llm/backend/provider-pattern.md","reason":"LlmProvider interface、协议 adapter 骨架与刻意重复边界"}
+{"file":".trellis/spec/lingostack-llm/backend/streaming.md","reason":"SSE/JSON 流式解析、UTF-8 分片与传输错误分类契约"}
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"设置页单层布局、分割线、状态语义与桌面适配规范"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"设置异步状态、可访问性与 RTL 查询契约"}

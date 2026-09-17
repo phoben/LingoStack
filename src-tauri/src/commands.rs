@@ -5,10 +5,14 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use futures::StreamExt;
-use lingostack_core::config::{AppConfig, Feature, ProviderConfig, ProviderKind};
+use lingostack_core::config::{AppConfig, Feature, Protocol, ProviderConfig, ResolvedModelRequest};
 use lingostack_core::hotkey::HotkeyBinding;
 use lingostack_core::lang::{Language, TranslationPlan};
 use lingostack_core::prompt::{compose_explain_prompt, compose_translation_prompt};
+use lingostack_core::provider_catalog::{
+    discovered_candidate_with_limits, discovery_profile_for, instantiate_preset, provider_presets,
+    DiscoveryKind,
+};
 use lingostack_document::{DocumentTranslationPort, DocumentTranslationRequest, DocumentView};
 use lingostack_llm::{ChatMessage, ChatRequest, LlmError, LlmProvider};
 use tauri::ipc::Channel;
@@ -134,8 +138,8 @@ fn try_start_document_job(
     state: &AppState,
 ) -> Result<(), String> {
     let cfg = config_store::load(&state.config_path).map_err(|error| error.to_string())?;
-    let (provider_cfg, model_ref) = cfg
-        .resolve_model(Feature::DocTranslate)
+    let resolved = cfg
+        .resolve_request(Feature::DocTranslate)
         .map_err(|error| error.to_string())?;
     // Resolve the document's language pair in Rust, using the exact same
     // configured mapping/default rules as all other translation entry points.
@@ -149,8 +153,8 @@ fn try_start_document_job(
         .map_err(|error| error.to_string())?;
     let plan = document_translation_plan(&cfg, &source_text.markdown);
     let port = LiveDocumentPort {
-        provider: build_provider(provider_cfg)?,
-        model: model_ref.model.clone(),
+        provider: build_provider(resolved.provider)?,
+        request_template: chat_request_for(&resolved, Vec::new()),
         prompt: document_prompt_from_plan(&cfg, plan),
         target: plan.target,
     };
@@ -474,7 +478,7 @@ fn emit_document_progress(
 
 struct LiveDocumentPort {
     provider: Box<dyn LlmProvider>,
-    model: String,
+    request_template: ChatRequest,
     prompt: String,
     target: Language,
 }
@@ -483,17 +487,15 @@ impl lingostack_document::DocumentTranslationPort for LiveDocumentPort {
         &'a mut self,
         request: DocumentTranslationRequest,
     ) -> futures::future::BoxFuture<'a, Result<String, String>> {
-        let request = ChatRequest::new(
-            self.model.clone(),
-            vec![
-                ChatMessage::system(self.prompt.clone()),
-                ChatMessage::user(format_document_request(&request)),
-            ],
-        );
+        let mut request_template = self.request_template.clone();
+        request_template.messages = vec![
+            ChatMessage::system(self.prompt.clone()),
+            ChatMessage::user(format_document_request(&request)),
+        ];
         Box::pin(async move {
             let mut retried = false;
             loop {
-                let mut stream = self.provider.chat_stream(&request);
+                let mut stream = self.provider.chat_stream(&request_template);
                 let mut output = String::new();
                 let mut retry_error = None;
                 while let Some(chunk) = stream.next().await {
@@ -536,7 +538,7 @@ mod e2e_fixture {
 
     static ERROR_WAS_RETURNED: AtomicBool = AtomicBool::new(false);
 
-    pub const BASE_URL: &str = "lingostack-e2e://fixture";
+    pub const BASE_URL: &str = "https://api.openai.com";
     pub const MODEL: &str = "lingostack-e2e";
     pub const ERROR_THEN_SUCCESS_INPUT: &str = "E2E_ERROR_THEN_SUCCESS";
     pub const SUCCESS_OUTPUT: &str = "确定性的 E2E 翻译结果";
@@ -720,7 +722,52 @@ pub fn load_config(state: State<'_, AppState>) -> Result<AppConfig, String> {
 /// 保存应用配置（Unix 权限 0600，见 [`config_store::save`]）。
 #[tauri::command]
 pub fn save_config(cfg: AppConfig, state: State<'_, AppState>) -> Result<(), String> {
+    if cfg.schema_version != lingostack_core::config::CONFIG_SCHEMA_VERSION {
+        return Err("配置版本不兼容，请重新配置 AI 提供商".into());
+    }
     config_store::save(&state.config_path, &cfg).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_provider_presets() -> Vec<lingostack_core::provider_catalog::ProviderPreset> {
+    provider_presets().to_vec()
+}
+
+#[tauri::command]
+pub fn instantiate_provider_preset(preset_id: String) -> Result<ProviderConfig, String> {
+    instantiate_preset(&preset_id).ok_or_else(|| "未知提供商预设".into())
+}
+
+#[tauri::command]
+pub async fn discover_provider_models(
+    provider: ProviderConfig,
+) -> Result<Vec<lingostack_core::config::ModelDescriptor>, String> {
+    let profile = discovery_profile_for(&provider)
+        .ok_or_else(|| "当前协议或端点未经验证，无法刷新模型".to_string())?;
+    let kind = match profile.kind {
+        DiscoveryKind::OpenAi => lingostack_llm::discovery::DiscoveryKind::OpenAi,
+        DiscoveryKind::Anthropic => lingostack_llm::discovery::DiscoveryKind::Anthropic,
+        DiscoveryKind::Gemini => lingostack_llm::discovery::DiscoveryKind::Gemini,
+        DiscoveryKind::OllamaTags => lingostack_llm::discovery::DiscoveryKind::OllamaTags,
+    };
+    let result =
+        lingostack_llm::discovery::discover_models(lingostack_llm::discovery::DiscoveryRequest {
+            kind,
+            endpoint: profile.endpoint,
+            api_key: provider.api_key,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(result
+        .into_iter()
+        .map(|model| {
+            discovered_candidate_with_limits(
+                model.id,
+                model.context_window,
+                model.max_output_tokens,
+            )
+        })
+        .collect())
 }
 
 /// 保存并立即重新注册全局热键，始终返回每一项的可观察状态。
@@ -829,8 +876,8 @@ pub async fn explain_terms(
 ) -> Result<ExplainTermsResponse, String> {
     validate_explain_inputs(&items)?;
     let cfg = config_store::load(&state.config_path).map_err(|error| error.to_string())?;
-    let (provider_cfg, model_ref) = cfg
-        .resolve_model(Feature::Explain)
+    let resolved = cfg
+        .resolve_request(Feature::Explain)
         .map_err(|error| error.to_string())?;
     let prompt = compose_explain_prompt(cfg.prompt_overrides.explain(), language);
     let user = serde_json::to_string(
@@ -840,11 +887,12 @@ pub async fn explain_terms(
             .collect::<Vec<_>>(),
     )
     .map_err(|error| error.to_string())?;
-    let request = ChatRequest::new(
-        model_ref.model.clone(),
+    let request = chat_request_for(
+        &resolved,
         vec![ChatMessage::system(prompt), ChatMessage::user(user)],
     );
-    let output = collect_provider_output(provider_cfg, &request, &state.rate_limit_until).await?;
+    let output =
+        collect_provider_output(resolved.provider, &request, &state.rate_limit_until).await?;
     let parsed: Vec<ExplainTermOutput> =
         serde_json::from_str(&output).map_err(|_| "术语解释返回的不是 JSON 数组".to_string())?;
     let expected = items
@@ -925,8 +973,8 @@ pub async fn chat_stream(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cfg = config_store::load(&state.config_path).map_err(|e| e.to_string())?;
-    let (provider_cfg, model_ref) = cfg.resolve_model(feature).map_err(|e| e.to_string())?;
-    let request = ChatRequest::new(model_ref.model.clone(), messages);
+    let resolved = cfg.resolve_request(feature).map_err(|e| e.to_string())?;
+    let request = chat_request_for(&resolved, messages);
     let mut retried = false;
     loop {
         if let Some(delay) = shared_cooldown_delay(&state.rate_limit_until, Instant::now()) {
@@ -937,7 +985,7 @@ pub async fn chat_stream(
                 .map_err(|e| e.to_string())?;
             tokio::time::sleep(delay).await;
         }
-        let provider = build_provider(provider_cfg)?;
+        let provider = build_provider(resolved.provider)?;
         let mut stream = provider.chat_stream(&request);
         let mut sent_chunk = false;
         let mut retry_error: Option<LlmError> = None;
@@ -972,6 +1020,45 @@ pub async fn chat_stream(
     }
     on_event.send(ChatEvent::Done).ok();
     Ok(())
+}
+
+fn chat_request_for(
+    resolved: &ResolvedModelRequest<'_>,
+    messages: Vec<ChatMessage>,
+) -> ChatRequest {
+    let mut request = ChatRequest::new(resolved.model.id.clone(), messages);
+    request.temperature = resolved.generation.temperature;
+    request.max_output_tokens = resolved.generation.max_output_tokens;
+    request.max_output_field = resolved
+        .provider
+        .parameter_profile
+        .as_ref()
+        .and_then(|profile| profile.max_output_field)
+        .map(|field| match field {
+            lingostack_core::config::MaxOutputField::MaxTokens => {
+                lingostack_llm::MaxOutputField::MaxTokens
+            }
+            lingostack_core::config::MaxOutputField::MaxCompletionTokens => {
+                lingostack_llm::MaxOutputField::MaxCompletionTokens
+            }
+            lingostack_core::config::MaxOutputField::MaxOutputTokens => {
+                lingostack_llm::MaxOutputField::MaxOutputTokens
+            }
+            lingostack_core::config::MaxOutputField::GeminiMaxOutputTokens => {
+                lingostack_llm::MaxOutputField::GeminiMaxOutputTokens
+            }
+        });
+    request.reasoning_effort = resolved
+        .generation
+        .reasoning_effort
+        .map(|effort| match effort {
+            lingostack_core::config::ReasoningEffort::Low => lingostack_llm::ReasoningEffort::Low,
+            lingostack_core::config::ReasoningEffort::Medium => {
+                lingostack_llm::ReasoningEffort::Medium
+            }
+            lingostack_core::config::ReasoningEffort::High => lingostack_llm::ReasoningEffort::High,
+        });
+    request
 }
 
 fn should_retry(sent_chunk: bool, retried: bool, error: &LlmError) -> bool {
@@ -1012,20 +1099,26 @@ fn extend_shared_cooldown(cooldown: &Mutex<Option<Instant>>, now: Instant, durat
 /// 四种协议均已实装；Ollama 复用 OpenAI 兼容协议（同一 wire format）。
 fn build_provider(p: &ProviderConfig) -> Result<Box<dyn LlmProvider>, String> {
     #[cfg(feature = "e2e")]
-    if p.base_url == e2e_fixture::BASE_URL
-        && p.models.iter().any(|model| model == e2e_fixture::MODEL)
+    if p.id == "e2e"
+        && p.protocol == Protocol::OpenAiResponses
+        && p.base_url == e2e_fixture::BASE_URL
+        && p.models.iter().any(|model| model.id == e2e_fixture::MODEL)
     {
         return Ok(Box::new(e2e_fixture::FixtureProvider));
     }
 
-    match p.kind {
-        ProviderKind::OpenAiCompatible | ProviderKind::Ollama => {
-            let provider =
-                lingostack_llm::openai::OpenAiProvider::new(p.base_url.clone(), p.api_key.clone())
-                    .map_err(|e| e.to_string())?;
+    match p.protocol {
+        Protocol::OpenAiChatCompletions => {
+            let api_key = if p.auth == lingostack_core::config::AuthScheme::None {
+                String::new()
+            } else {
+                p.api_key.clone()
+            };
+            let provider = lingostack_llm::openai::OpenAiProvider::new(p.base_url.clone(), api_key)
+                .map_err(|e| e.to_string())?;
             Ok(Box::new(provider))
         }
-        ProviderKind::Anthropic => {
+        Protocol::AnthropicMessages => {
             let provider = lingostack_llm::anthropic::AnthropicProvider::new(
                 p.base_url.clone(),
                 p.api_key.clone(),
@@ -1033,10 +1126,18 @@ fn build_provider(p: &ProviderConfig) -> Result<Box<dyn LlmProvider>, String> {
             .map_err(|e| e.to_string())?;
             Ok(Box::new(provider))
         }
-        ProviderKind::Gemini => {
+        Protocol::GeminiGenerateContent => {
             let provider =
                 lingostack_llm::gemini::GeminiProvider::new(p.base_url.clone(), p.api_key.clone())
                     .map_err(|e| e.to_string())?;
+            Ok(Box::new(provider))
+        }
+        Protocol::OpenAiResponses => {
+            let provider = lingostack_llm::responses::OpenAiResponsesProvider::new(
+                p.base_url.clone(),
+                p.api_key.clone(),
+            )
+            .map_err(|e| e.to_string())?;
             Ok(Box::new(provider))
         }
     }
@@ -1049,14 +1150,10 @@ mod tests {
     use futures::StreamExt;
 
     fn deepseek() -> ProviderConfig {
-        ProviderConfig {
-            id: "deepseek-1".into(),
-            kind: ProviderKind::OpenAiCompatible,
-            name: "DeepSeek".into(),
-            base_url: "https://api.deepseek.com".into(),
-            api_key: "sk-test".into(),
-            models: vec!["deepseek-chat".into()],
-        }
+        let mut provider = instantiate_preset("deepseek").unwrap();
+        provider.id = "deepseek-1".into();
+        provider.api_key = "sk-test".into();
+        provider
     }
 
     #[test]
@@ -1067,7 +1164,7 @@ mod tests {
     #[test]
     fn build_provider_anthropic_ok() {
         let mut p = deepseek();
-        p.kind = ProviderKind::Anthropic;
+        p.protocol = Protocol::AnthropicMessages;
         p.base_url = "https://api.anthropic.com".into();
         assert!(build_provider(&p).is_ok());
     }
@@ -1075,32 +1172,61 @@ mod tests {
     #[test]
     fn build_provider_gemini_ok() {
         let mut p = deepseek();
-        p.kind = ProviderKind::Gemini;
+        p.protocol = Protocol::GeminiGenerateContent;
         p.base_url = "https://generativelanguage.googleapis.com".into();
         assert!(build_provider(&p).is_ok());
     }
 
     #[test]
-    fn build_provider_covers_all_kinds() {
-        // 四种协议均已实装——新增 ProviderKind 时此测试会因缺分支而编译失败。
-        for kind in [
-            ProviderKind::OpenAiCompatible,
-            ProviderKind::Ollama,
-            ProviderKind::Anthropic,
-            ProviderKind::Gemini,
+    fn build_provider_covers_all_protocols() {
+        for protocol in [
+            Protocol::OpenAiChatCompletions,
+            Protocol::OpenAiResponses,
+            Protocol::AnthropicMessages,
+            Protocol::GeminiGenerateContent,
         ] {
             let mut p = deepseek();
-            p.kind = kind;
-            assert!(build_provider(&p).is_ok(), "协议 {kind:?} 构造失败");
+            p.protocol = protocol;
+            assert!(build_provider(&p).is_ok(), "协议 {protocol:?} 构造失败");
         }
     }
 
     #[test]
     fn build_provider_ollama_reuses_openai() {
         let mut p = deepseek();
-        p.kind = ProviderKind::Ollama;
+        p.protocol = Protocol::OpenAiChatCompletions;
         p.base_url = "http://localhost:11434".into();
         assert!(build_provider(&p).is_ok());
+    }
+
+    #[test]
+    fn resolved_generation_is_forwarded_to_the_protocol_request() {
+        let mut config = AppConfig::default();
+        let mut provider = instantiate_preset("openai-responses").unwrap();
+        provider.id = "openai".into();
+        provider.api_key = "sk-test".into();
+        config.providers.push(provider);
+        config.models.translate = Some(lingostack_core::config::ModelRef {
+            provider_id: "openai".into(),
+            model: "o3-mini".into(),
+            generation: Some(lingostack_core::config::GenerationSettings {
+                temperature: None,
+                max_output_tokens: Some(512),
+                reasoning_effort: Some(lingostack_core::config::ReasoningEffort::High),
+            }),
+        });
+
+        let resolved = config.resolve_request(Feature::Translate).unwrap();
+        let request = chat_request_for(&resolved, vec![ChatMessage::user("hello")]);
+        assert_eq!(
+            request.max_output_field,
+            Some(lingostack_llm::MaxOutputField::MaxOutputTokens)
+        );
+        assert_eq!(request.max_output_tokens, Some(512));
+        assert_eq!(
+            request.reasoning_effort,
+            Some(lingostack_llm::ReasoningEffort::High)
+        );
     }
 
     #[test]
@@ -1182,7 +1308,7 @@ mod tests {
         };
         let mut port = LiveDocumentPort {
             provider: Box::new(provider),
-            model: "test".into(),
+            request_template: ChatRequest::new("test", Vec::new()),
             prompt: "test".into(),
             target: Language::Zh,
         };
@@ -1240,7 +1366,7 @@ mod tests {
         };
         let mut port = LiveDocumentPort {
             provider: Box::new(provider),
-            model: "test".into(),
+            request_template: ChatRequest::new("test", Vec::new()),
             prompt: "test".into(),
             target: Language::Zh,
         };
@@ -1429,14 +1555,14 @@ mod tests {
     #[cfg(feature = "e2e")]
     #[tokio::test]
     async fn e2e_fixture_provider_streams_known_chunks_without_a_client() {
-        let p = ProviderConfig {
-            id: "e2e".into(),
-            kind: ProviderKind::OpenAiCompatible,
-            name: "E2E fixture".into(),
-            base_url: e2e_fixture::BASE_URL.into(),
-            api_key: "not-a-real-key".into(),
-            models: vec![e2e_fixture::MODEL.into()],
-        };
+        let mut p = instantiate_preset("openai-responses").unwrap();
+        p.id = "e2e".into();
+        p.name = "OpenAI Responses E2E fixture".into();
+        p.base_url = e2e_fixture::BASE_URL.into();
+        p.api_key = "not-a-real-key".into();
+        p.models = vec![lingostack_core::provider_catalog::discovered_candidate(
+            e2e_fixture::MODEL.into(),
+        )];
         let provider = build_provider(&p).unwrap();
         let request = ChatRequest::new(
             e2e_fixture::MODEL,

@@ -86,6 +86,9 @@ pub fn run() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         commands::load_config,
         commands::save_config,
+        commands::list_provider_presets,
+        commands::instantiate_provider_preset,
+        commands::discover_provider_models,
         commands::effective_prompt,
         commands::translation_plan,
         commands::effective_translation_prompt,
@@ -110,6 +113,9 @@ pub fn run() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         commands::load_config,
         commands::save_config,
+        commands::list_provider_presets,
+        commands::instantiate_provider_preset,
+        commands::discover_provider_models,
         commands::effective_prompt,
         commands::translation_plan,
         commands::effective_translation_prompt,

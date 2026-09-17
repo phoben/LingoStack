@@ -32,6 +32,7 @@ describe("config-store", () => {
     vi.mocked(invoke).mockRejectedValue("disk full");
     await useConfigStore.getState().load();
     expect(useConfigStore.getState().config).toBeNull();
+    expect(useConfigStore.getState().loading).toBe(false);
     expect(useConfigStore.getState().error).toBe("disk full");
   });
 
@@ -58,10 +59,11 @@ describe("config-store", () => {
     await useConfigStore.getState().update((cfg) => {
       cfg.providers.push({
         id: "x",
-        kind: "open_ai_compatible",
+        protocol: "open_ai_chat_completions",
         name: "X",
         base_url: "https://x",
         api_key: "k",
+        auth: "bearer",
         models: [],
       });
       return cfg;

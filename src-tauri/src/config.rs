@@ -7,7 +7,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use lingostack_core::config::AppConfig;
+use lingostack_core::config::{AppConfig, ConfigValidationError, CONFIG_SCHEMA_VERSION};
 
 /// 配置文件错误。
 #[derive(Debug, thiserror::Error)]
@@ -16,6 +16,10 @@ pub enum ConfigError {
     Io(#[from] io::Error),
     #[error("配置文件解析失败: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("配置版本不兼容（检测到 {found}），请重新配置 AI 提供商")]
+    UnsupportedSchema { found: String },
+    #[error(transparent)]
+    Validation(#[from] ConfigValidationError),
 }
 
 /// 配置文件标准路径：`<config_dir>/lingostack/config.json`。
@@ -36,7 +40,19 @@ pub fn config_path() -> PathBuf {
 pub fn load(path: &Path) -> Result<AppConfig, ConfigError> {
     match fs::read_to_string(path) {
         Ok(text) => {
-            let mut config: AppConfig = serde_json::from_str(&text)?;
+            let value: serde_json::Value = serde_json::from_str(&text)?;
+            let found = value
+                .get("schema_version")
+                .and_then(serde_json::Value::as_u64);
+            if found != Some(u64::from(CONFIG_SCHEMA_VERSION)) {
+                return Err(ConfigError::UnsupportedSchema {
+                    found: found
+                        .map(|version| version.to_string())
+                        .unwrap_or_else(|| "未标注版本".into()),
+                });
+            }
+            let mut config: AppConfig = serde_json::from_value(value)?;
+            config.validate()?;
             config.normalize_hotkeys();
             Ok(config)
         }
@@ -47,6 +63,7 @@ pub fn load(path: &Path) -> Result<AppConfig, ConfigError> {
 
 /// 保存配置：确保父目录存在 → 写 pretty JSON → 收紧权限。
 pub fn save(path: &Path, config: &AppConfig) -> Result<(), ConfigError> {
+    config.validate()?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -78,7 +95,7 @@ fn restrict_permissions(path: &Path) -> Result<(), ConfigError> {
 mod tests {
     use super::*;
     use lingostack_core::config::UiLanguage;
-    use lingostack_core::config::{ProviderConfig, ProviderKind};
+    use lingostack_core::provider_catalog::instantiate_preset;
 
     #[test]
     fn load_missing_file_returns_default() {
@@ -94,14 +111,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("nested").join("dir").join("config.json");
         let mut cfg = AppConfig::default();
-        cfg.providers.push(ProviderConfig {
-            id: "deepseek-1".into(),
-            kind: ProviderKind::OpenAiCompatible,
-            name: "DeepSeek".into(),
-            base_url: "https://api.deepseek.com".into(),
-            api_key: "sk-test".into(),
-            models: vec!["deepseek-chat".into()],
-        });
+        let mut provider = instantiate_preset("deepseek").unwrap();
+        provider.id = "deepseek-1".into();
+        provider.api_key = "sk-test".into();
+        cfg.providers.push(provider);
         save(&path, &cfg).unwrap();
         assert!(path.exists());
         let back = load(&path).unwrap();
@@ -125,6 +138,16 @@ mod tests {
         let path = dir.path().join("config.json");
         fs::write(&path, "{ not json").unwrap();
         assert!(matches!(load(&path).err(), Some(ConfigError::Json(_))));
+    }
+
+    #[test]
+    fn old_schema_reports_actionable_incompatibility() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        fs::write(&path, r#"{"providers":[]}"#).unwrap();
+        let error = load(&path).unwrap_err().to_string();
+        assert!(error.contains("配置版本不兼容"));
+        assert!(error.contains("重新配置 AI 提供商"));
     }
 
     #[cfg(feature = "e2e")]

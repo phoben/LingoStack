@@ -28,19 +28,50 @@ function pnpm(args, env = process.env) {
 }
 
 const fixtureConfig = {
+  schema_version: 2,
   ui_language: "zh",
   providers: [
     {
       id: "e2e",
-      kind: "open_ai_compatible",
-      name: "E2E fixture",
-      base_url: "lingostack-e2e://fixture",
+      protocol: "open_ai_responses",
+      preset_id: "openai-responses",
+      name: "OpenAI Responses E2E fixture",
+      base_url: "https://api.openai.com",
       api_key: "not-a-real-key",
-      models: ["lingostack-e2e"],
+      auth: "bearer",
+      parameter_profile: {
+        protocol: "open_ai_responses",
+        endpoint_scope: "https://api.openai.com",
+        supports_temperature: true,
+        max_output_field: "max_output_tokens",
+        supports_reasoning: true,
+      },
+      models: [
+        {
+          id: "lingostack-e2e",
+          origin: "user_entered",
+          supported_features: [
+            "translate",
+            "naming",
+            "explain",
+            "doc_translate",
+          ],
+          supports_temperature: true,
+          supports_max_output: true,
+          supports_reasoning: true,
+        },
+      ],
     },
   ],
   models: {
-    translate: { provider_id: "e2e", model: "lingostack-e2e" },
+    translate: {
+      provider_id: "e2e",
+      model: "lingostack-e2e",
+      generation: {
+        max_output_tokens: 256,
+        reasoning_effort: "low",
+      },
+    },
     global_default: { provider_id: "e2e", model: "lingostack-e2e" },
   },
 };

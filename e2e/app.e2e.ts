@@ -104,6 +104,35 @@ describe("LingoStack desktop E2E", () => {
     );
   });
 
+  it("instantiates and saves an OpenAI Chat preset through real IPC", async () => {
+    const preset = await invokeTauri<Record<string, unknown>>(
+      "instantiate_provider_preset",
+      { presetId: "openai-chat" },
+    );
+    const config = await invokeTauri<{
+      providers: Record<string, unknown>[];
+    }>("load_config");
+    await invokeTauri<void>("save_config", {
+      cfg: {
+        ...config,
+        providers: [
+          ...config.providers,
+          { ...preset, id: "e2e-openai-chat", api_key: "e2e-preset-key" },
+        ],
+      },
+    });
+    const saved = await invokeTauri<{
+      providers: Array<{ id: string; preset_id?: string; name: string }>;
+    }>("load_config");
+    expect(saved.providers).toContainEqual(
+      expect.objectContaining({
+        id: "e2e-openai-chat",
+        preset_id: "openai-chat",
+        name: "OpenAI Chat Completions",
+      }),
+    );
+  });
+
   it("adds a translated result to favorites", async () => {
     await $("button=翻译").click();
     const input = await $("textarea");

@@ -64,6 +64,53 @@ where
     .boxed()
 }
 
+/// 解析具名 SSE 事件，供 OpenAI Responses 使用；Chat Completions 继续只消费 data 行。
+pub(crate) fn parse_events<S, B, E>(
+    input: S,
+) -> BoxStream<'static, Result<(String, String), LlmError>>
+where
+    S: Stream<Item = Result<B, E>> + Send + Unpin + 'static,
+    B: AsRef<[u8]> + Send + 'static,
+    E: Into<LlmError> + Send + 'static,
+{
+    let mut input = input;
+    let mut buf = String::new();
+    let mut utf8 = Utf8Carry::default();
+    stream! {
+        while let Some(chunk) = input.next().await {
+            match chunk {
+                Ok(bytes) => match utf8.push(bytes.as_ref()) {
+                    Ok(text) => {
+                        buf.push_str(&text);
+                        if buf.contains('\r') {
+                            buf = buf.replace("\r\n", "\n");
+                        }
+                        while let Some(idx) = buf.find("\n\n") {
+                        let block: String = buf.drain(..idx + 2).collect();
+                        let mut event = String::new();
+                        let mut data_lines = Vec::new();
+                        for line in block.lines() {
+                            if let Some(value) = line.strip_prefix("event:") {
+                                event = value.trim().into();
+                            } else if let Some(value) = line.strip_prefix("data:") {
+                                data_lines.push(value.trim());
+                            }
+                        }
+                        if !data_lines.is_empty() {
+                            yield Ok((event, data_lines.join("\n")));
+                        }
+                    }
+                    },
+                    Err(message) => { yield Err(LlmError::Stream(message)); return; }
+                },
+                Err(error) => { yield Err(error.into()); return; }
+            }
+        }
+        if let Err(message) = utf8.finish() { yield Err(LlmError::Stream(message)); }
+    }
+    .boxed()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -152,5 +199,20 @@ mod tests {
         let results: Vec<_> = parse_data_lines(s).collect().await;
         assert!(matches!(results.as_slice(), [Err(LlmError::Network(_))]));
         assert!(results[0].as_ref().unwrap_err().is_retryable());
+    }
+
+    #[tokio::test]
+    async fn named_events_support_crlf_and_multiline_data() {
+        let stream = futures::stream::iter(vec![chunk(
+            "event: response.output_text.delta\r\ndata: {\"delta\":\r\ndata: \"ok\"}\r\n\r\n",
+        )]);
+        let events: Vec<_> = parse_events(stream).map(Result::unwrap).collect().await;
+        assert_eq!(
+            events,
+            vec![(
+                "response.output_text.delta".into(),
+                "{\"delta\":\n\"ok\"}".into()
+            )]
+        );
     }
 }

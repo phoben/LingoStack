@@ -22,7 +22,8 @@ interface ConfigState {
 
 export const useConfigStore = create<ConfigState>((set, get) => ({
   config: null,
-  loading: false,
+  // App 挂载后立即触发加载；首帧也应被视为等待配置，避免空配置被误判为稳定状态。
+  loading: true,
   error: null,
   load: async () => {
     set({ loading: true, error: null });
