@@ -24,7 +24,7 @@ Tauri 只会 camelCase 化**命令参数名**，不动 struct 字段。所以 TS
 
 | Rust | TS 镜像 | 依据 |
 |------|---------|------|
-| `#[serde(rename_all = "snake_case")]` 枚举 | snake_case 字符串字面量联合 | `ProviderKind` → `"open_ai_compatible" \| "anthropic" \| "gemini" \| "ollama"`（`config-types.ts:11-15`） |
+| `#[serde(rename_all = "snake_case")]` 枚举 | snake_case 字符串字面量联合 | `Protocol` → `"open_ai_chat_completions" \| "open_ai_responses" \| "anthropic_messages" \| "gemini_generate_content"` |
 | struct 字段 | 原样 snake_case | `base_url` / `api_key` 两侧同名（`config.rs:44-49` ↔ `config-types.ts:41-42`） |
 | `Language`（例外，用 `lowercase`） | `"zh" \| "en" \| "ja"` | `lang.rs:12` ↔ `config-types.ts:8` |
 | `#[serde(tag = "type")]` 标签枚举 | 可辨识联合 | `ChatEvent` → `{type:"chunk";delta:string} \| {type:"status";message:string} \| {type:"done"} \| {type:"error";message:string}`（`commands.rs` ↔ `config-types.ts`） |
@@ -56,14 +56,15 @@ Tauri 只会 camelCase 化**命令参数名**，不动 struct 字段。所以 TS
 
 **不要**假设 `Language::default()` 反映应用实际默认语言。
 
-## 陷阱：无配置版本号
+## 配置版本：schema v2 是硬边界
 
-`AppConfig` 没有 `version` 字段，也没有迁移函数。前向兼容**只靠字段级 serde 默认值**：
+`AppConfig.schema_version` 必填，当前为 v2。Issue 24 的 provider 重构不提供旧配置迁移：缺失或非 v2 必须在磁盘边界给出重新配置提示。
 
-- 加可选字段 → 安全，老配置自动填默认值
-- **改名或改字段语义 → 无迁移路径**，老配置会静默丢值
+- v2 内加可选字段 → 同步 Rust、TS、默认值和 `fixtures/ipc-contract.json`
+- 改必填字段或字段语义 → 提升 schema 版本并先设计迁移/拒绝策略
+- 不得给 `schema_version` 加默认值，否则旧配置会再次被静默解释
 
-真要做破坏性变更，得先引入版本字段和迁移机制，这是目前不存在的能力。
+Tauri `load` 先读为 `serde_json::Value` 检查版本，再反序列化并调用 `AppConfig::validate()`；`save` 同样必须先 validate。
 
 ## 陷阱：Prompt 占位符跨语言契约
 

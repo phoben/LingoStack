@@ -9,7 +9,7 @@ where S: Stream<Item = Result<B, E>> + Send + Unpin + 'static, B: AsRef<[u8]>, E
 
 | 解码器 | 文件 | 用于 |
 |--------|------|------|
-| `parse_data_lines` | `sse.rs:19-24` | OpenAI（`openai.rs:138`）、Anthropic（`anthropic.rs:174`） |
+| `parse_data_lines` | `sse.rs` | OpenAI Chat、OpenAI Responses、Anthropic |
 | `parse_json_objects` | `json_array_stream.rs:73-78` | 仅 Gemini（`gemini.rs:201`） |
 
 ## SSE 解码
@@ -19,7 +19,7 @@ where S: Stream<Item = Result<B, E>> + Send + Unpin + 'static, B: AsRef<[u8]>, E
 - 跨 chunk 维护一个 `String` 缓冲（`:26`），因为一个 SSE 事件可能被 TCP 切在任意位置
 - 字节块先经过共享 UTF-8 尾缓冲：合法多字节字符可在任意字节位置跨 chunk；只有真正非法字节立即失败，上游结束仍留半个字符才报 `Stream` 错误。
 - 反复查找 `"\n\n"` 事件边界，取出完整块处理（`:32-45`）
-- 只 yield `data:` 开头的行（`strip_prefix("data:")` + `trim()`），其他字段（`event:` / `id:` / `:` 注释）静默忽略（`:37-43`）
+- 识别 CRLF/空行事件边界，并把同一事件的多条 `data:` 用换行合并；`event:` / `id:` / 注释不作为 payload 返回。Responses adapter 根据 data JSON 中的 `type` 处理具名事件
 - **终止**：`payload == "[DONE]"` 显式跳过不 yield（`:39-41`），随后底层字节流自然结束
 
 ## JSON 数组解码

@@ -20,6 +20,10 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 
 <!-- TRELLIS:END -->
 
+## GitHub Issue 关联任务
+
+只有 `task.json.meta.source_kind=github_issue` 的 Trellis 任务适用 [GitHub Issue 生命周期契约](.trellis/spec/guides/github-issue-lifecycle.md)。普通需求完全跳过 GitHub 读取与写入；本地提交不等于远端交付，任何 GitHub 写操作均须取得明确授权并回读确认。
+
 ## 项目概况
 
 **LingoStack（译栈）** — 面向程序员的跨平台桌面翻译工具。Tauri 2 应用，核心场景：划词翻译、文本翻译、变量名生成、词条解释、收藏管理、文档翻译。MIT 开源、零遥测、用户自带 LLM Key。

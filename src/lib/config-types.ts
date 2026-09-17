@@ -7,14 +7,59 @@
 
 export type Language = "zh" | "en" | "ja";
 export type UiLanguage = "system" | "zh" | "en";
-export interface TranslationPlan { source: Language; target: Language; }
+export interface TranslationPlan {
+  source: Language;
+  target: Language;
+}
 
 /** LLM 提供商协议（serde `rename_all = "snake_case"`）。 */
-export type ProviderKind =
-  | "open_ai_compatible"
-  | "anthropic"
-  | "gemini"
-  | "ollama";
+export type Protocol =
+  | "open_ai_chat_completions"
+  | "open_ai_responses"
+  | "anthropic_messages"
+  | "gemini_generate_content";
+export type AuthScheme =
+  "bearer" | "anthropic_api_key" | "gemini_api_key" | "none";
+export type ValueSource =
+  "bundled_verified" | "provider_reported" | "user_override";
+export type ModelOrigin =
+  "bundled_verified" | "provider_reported" | "user_entered";
+export interface SourcedValue<T> {
+  value: T;
+  source: ValueSource;
+  source_url?: string | null;
+  verified_at?: string | null;
+}
+export interface ModelDescriptor {
+  id: string;
+  origin: ModelOrigin;
+  display_name?: string | null;
+  source_url?: string | null;
+  verified_at?: string | null;
+  supported_features: Feature[];
+  context_window?: SourcedValue<number> | null;
+  max_output_tokens?: SourcedValue<number> | null;
+  supports_temperature: boolean;
+  supports_max_output: boolean;
+  supports_reasoning: boolean;
+}
+export interface ParameterProfile {
+  protocol: Protocol;
+  endpoint_scope: string;
+  supports_temperature: boolean;
+  max_output_field?:
+    | "max_tokens"
+    | "max_completion_tokens"
+    | "max_output_tokens"
+    | "gemini_max_output_tokens"
+    | null;
+  supports_reasoning: boolean;
+}
+export interface GenerationSettings {
+  temperature?: number | null;
+  max_output_tokens?: number | null;
+  reasoning_effort?: "low" | "medium" | "high" | null;
+}
 
 /** AI 功能（serde snake_case）。 */
 export type Feature = "translate" | "naming" | "explain" | "doc_translate";
@@ -24,29 +69,27 @@ export type Theme = "system" | "light" | "dark";
 
 /** 变量名命名风格（serde snake_case）。 */
 export type NamingStyle =
-  | "camel_case"
-  | "snake_case"
-  | "pascal_case"
-  | "kebab_case"
-  | "constant_case";
+  "camel_case" | "snake_case" | "pascal_case" | "kebab_case" | "constant_case";
 
 /** 热键动作（serde snake_case）。 */
-export type HotkeyAction =
-  | "translate_selection"
-  | "show_main_window";
+export type HotkeyAction = "translate_selection" | "show_main_window";
 
 export interface ProviderConfig {
   id: string;
-  kind: ProviderKind;
+  protocol: Protocol;
+  preset_id?: string | null;
   name: string;
   base_url: string;
   api_key: string;
-  models: string[];
+  auth: AuthScheme;
+  parameter_profile?: ParameterProfile | null;
+  models: ModelDescriptor[];
 }
 
 export interface ModelRef {
   provider_id: string;
   model: string;
+  generation?: GenerationSettings | null;
 }
 
 export interface ModelAssignment {
@@ -76,6 +119,7 @@ export interface HotkeyBinding {
 }
 
 export interface AppConfig {
+  schema_version: number;
   providers: ProviderConfig[];
   models: ModelAssignment;
   ui_language: UiLanguage;
@@ -122,6 +166,7 @@ export const MOD = {
 /** 镜像 `lingostack-core` 的默认值（`AppConfig::default` + `hotkey::defaults`）。 */
 export function defaultConfig(): AppConfig {
   return {
+    schema_version: 2,
     providers: [],
     models: {},
     ui_language: "system",

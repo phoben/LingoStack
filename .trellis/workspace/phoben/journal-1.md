@@ -95,3 +95,41 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 5: 完成 Issue 24 LLM 提供商架构升级
+<!-- trellis-session: v=2 fp=bd9ac0ef823bc0fe -->
+
+**Date**: 2026-09-18
+**Task**: 完成 Issue 24 LLM 提供商架构升级
+**Branch**: `codex/issue-24-llm-provider-architecture`
+
+### Summary
+
+完成内置提供商预设、自定义实例、四协议适配、模型发现与可输入多选配置，并通过 Windows 本机验收。
+
+### Main Changes
+
+- 新增 schema v2、提供商目录、模型能力与后端请求解析约束
+- 新增 Responses 与多提供商模型发现，统一 IPC 和设置页配置体验
+- 修复设置加载错误展示与发现模型保存后回显一致性
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `176f2344e8da4572d3d9a1a75d0328b97783b383` | feat: 升级 LLM 提供商架构 |
+
+### Testing
+
+- [OK] Rust fmt、Clippy、workspace 测试与隔离 workspace 构建通过
+- [OK] Tauri E2E feature 39 项；原工作区 Vitest 267 项通过，干净交付基线排除未交付的 Issue #23 测试后 257 项通过；lint、build、生产隔离通过
+- [OK] Windows 真实 Tauri E2E 15 项及设置页人工验收通过
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 审阅并合并 PR；合并后由 Closes #24 自动关闭 Issue

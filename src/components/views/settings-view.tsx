@@ -72,6 +72,7 @@ export function SettingsView() {
   const config = useConfigStore((s) => s.config);
   const hotkeys = useConfigStore((s) => s.config?.hotkeys);
   const update = useConfigStore((s) => s.update);
+  const loading = useConfigStore((s) => s.loading);
   const error = useConfigStore((s) => s.error);
   const mode = useThemeStore((s) => s.mode);
   const setTheme = useThemeStore((s) => s.setMode);
@@ -97,9 +98,19 @@ export function SettingsView() {
   if (!config)
     return (
       <ViewShell>
-        <p className="p-4 text-xs text-muted-foreground" aria-live="polite">
-          {t("loadingSettings")}
-        </p>
+        {error ? (
+          <p role="alert" className="p-4 text-xs text-destructive">
+            {t("configLoadFailed", { message: error })}
+          </p>
+        ) : loading ? (
+          <p className="p-4 text-xs text-muted-foreground" aria-live="polite">
+            {t("loadingSettings")}
+          </p>
+        ) : (
+          <p role="alert" className="p-4 text-xs text-destructive">
+            {t("configLoadFailed", { message: t("configLoadUnavailable") })}
+          </p>
+        )}
       </ViewShell>
     );
   const addMapping = async () => {

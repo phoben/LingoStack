@@ -74,7 +74,7 @@
 | Crate | 职责 | 平台 |
 |-------|------|------|
 | `lingostack-core` | 配置模型、语言判定、事件总线、热键冲突检测逻辑（纯 Rust，无 Tauri 依赖） | 跨平台 |
-| `lingostack-llm` | LLM 适配层：OpenAI 兼容 / Anthropic / Gemini / Ollama；`LlmProvider` trait + `chat_stream()` | 跨平台 |
+| `lingostack-llm` | LLM 适配层：OpenAI Chat / OpenAI Responses / Anthropic Messages / Gemini Generate Content；Ollama 走 OpenAI 兼容调用面；`LlmProvider` trait + `chat_stream()` | 跨平台 |
 | `lingostack-selection` | 系统取词：Windows UIA、macOS Accessibility（经 Swift helper）、Linux AT-SPI | 分平台 |
 | `lingostack-hook` | 全局热键、托盘、单实例锁 | 跨平台 |
 | `lingostack-tts` | 系统 TTS：Windows `tts` crate / macOS AVSpeechSynthesizer | 分平台 |
@@ -101,7 +101,7 @@
 - 取词失败降级：提示辅助功能权限授权引导 + 剪贴板取词
 
 ### 4.5 LLM 提供商（V1 全支持）
-OpenAI 兼容协议为基座（覆盖 DeepSeek/通义/智谱/Ollama 等），Anthropic / Gemini 原生适配。统一 `LlmProvider` trait（`chat_stream()` 返回流），功能层（翻译/命名）只认 trait；V1 的词条解释是翻译信封的一部分，不单独调用 provider。
+OpenAI Chat Completions 为兼容协议基座（覆盖 DeepSeek/通义/智谱及 Ollama 的兼容调用面），Anthropic Messages、Gemini Generate Content 与 OpenAI Responses 均有独立适配。统一 `LlmProvider` trait（`chat_stream()` 返回流），功能层只认 trait；Responses 不复用 Chat 请求或 SSE delta 解析。
 
 ## 5. 语言映射与目标语言规则
 
@@ -117,10 +117,16 @@ OpenAI 兼容协议为基座（覆盖 DeepSeek/通义/智谱/Ollama 等），Ant
 ## 6. LLM 配置模型
 
 ### 6.1 提供商配置
-- 支持多个提供商并存（每个含 baseURL、API Key、模型列表）
-- 每功能（翻译/命名）可指定**默认模型**；V1 词条解释复用翻译模型
+- 支持多个提供商并存（每个含协议、认证方式、baseURL、API Key、参数映射和模型描述）
+- 提供商预设只用于创建独立本地实例；实例保存后不会被应用升级覆盖。配置 schema 为 v2，旧开发配置明确提示重新配置而不静默迁移。
+- 模型记录能力、上下文/输出上限和来源；在线发现仅由用户显式触发，失败不清空手工模型或现有配置。
+- 首批预设：OpenAI Chat、OpenAI Responses、Anthropic、Gemini、DeepSeek、智谱普通 API、MiniMax、阿里百炼/通义、Ollama；“自定义”始终是一等入口。
+- 在线发现仅对协议与端点仍匹配审核范围的 OpenAI、Anthropic、Gemini、DeepSeek、MiniMax 和 Ollama 开放；智谱与百炼首期继续手工维护模型。
+- 每功能（翻译、命名、词条解释、文档翻译）可指定**默认模型**和独立生成设置，候选按模型能力过滤。
 - 支持**全局默认模型**作为兜底
 - 模型未指定时：功能默认 → 全局默认 → 提示配置
+- 生成参数由模型能力、协议及与端点绑定的 `ParameterProfile` 三方共同决定；端点改离审核范围后不发送可选参数。
+- OpenAI Responses 首期仅允许 OpenAI 官方预设与官方端点，使用独立请求体和具名 SSE 事件。
 
 ### 6.2 Prompt 自定义
 - AI 功能（翻译/命名；V1.5 增加文档翻译）支持 Prompt 自定义，**留空则使用系统内置**
@@ -175,9 +181,9 @@ V2 备选（独立工具栏）：
 | 层级 | 工具 | 覆盖 |
 |------|------|------|
 | Rust 单元测试 | `cargo test` | core（配置序列化、语言判定、热键冲突检测逻辑）、docparse（解析/分块）、prompt 构建 |
-| LLM 集成测试 | mock HTTP server（wiremock） | 四提供商协议解析、SSE 流解析、超时/重试 |
-| 前端测试 | Vitest + Testing Library | 组件、zustand stores、语言判定工具函数 |
-| E2E 测试 | tauri-driver + WebDriver | 真实应用核心链路：划词→弹工具栏→翻译→浮窗显示、收藏流程、设置保存（三平台） |
+| LLM 集成测试 | mock HTTP server（wiremock） | Chat / Responses / Anthropic / Gemini 请求与流解析、模型发现分页/失败、参数字段映射、超时/重试和密钥擦除 |
+| 前端测试 | Vitest + Testing Library | 组件、zustand stores、预设实例化、能力过滤、发现非破坏性合并、参数控件与可访问状态 |
+| E2E 测试 | tauri-driver + WebDriver | 真实应用核心链路：设置保存、模型分配、确定性 Responses fixture 流、翻译、收藏与文档流程；供应商真实账号另行人工验收 |
 
 **Prompt 快照测试**：所有内置 Prompt 模板做快照测试。
 

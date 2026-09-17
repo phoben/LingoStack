@@ -157,6 +157,8 @@ Phase 3: Finish  → verify, update spec, commit, and wrap up
 - Simple conversation or small task: ask only whether this turn should create a Trellis task. If the user says no, skip Trellis for this session.
 - Complex task: ask whether you may create a Trellis task and enter planning. If the user says no, do not do broad inline implementation; explain, clarify scope, or suggest a smaller split.
 - User approval to create a task is not approval to start implementation. Planning still happens first.
+- 只有任务 `task.json.meta.source_kind` 严格等于 `github_issue` 时，才进入 GitHub Issue 关联分支；不得从标题、slug 或自然语言中的编号猜测关联。普通任务从头到尾跳过该分支。
+- 关联任务的详细元数据、授权、交付和关闭规则见 [GitHub Issue 生命周期契约](./spec/guides/github-issue-lifecycle.md)。
 
 ### Planning Artifacts
 
@@ -205,6 +207,7 @@ Load `trellis-brainstorm`; stay in planning.
 Lightweight: `prd.md` can be enough. Complex: finish `prd.md`, `design.md`, and `implement.md`; ask for review before `task.py start`.
 Multi-deliverable scope: consider a parent task plus independently verifiable child tasks; dependencies must be written in child artifacts, not implied by tree position.
 Sub-agent mode: curate `implement.jsonl` and `check.jsonl` as spec/research manifests before start.
+Only when `task.json.meta.source_kind=github_issue`: validate the required identity fields, read the current Issue, comments, labels, and any Matt triage brief; write their scope into task artifacts. Do not write GitHub or infer remote state from metadata.
 [/workflow-state:planning]
 
 <!-- Per-turn breadcrumb: shown throughout Phase 1 when codex.dispatch_mode=inline.
@@ -218,6 +221,7 @@ Load `trellis-brainstorm`; stay in planning.
 Lightweight: `prd.md` can be enough. Complex: finish `prd.md`, `design.md`, and `implement.md`; ask for review before `task.py start`.
 Multi-deliverable scope: consider a parent task plus independently verifiable child tasks; dependencies must be written in child artifacts, not implied by tree position.
 Inline mode: skip jsonl curation; Phase 2 reads artifacts/specs via `trellis-before-dev`.
+Only when `task.json.meta.source_kind=github_issue`: validate the required identity fields, read the current Issue, comments, labels, and any Matt triage brief; write their scope into task artifacts. Do not write GitHub or infer remote state from metadata.
 [/workflow-state:planning-inline]
 
 ### Phase 2: Execute
@@ -238,6 +242,7 @@ Tools: `trellis-implement` / `trellis-research` are sub-agent types only (Task/A
 Flow: `trellis-implement` -> `trellis-check` -> `trellis-update-spec` -> commit (Phase 3.4) -> `/trellis:finish-work`.
 Main-session default: dispatch implement/check sub-agents. Sub-agent self-exemption: if already running as `trellis-implement`, do NOT spawn another `trellis-implement` or `trellis-check`; if already running as `trellis-check`, do NOT spawn another `trellis-check` or `trellis-implement`. Dispatch is main session only.
 Dispatch prompt starts with `Active task: <task path from task.py current>`. Read context: jsonl entries -> `prd.md` -> `design.md if present` -> `implement.md if present`.
+For an explicitly linked GitHub Issue task only: Trellis implement/check remains independent of Matt `/implement`. On a local commit, use `Refs #<github_issue>`, record the SHA, and report unsynchronized remote delivery. Local implementation, checks, and commit do not authorize or perform push, PR, comment, label, or close actions unless the user separately authorizes them.
 [/workflow-state:in_progress]
 
 <!-- Per-turn breadcrumb: shown while status='in_progress' when
@@ -249,6 +254,7 @@ Dispatch prompt starts with `Active task: <task path from task.py current>`. Rea
 Flow: `trellis-before-dev` -> edit -> `trellis-check` -> validation -> `trellis-update-spec` -> commit (Phase 3.4) -> `/trellis:finish-work`.
 Do not dispatch implement/check sub-agents in inline mode.
 Read context: `prd.md` -> `design.md if present` -> `implement.md if present`, plus relevant spec/research loaded by skills.
+For an explicitly linked GitHub Issue task only: Trellis implementation/check is independent of Matt `/implement`. On a local commit, use `Refs #<github_issue>`, record the SHA, and report unsynchronized remote delivery. Local work and commit do not authorize or perform any GitHub write unless separately authorized.
 [/workflow-state:in_progress-inline]
 
 ### Phase 3: Finish
@@ -330,6 +336,8 @@ python ./.trellis/scripts/task.py create "<task title>" --slug <name>
 
 `--slug` is the human-readable name only. Do **not** include the `MM-DD-` date prefix; `task.py create` adds that prefix automatically.
 
+只有需求明确来自 GitHub Issue 时，才在创建时追加 `--meta source_kind=github_issue` 以及 `github_repo`、`github_issue`、`github_issue_url` 三个身份字段。它们只保存关联身份；标签、开关状态、默认分支和 PR 合并状态必须在需要时实时查询，不能写入 `meta` 充当事实。完整格式见 [GitHub Issue 生命周期契约](./spec/guides/github-issue-lifecycle.md)。
+
 For task trees, create the parent task first and then create each child with `--parent <parent-dir>`. Do not start the parent just because children exist; start the child that owns the next independently verifiable deliverable.
 
 After this command succeeds, the per-turn breadcrumb auto-switches to `[workflow-state:planning]`, telling the AI to stay in planning.
@@ -350,6 +358,8 @@ The brainstorm skill will guide you to:
 - Split large scopes into a parent task plus child tasks when the deliverables can be verified independently
 - Keep `prd.md` focused on requirements and acceptance criteria
 - For complex tasks, produce `design.md` and `implement.md` before implementation starts
+
+仅对 `meta.source_kind=github_issue` 的任务：先只读获取当前 Issue、评论、标签和 Matt triage 产出的 agent brief，将已确认范围、验收条件和未决项写入 `prd.md`。若身份字段不完整、Issue 已关闭或仓库不匹配，停止任何远端写入并向用户报告；不要自动修复、重新打开或猜测关联。
 
 When considering a parent/child split:
 - Use a parent task when one request contains several independently verifiable deliverables.
@@ -648,10 +658,11 @@ The AI drives a batched commit of this task's code changes so `/finish-work` can
 - Never push to remote in this step.
 - If the user wants different message wording but accepts the file grouping, edit the message and re-confirm once — but if they reject the grouping, exit to manual mode.
 - The batched plan is one prompt; do not prompt per commit.
+- 仅对 `meta.source_kind=github_issue` 的任务：本地提交信息使用 `Refs #<github_issue>` 建立追溯，不使用关闭关键字。本地提交后记录提交号，并明确报告 GitHub 尚未同步；push、PR、评论、标签和关闭都必须另获明确远端授权，并按 [GitHub Issue 生命周期契约](./spec/guides/github-issue-lifecycle.md) 操作后回读确认。
 
 #### 3.5 Wrap-up reminder
 
-After the above, remind the user they can run `/finish-work` to wrap up (archive the task, record the session).
+After the above, remind the user they can run `/finish-work` to wrap up (archive the task, record the session). Only for an explicitly linked GitHub Issue task, also state whether remote delivery remains pending; archive, passing checks, and a local commit never prove the Issue was delivered or may be closed.
 
 ---
 

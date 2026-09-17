@@ -154,6 +154,8 @@ pnpm tauri build        # 打包发布产物
 
 Issues and specs are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
 
+仅当 Trellis 任务 `task.json.meta.source_kind=github_issue` 时，遵循 [GitHub Issue 生命周期契约](.trellis/spec/guides/github-issue-lifecycle.md)：普通任务不触发 GitHub 操作；本地提交不等于远端交付，远端写入须明确授权并回读确认。
+
 ### Triage labels
 
 Triage uses the five canonical label names. See `docs/agents/triage-labels.md`.

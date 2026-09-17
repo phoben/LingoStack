@@ -2,16 +2,17 @@
 
 > 这些指南针对 LingoStack 真实存在的跨边界风险。只在触发条件命中时读，不必通读。
 
-## 本仓库的四条真实断裂线
+## 本仓库的五条真实断裂线
 
-LingoStack 的 bug 风险不是均匀分布的。以下三处是「改一边、另一边静默失效」的地方，全部有实据：
+LingoStack 的 bug 风险不是均匀分布的。以下五处是「改一边、另一边静默失效」的地方，全部有实据：
 
-| 指南                                          | 覆盖的断裂线                                                                         | 何时读                                         |
-| --------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------- |
-| [IPC 契约指南](./ipc-contract-guide.md)       | Rust serde 类型 ↔ TS 手写镜像 ↔ IPC 传输。无代码生成、无编译期校验，改名只在运行时炸 | 增删改任何跨 IPC 的字段、枚举变体、命令、事件  |
-| [平台隔离指南](./platform-isolation-guide.md) | `lingostack-selection` / `lingostack-tts` 的 Windows 实现 vs macOS/Linux 占位        | 动取词、朗读、热键，或新增任何含平台差异的能力 |
-| [Rust 通用约定](./rust-conventions.md)        | 错误类型、内联测试、serde 属性在 7 个 crate 间的一致写法                             | 新增 crate、新增错误变体、写测试               |
-| [测试选择指南](./testing-strategy-guide.md)   | 单元/协议/构建/E2E/系统验收与证据等级之间的边界                                      | 修改代码、测试、依赖、构建、CI 或准备交付      |
+| 指南                                                     | 覆盖的断裂线                                                                         | 何时读                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| [IPC 契约指南](./ipc-contract-guide.md)                  | Rust serde 类型 ↔ TS 手写镜像 ↔ IPC 传输。无代码生成、无编译期校验，改名只在运行时炸 | 增删改任何跨 IPC 的字段、枚举变体、命令、事件              |
+| [平台隔离指南](./platform-isolation-guide.md)            | `lingostack-selection` / `lingostack-tts` 的 Windows 实现 vs macOS/Linux 占位        | 动取词、朗读、热键，或新增任何含平台差异的能力             |
+| [Rust 通用约定](./rust-conventions.md)                   | 错误类型、内联测试、serde 属性在 7 个 crate 间的一致写法                             | 新增 crate、新增错误变体、写测试                           |
+| [测试选择指南](./testing-strategy-guide.md)              | 单元/协议/构建/E2E/系统验收与证据等级之间的边界                                      | 修改代码、测试、依赖、构建、CI 或准备交付                  |
+| [GitHub Issue 生命周期契约](./github-issue-lifecycle.md) | Trellis 本地任务 ↔ Matt triage 输入 ↔ GitHub 远端交付的授权与事实边界                | 任务 `meta.source_kind=github_issue`，或准备同步关联 Issue |
 
 ## 触发清单
 
@@ -43,6 +44,14 @@ LingoStack 的 bug 风险不是均匀分布的。以下三处是「改一边、�
 - [ ] 改了 IPC、Tauri config/capability、Cargo feature 或关键桌面流程
 - [ ] 要汇报 CI/平台/系统能力是否真正运行
 - [ ] 不确定单元测试、E2E 与手工验收能分别证明什么
+
+### 该读 GitHub Issue 生命周期契约
+
+- [ ] `task.json.meta.source_kind` 严格等于 `github_issue`
+- [ ] 需要读取、评论、改标签、推送、创建 PR 或关闭关联 GitHub Issue
+- [ ] 需要判断本地提交、PR 合并与 Issue 关闭之间的交付边界
+
+普通任务不因标题、slug 或自然语言中出现 Issue 编号而触发本指南。
 
 ## 改值之前先搜
 
