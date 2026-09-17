@@ -10,6 +10,9 @@ import {
 import { FavoritesView } from "./favorites-view";
 import { useFavoritesStore } from "@/stores/favorites-store";
 import { useTtsStore } from "@/stores/tts-store";
+import { useConfigStore } from "@/stores/config-store";
+import { useAppStore } from "@/stores/app-store";
+import { defaultConfig } from "@/lib/config-types";
 
 const sonner = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 vi.mock("sonner", () => ({ toast: sonner }));
@@ -42,6 +45,8 @@ describe("FavoritesView", () => {
       stop: vi.fn().mockResolvedValue(undefined),
       clearError: vi.fn(),
     });
+    useConfigStore.setState({ config: defaultConfig() });
+    useAppStore.setState({ activeView: "favorites", settingsSection: "general" });
   });
 
   afterEach(cleanup);
@@ -137,5 +142,69 @@ describe("FavoritesView", () => {
       scrollHeight.mockRestore();
       globalThis.ResizeObserver = originalResizeObserver;
     }
+  });
+
+  it("为失败的术语解释提供 AI 设置入口，并在配置有效时保留重试", () => {
+    useFavoritesStore.setState({
+      list: [
+        {
+          ...favorite,
+          explanation: {
+            status: "failed",
+            language: "en",
+            error: "provider unavailable",
+          },
+        },
+      ],
+    });
+    render(<FavoritesView />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Set up AI" }));
+    expect(useAppStore.getState()).toMatchObject({
+      activeView: "settings",
+      settingsSection: "ai",
+    });
+
+    act(() => {
+      useConfigStore.setState({
+        config: {
+          ...defaultConfig(),
+          providers: [
+            {
+              id: "provider",
+              kind: "open_ai_compatible",
+              name: "Provider",
+              base_url: "https://example.test",
+              api_key: "key",
+              models: ["model"],
+            },
+          ],
+          models: { global_default: { provider_id: "provider", model: "model" } },
+        },
+      });
+    });
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("配置仍在加载时不把失败解释误导为配置缺失", () => {
+    useFavoritesStore.setState({
+      list: [
+        {
+          ...favorite,
+          explanation: {
+            status: "failed",
+            language: "en",
+            error: "provider unavailable",
+          },
+        },
+      ],
+    });
+    useConfigStore.setState({ config: null });
+    render(<FavoritesView />);
+
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Set up AI" }),
+    ).not.toBeInTheDocument();
   });
 });

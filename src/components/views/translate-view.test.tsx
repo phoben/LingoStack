@@ -1,8 +1,11 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useFavoritesStore } from "@/stores/favorites-store";
 import { useStreamStore } from "@/stores/stream-store";
 import { useTtsStore } from "@/stores/tts-store";
+import { useConfigStore } from "@/stores/config-store";
+import { useAppStore } from "@/stores/app-store";
+import { defaultConfig } from "@/lib/config-types";
 
 const sonner = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 const clipboard = vi.hoisted(() => ({ writeText: vi.fn() }));
@@ -191,6 +194,8 @@ describe("TranslateView toast feedback", () => {
       speakText: vi.fn(),
       stop: vi.fn(),
     });
+    useConfigStore.setState({ config: defaultConfig() });
+    useAppStore.setState({ activeView: "translate", settingsSection: "general" });
   });
 
   it("waits for clipboard success and surfaces a rejected favorite once", async () => {
@@ -209,5 +214,46 @@ describe("TranslateView toast feedback", () => {
       ),
     );
     expect(useFavoritesStore.getState().error).toBeNull();
+  });
+
+  it("为配置缺失提供 AI 设置入口，为普通错误保留重试", async () => {
+    useStreamStore.setState((state) => ({
+      tasks: {
+        ...state.tasks,
+        translate: {
+          ...state.tasks.translate,
+          status: "error",
+          error: "AI_CONFIGURATION_MISSING",
+          errorKind: "configuration",
+        },
+      },
+    }));
+    render(<TranslateView />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "AI configuration is required",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Set up AI" }));
+    expect(useAppStore.getState()).toMatchObject({
+      activeView: "settings",
+      settingsSection: "ai",
+    });
+
+    act(() => {
+      useStreamStore.setState((state) => ({
+        tasks: {
+          ...state.tasks,
+          translate: {
+            ...state.tasks.translate,
+            error: "network unavailable",
+            errorKind: "request",
+          },
+        },
+      }));
+    });
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Set up AI" }),
+    ).not.toBeInTheDocument();
   });
 });

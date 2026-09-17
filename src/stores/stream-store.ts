@@ -3,6 +3,7 @@ import { create } from "zustand";
 import type { ChatMessage, Feature } from "@/lib/config-types";
 import { chatStream } from "@/lib/ipc";
 import { stringifyError } from "@/lib/utils";
+import { AiConfigurationError } from "@/lib/ai-configuration";
 import { TranslationEnvelopeParser, type TranslationTerm } from "@/lib/translation-envelope";
 
 /**
@@ -23,6 +24,7 @@ export interface StreamTask {
   /** LLM 原始输出的累积文本（各功能自行解析）。 */
   output: string;
   error: string | null;
+  errorKind: "configuration" | "request" | null;
   /** 本次任务的输入（原文 / 描述）。也在此存放，否则切回页面后输入框空白却有输出。 */
   input: string;
   terms: TranslationTerm[];
@@ -48,7 +50,7 @@ const SAMPLE_INPUT: Record<StreamFeature, string> = {
 };
 
 function emptyTask(input = ""): StreamTask {
-  return { status: "idle", output: "", error: null, input, terms: [], diagnostic: null, parser: null, seq: 0 };
+  return { status: "idle", output: "", error: null, errorKind: null, input, terms: [], diagnostic: null, parser: null, seq: 0 };
 }
 
 function initialTasks(): Record<StreamFeature, StreamTask> {
@@ -105,6 +107,7 @@ export const useStreamStore = create<StreamState>((set, get) => ({
           status: "streaming",
           output: "",
           error: null,
+          errorKind: null,
           input,
           terms: [],
           diagnostic: null,
@@ -138,8 +141,8 @@ export const useStreamStore = create<StreamState>((set, get) => ({
             : { status: "done" });
         } else {
           patch((task) => task.parser
-            ? { status: "error", error: event.message, ...task.parser.finish(task.input, true), parser: null }
-            : { status: "error", error: event.message });
+            ? { status: "error", error: event.message, errorKind: "request", ...task.parser.finish(task.input, true), parser: null }
+            : { status: "error", error: event.message, errorKind: "request" });
         }
       });
       // 兜底：调用已返回却没收到 done / error 时收尾。否则状态永久停在
@@ -151,9 +154,10 @@ export const useStreamStore = create<StreamState>((set, get) => ({
       );
     } catch (e) {
       // 已累积的输出保留，用户可「重试」（设计文档 §9）。
+      const errorKind = e instanceof AiConfigurationError ? "configuration" : "request";
       patch((task) => task.parser
-        ? { status: "error", error: stringifyError(e), ...task.parser.finish(task.input, true), parser: null }
-        : { status: "error", error: stringifyError(e) });
+        ? { status: "error", error: stringifyError(e), errorKind, ...task.parser.finish(task.input, true), parser: null }
+        : { status: "error", error: stringifyError(e), errorKind });
     }
   },
 }));

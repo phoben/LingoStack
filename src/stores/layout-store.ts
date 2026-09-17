@@ -2,8 +2,6 @@ import { create } from "zustand";
 import {
   SIDEBAR_DEFAULT_WIDTH,
   clampSidebarWidth,
-  showsSidebarLabels,
-  toggledSidebarWidth,
 } from "@/lib/sidebar-layout";
 
 /** localStorage 键名：侧栏宽度跨会话保留用户的拖拽结果。 */
@@ -23,13 +21,9 @@ interface LayoutState {
   /** 侧栏当前宽度（px），已收敛到合法区间。 */
   sidebarWidth: number;
   setSidebarWidth: (width: number) => void;
-  /** 在「最窄图标态」与「默认宽度」间切换（双击分隔条）。 */
-  toggleSidebarWidth: () => void;
-  /** 当前宽度是否展示导航文字。 */
-  sidebarLabelsVisible: () => boolean;
 }
 
-export const useLayoutStore = create<LayoutState>((set, get) => ({
+export const useLayoutStore = create<LayoutState>((set) => ({
   sidebarWidth: readStoredWidth(),
   setSidebarWidth: (width) => {
     const next = clampSidebarWidth(width);
@@ -40,8 +34,4 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     }
     set({ sidebarWidth: next });
   },
-  toggleSidebarWidth: () => {
-    get().setSidebarWidth(toggledSidebarWidth(get().sidebarWidth));
-  },
-  sidebarLabelsVisible: () => showsSidebarLabels(get().sidebarWidth),
 }));

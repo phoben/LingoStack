@@ -49,6 +49,17 @@ const { activeView } = useAppStore(); // 错，全站零例
 
 现有调用点全部是选择器形式（`App.tsx:26-29`、`sidebar.tsx:11-12`、`translate-view.tsx:71-74`）。保持这个约定，避免整 store 订阅导致的无谓重渲染。
 
+### 设置页深链
+
+`app-store` 是设置子页的唯一事实来源：
+
+```ts
+openSettings("ai"); // activeView = "settings"，settingsSection = "ai"
+setActiveView("settings"); // 普通导航始终回到 settingsSection = "general"
+```
+
+AI 配置缺失等跨视图恢复操作必须调用 `openSettings("ai")`，不可只调用 `setActiveView("settings")`。测试需同时断言主视图和子页状态，避免用户到达设置首页却仍要自行寻找 AI 标签。
+
 ## store 就是服务层
 
 没有独立 service 层。异步动作直接在 store 里调 IPC 或 IndexedDB：

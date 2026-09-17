@@ -20,6 +20,11 @@ import { useConfigStore } from "@/stores/config-store";
 import { resolveLocale } from "@/lib/i18n";
 import { useT } from "@/lib/i18n";
 import { type StreamStatus, useStreamStore } from "@/stores/stream-store";
+import { AiConfigurationAction } from "@/components/ai-configuration-action";
+import {
+  AiConfigurationError,
+  hasKnownMissingAiConfiguration,
+} from "@/lib/ai-configuration";
 import { cn, stringifyError } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -185,6 +190,7 @@ export function TranslateView() {
   const setInput = useStreamStore((s) => s.setInput);
   const start = useStreamStore((s) => s.start);
   const uiLanguage = useConfigStore((s) => s.config?.ui_language ?? "system");
+  const config = useConfigStore((s) => s.config);
   const t = useT();
   const [sourceLang, setSourceLang] = useState("auto");
   const [targetLang, setTargetLang] = useState("auto");
@@ -197,6 +203,9 @@ export function TranslateView() {
   const translate = (override?: string) => {
     const src = override ?? source;
     void start("translate", src, async () => {
+      if (hasKnownMissingAiConfiguration(config, "translate")) {
+        throw new AiConfigurationError();
+      }
       const plan = await translationPlan(
         src,
         sourceLang === "auto" ? undefined : (sourceLang as "zh" | "en" | "ja"),
@@ -335,11 +344,11 @@ export function TranslateView() {
             ) : null}
             {task.status === "error" ? (
               <div role="alert" className="mt-2 flex items-center gap-2">
-                <span className="text-xs text-accent">{task.error}</span>
-                <Button variant="ghost" size="sm" onClick={() => translate()}>
+                <span className="text-xs text-accent">{task.errorKind === "configuration" ? t("aiConfigurationMissing") : task.error}</span>
+                {task.errorKind === "configuration" ? <AiConfigurationAction /> : <Button variant="ghost" size="sm" onClick={() => translate()}>
                   <RotateCcw className="h-3.5 w-3.5" />
                   {t("retry")}
-                </Button>
+                </Button>}
               </div>
             ) : null}
           </div>

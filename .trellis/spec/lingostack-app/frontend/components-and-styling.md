@@ -24,7 +24,7 @@
 
 视图路由无路由库：`AppView` / `activeView` 在 `stores/app-store.ts`；`src/lib/view-meta.ts` 的 `VIEW_ORDER` 与 `VIEW_META` 是顺序、标签、说明和图标的唯一真源；`App.tsx` 条件挂载视图。新增视图依次更新：`AppView`、`VIEW_ORDER`、`VIEW_META`、`App.tsx` 的条件渲染，并使用 `<ViewShell toolbar={...}>`。
 
-设置页二级导航是 `settings-view.tsx` 内的局部状态，不进入 app store 或 view-meta，也不是可复制到其他视图的通用 tabs。
+设置页二级导航不进入 `view-meta`，也不是可复制到其他视图的通用 tabs。它的当前子页由 `app-store` 的 `settingsSection` 保存：普通侧栏点击“设置”必须回到 `general`，而业务失败位置的 `openSettings("ai")` 必须同时切换主视图与 AI 子页；这样用户无需先进入设置首页再二次选择。不要在 `SettingsView` 重建局部子页状态，否则跨视图深链会失效。
 
 ## 主题接线与动效实现
 

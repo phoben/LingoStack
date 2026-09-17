@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/lingostack-app/frontend/index.md", "reason": "复核前端规范入口"}
+{"file": ".trellis/spec/lingostack-app/frontend/state-management.md", "reason": "复核状态边界与 store 行为"}
+{"file": ".trellis/spec/lingostack-app/frontend/components-and-styling.md", "reason": "复核组件复用与样式一致性"}
+{"file": ".trellis/spec/lingostack-app/frontend/testing-and-a11y.md", "reason": "复核测试与无障碍覆盖"}
+{"file": ".trellis/spec/lingostack-app/frontend/ui-design.md", "reason": "复核界面视觉契约"}
+{"file": ".trellis/spec/guides/testing-strategy-guide.md", "reason": "复核验证证据边界"}

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -10,6 +11,7 @@ import {
 import { SettingsView } from "./settings-view";
 import { defaultConfig } from "@/lib/config-types";
 import { useConfigStore } from "@/stores/config-store";
+import { useAppStore } from "@/stores/app-store";
 
 const { registerHotkeys, saveConfig } = vi.hoisted(() => ({
   registerHotkeys: vi.fn(),
@@ -34,6 +36,7 @@ describe("SettingsView", () => {
       config: { ...defaultConfig(), ui_language: "zh" },
       error: null,
     });
+    useAppStore.setState({ activeView: "translate", settingsSection: "general" });
   });
 
   it("rejects same-language mappings in the visible form", async () => {
@@ -168,6 +171,57 @@ describe("SettingsView", () => {
         name: "Use global default model",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("新增提供商表单中的 API Key 默认掩码且可临时显隐", async () => {
+    render(<SettingsView />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "AI" }));
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "添加提供商" }));
+    const input = screen.getByPlaceholderText("sk-...");
+    expect(input).toHaveAttribute("type", "password");
+    fireEvent.click(screen.getByRole("button", { name: "显示 API Key" }));
+    expect(input).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "隐藏 API Key" })).toHaveAttribute("aria-pressed", "true");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "取消" }));
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "添加提供商" }));
+    expect(screen.getByPlaceholderText("sk-...")).toHaveAttribute("type", "password");
+  });
+
+  it("编辑提供商时默认掩码，并在保存关闭后重新掩码", async () => {
+    useConfigStore.setState({
+      config: {
+        ...defaultConfig(),
+        ui_language: "zh",
+        providers: [
+          {
+            id: "deepseek",
+            kind: "open_ai_compatible",
+            name: "DeepSeek",
+            base_url: "https://api.deepseek.com",
+            api_key: "secret",
+            models: ["deepseek-chat"],
+          },
+        ],
+      },
+    });
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole("button", { name: "AI" }));
+    fireEvent.click(screen.getByRole("button", { name: "编辑 DeepSeek" }));
+    const input = screen.getByDisplayValue("secret");
+    expect(input).toHaveAttribute("type", "password");
+
+    fireEvent.click(screen.getByRole("button", { name: "显示 API Key" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() =>
+      expect(screen.queryByDisplayValue("secret")).not.toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "编辑 DeepSeek" }));
+    expect(screen.getByDisplayValue("secret")).toHaveAttribute("type", "password");
   });
 
   it("reports provider create, edit, and delete completion", async () => {

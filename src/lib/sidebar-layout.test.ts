@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   SIDEBAR_DEFAULT_WIDTH,
-  SIDEBAR_LABEL_THRESHOLD,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
   clampSidebarWidth,
@@ -36,13 +35,14 @@ describe("clampSidebarWidth", () => {
 });
 
 describe("showsSidebarLabels", () => {
-  it("阈值及以上显示文字", () => {
-    expect(showsSidebarLabels(SIDEBAR_LABEL_THRESHOLD)).toBe(true);
+  it("达到当前语言所需宽度才显示文字", () => {
+    expect(showsSidebarLabels(156, 156)).toBe(true);
+    expect(showsSidebarLabels(155, 156)).toBe(false);
     expect(showsSidebarLabels(SIDEBAR_DEFAULT_WIDTH)).toBe(true);
   });
 
-  it("阈值以下为纯图标", () => {
-    expect(showsSidebarLabels(SIDEBAR_LABEL_THRESHOLD - 1)).toBe(false);
+  it("所需宽度以下为纯图标", () => {
+    expect(showsSidebarLabels(SIDEBAR_DEFAULT_WIDTH - 1, SIDEBAR_DEFAULT_WIDTH)).toBe(false);
     expect(showsSidebarLabels(SIDEBAR_MIN_WIDTH)).toBe(false);
   });
 });
@@ -54,7 +54,7 @@ describe("toggledSidebarWidth", () => {
 
   it("图标态双击展开到默认", () => {
     expect(toggledSidebarWidth(SIDEBAR_MIN_WIDTH)).toBe(SIDEBAR_DEFAULT_WIDTH);
-    expect(toggledSidebarWidth(SIDEBAR_LABEL_THRESHOLD - 1)).toBe(
+    expect(toggledSidebarWidth(SIDEBAR_DEFAULT_WIDTH - 1)).toBe(
       SIDEBAR_DEFAULT_WIDTH,
     );
   });

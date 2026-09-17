@@ -31,6 +31,9 @@ import {
   matchesDocumentFilter,
 } from "@/lib/document-utils";
 import { useT } from "@/lib/i18n";
+import { useConfigStore } from "@/stores/config-store";
+import { hasKnownMissingAiConfiguration } from "@/lib/ai-configuration";
+import { AiConfigurationAction } from "@/components/ai-configuration-action";
 import { cn, stringifyError } from "@/lib/utils";
 import { useDocumentStore } from "@/stores/document-store";
 import { toast } from "sonner";
@@ -78,6 +81,11 @@ function documentStem(name: string) {
 /** A continuous Markdown reader; fragment execution remains inside the Rust document module. */
 export function DocsView() {
   const t = useT();
+  const config = useConfigStore((state) => state.config);
+  const canTranslateDocument = !hasKnownMissingAiConfiguration(
+    config,
+    "doc_translate",
+  );
   const {
     documents,
     selectedId,
@@ -461,24 +469,26 @@ export function DocsView() {
             ["pausing", "paused", "partial_failed", "failed"].includes(
               selected.status,
             ) ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void action("start")}
-              >
-                <Play className="h-3.5 w-3.5" />
-                {t("retry")}
-              </Button>
+              canTranslateDocument ? (
+                <Button variant="ghost" size="sm" onClick={() => void action("start")}>
+                  <Play className="h-3.5 w-3.5" />
+                  {t("retry")}
+                </Button>
+              ) : <AiConfigurationAction />
             ) : null}
             {selected?.status === "completed" ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void action("start")}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                {t("retranslate")}
-              </Button>
+              canTranslateDocument ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void action("start")}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {t("retranslate")}
+                </Button>
+              ) : (
+                <AiConfigurationAction />
+              )
             ) : null}
             {selected?.status === "translating" ? (
               <Button

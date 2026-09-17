@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -41,6 +42,7 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
     (initial?.models ?? []).join(", "),
   );
   const [error, setError] = useState<string | null>(null);
+  const [keyVisible, setKeyVisible] = useState(false);
 
   const submit = () => {
     if (!name.trim() || !baseUrl.trim() || !apiKey.trim()) {
@@ -97,13 +99,26 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
         </label>
         <label className="col-span-2 flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">API Key</span>
-          <Input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            className="font-mono text-xs"
-            placeholder="sk-..."
-          />
+          <div className="relative">
+            <Input
+              type={keyVisible ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              className="pr-9 font-mono text-xs"
+              placeholder="sk-..."
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-0 top-0 h-9 w-9"
+              aria-label={t(keyVisible ? "hideApiKey" : "showApiKey")}
+              aria-pressed={keyVisible}
+              onClick={() => setKeyVisible((visible) => !visible)}
+            >
+              {keyVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
         </label>
         <label className="col-span-2 flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">

@@ -73,7 +73,13 @@ import { deleteDocument } from "@/lib/ipc";
 describe("DocsView continuous Markdown reader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useConfigStore.setState({ config: defaultConfig() });
+    useConfigStore.setState({
+      config: {
+        ...defaultConfig(),
+        providers: [{ id: "test", kind: "open_ai_compatible", name: "Test", base_url: "https://example.test", api_key: "key", models: ["model"] }],
+        models: { global_default: { provider_id: "test", model: "model" } },
+      },
+    });
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: clipboard,
@@ -214,6 +220,63 @@ describe("DocsView continuous Markdown reader", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText("Translating")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("为配置缺失的失败文档提供直达 AI 设置入口", async () => {
+    const failed = {
+      id: "configuration-missing",
+      file_name: "configuration-missing.md",
+      status: "failed" as const,
+      block_count: 1,
+      translated_count: 0,
+      error_message: "No document model is configured",
+    };
+    useConfigStore.setState({ config: defaultConfig() });
+    ipc.listDocuments.mockResolvedValue([failed]);
+    useDocumentStore.setState({
+      documents: [failed],
+      selectedId: failed.id,
+      error: null,
+    });
+
+    render(<DocsView />);
+    expect(
+      await screen.findByRole("button", { name: "Set up AI" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+  });
+
+  it("已完成文档在配置缺失时也引导设置 AI，加载中保留重新翻译", async () => {
+    const completed = {
+      id: "completed-configuration-missing",
+      file_name: "completed.md",
+      status: "completed" as const,
+      block_count: 1,
+      translated_count: 1,
+    };
+    useConfigStore.setState({ config: defaultConfig() });
+    ipc.listDocuments.mockResolvedValue([completed]);
+    useDocumentStore.setState({
+      documents: [completed],
+      selectedId: completed.id,
+      error: null,
+    });
+
+    render(<DocsView />);
+    expect(
+      await screen.findByRole("button", { name: "Set up AI" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Retranslate" }),
+    ).not.toBeInTheDocument();
+
+    act(() => useConfigStore.setState({ config: null }));
+    expect(
+      await screen.findByRole("button", { name: "Retranslate" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Set up AI" }),
+    ).not.toBeInTheDocument();
   });
 
   it("announces the same reason again when a retry enters a new failure cycle", async () => {

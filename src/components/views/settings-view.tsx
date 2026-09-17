@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Info, Plus, X } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { ViewShell } from "@/components/view-shell";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SettingsAi } from "@/components/settings-ai";
+import { FuncCell, SetSection } from "@/components/settings-section";
 import { registerHotkeys, type HotkeyStatus } from "@/lib/ipc";
 import {
   MOD,
@@ -17,9 +18,10 @@ import { useConfigStore } from "@/stores/config-store";
 import { useThemeStore } from "@/stores/theme-store";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { useAppStore, type SettingsSection } from "@/stores/app-store";
 import { toast } from "sonner";
 
-type Sub = "general" | "shortcuts" | "ai" | "appearance";
+type Sub = SettingsSection;
 const langs: Language[] = ["zh", "en", "ja"];
 const labels: Record<Language, string> = {
   zh: "中文",
@@ -28,32 +30,6 @@ const labels: Record<Language, string> = {
 };
 const themes: Theme[] = ["light", "dark", "system"];
 
-export function SetSection({
-  title,
-  desc,
-  children,
-}: {
-  title: string;
-  desc?: string;
-  children?: ReactNode;
-}) {
-  return (
-    <section className="border-b border-border py-5 first:pt-3 last:border-0">
-      <h3 className="text-[15px] font-semibold">{title}</h3>
-      {desc ? (
-        <p className="mb-3 mt-0.5 text-xs text-muted-foreground">{desc}</p>
-      ) : null}
-      {children}
-    </section>
-  );
-}
-export function FuncCell({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 py-2">
-      {children}
-    </div>
-  );
-}
 
 function displayCombo(binding: HotkeyBinding) {
   const m = binding.combo.mods;
@@ -91,7 +67,8 @@ function capture(
 }
 
 export function SettingsView() {
-  const [sub, setSub] = useState<Sub>("general");
+  const sub = useAppStore((state) => state.settingsSection);
+  const setSub = useAppStore((state) => state.setSettingsSection);
   const config = useConfigStore((s) => s.config);
   const hotkeys = useConfigStore((s) => s.config?.hotkeys);
   const update = useConfigStore((s) => s.update);

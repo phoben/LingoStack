@@ -14,8 +14,6 @@ export const SIDEBAR_MAX_WIDTH = 280;
 /** 默认宽度（沿用原型 .sidebar 的 188px）。 */
 export const SIDEBAR_DEFAULT_WIDTH = 188;
 
-/** 低于此宽度切为纯图标态；不低于则显示图标 + 文字。 */
-export const SIDEBAR_LABEL_THRESHOLD = 132;
 
 /** 键盘调整侧栏宽度的单步像素。 */
 export const SIDEBAR_KEYBOARD_STEP = 16;
@@ -30,14 +28,14 @@ export function clampSidebarWidth(width: number): number {
 }
 
 /** 当前宽度是否显示导航文字标签。 */
-export function showsSidebarLabels(width: number): boolean {
-  return width >= SIDEBAR_LABEL_THRESHOLD;
+export function showsSidebarLabels(width: number, requiredWidth = SIDEBAR_DEFAULT_WIDTH): boolean {
+  return width >= requiredWidth;
 }
 
 /**
  * 双击分隔条时的下一个宽度：在「最窄图标态」与「默认宽度」之间来回切换。
  * 处于图标态（含任何窄于阈值的宽度）→ 展开到默认；否则收到最窄。
  */
-export function toggledSidebarWidth(width: number): number {
-  return showsSidebarLabels(width) ? SIDEBAR_MIN_WIDTH : SIDEBAR_DEFAULT_WIDTH;
+export function toggledSidebarWidth(width: number, requiredWidth = SIDEBAR_DEFAULT_WIDTH): number {
+  return showsSidebarLabels(width, requiredWidth) ? SIDEBAR_MIN_WIDTH : SIDEBAR_DEFAULT_WIDTH;
 }

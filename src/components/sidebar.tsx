@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAppStore } from "@/stores/app-store";
 import { useLayoutStore } from "@/stores/layout-store";
 import { VIEW_META, VIEW_ORDER } from "@/lib/view-meta";
 import {
   SIDEBAR_KEYBOARD_STEP,
+  SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
   clampSidebarWidth,
   showsSidebarLabels,
+  toggledSidebarWidth,
 } from "@/lib/sidebar-layout";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -24,12 +26,25 @@ export function Sidebar() {
   const setActiveView = useAppStore((s) => s.setActiveView);
   const width = useLayoutStore((s) => s.sidebarWidth);
   const setWidth = useLayoutStore((s) => s.setSidebarWidth);
-  const toggleWidth = useLayoutStore((s) => s.toggleSidebarWidth);
   const [dragging, setDragging] = useState(false);
   const t = useT();
   const asideRef = useRef<HTMLElement>(null);
+  const probeRef = useRef<HTMLElement>(null);
+  const [requiredWidth, setRequiredWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
 
-  const showLabels = showsSidebarLabels(width);
+  const showLabels = showsSidebarLabels(width, requiredWidth);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const measured = probeRef.current?.scrollWidth ?? 0;
+      setRequiredWidth(measured > 0 ? Math.ceil(measured) : SIDEBAR_DEFAULT_WIDTH);
+    };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    if (probeRef.current) observer?.observe(probeRef.current);
+    void document.fonts?.ready.then(measure);
+    return () => observer?.disconnect();
+  }, [t]);
 
   // 拖拽期间在 window 上监听，指针移出侧栏也能继续跟随。
   useEffect(() => {
@@ -121,6 +136,9 @@ export function Sidebar() {
           );
         })}
       </nav>
+      <nav ref={probeRef} aria-hidden="true" className="pointer-events-none invisible absolute left-0 top-0 flex w-max flex-col gap-0.5 pl-1.5 pr-1">
+        {VIEW_ORDER.map((id) => { const Icon = VIEW_META[id].icon; return <span key={id} className="flex items-center gap-2.5 px-2.5 py-2 text-left text-sm font-medium"><Icon className="h-[17px] w-[17px] shrink-0" />{t(id)}</span>; })}
+      </nav>
 
       {/* 预留区域：后续放版本更新提示。当前留白，无内容不占视觉重量。 */}
       <div className="mt-auto min-h-8" aria-hidden="true" />
@@ -138,7 +156,7 @@ export function Sidebar() {
           e.preventDefault();
           setDragging(true);
         }}
-        onDoubleClick={toggleWidth}
+        onDoubleClick={() => setWidth(toggledSidebarWidth(width, requiredWidth))}
         onKeyDown={onHandleKeyDown}
         className={cn(
           "group absolute inset-y-3 -right-1.5 z-10 w-3 cursor-col-resize rounded-full",

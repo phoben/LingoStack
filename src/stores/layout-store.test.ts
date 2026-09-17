@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
-  SIDEBAR_MIN_WIDTH,
 } from "@/lib/sidebar-layout";
 import { SIDEBAR_WIDTH_STORAGE_KEY, useLayoutStore } from "./layout-store";
 
@@ -22,19 +21,6 @@ describe("layout-store", () => {
     expect(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)).toBe(
       String(SIDEBAR_MAX_WIDTH),
     );
-  });
-
-  it("sidebarLabelsVisible 随宽度变化", () => {
-    expect(useLayoutStore.getState().sidebarLabelsVisible()).toBe(true);
-    useLayoutStore.getState().setSidebarWidth(SIDEBAR_MIN_WIDTH);
-    expect(useLayoutStore.getState().sidebarLabelsVisible()).toBe(false);
-  });
-
-  it("toggleSidebarWidth 在最窄与默认之间往返", () => {
-    useLayoutStore.getState().toggleSidebarWidth();
-    expect(useLayoutStore.getState().sidebarWidth).toBe(SIDEBAR_MIN_WIDTH);
-    useLayoutStore.getState().toggleSidebarWidth();
-    expect(useLayoutStore.getState().sidebarWidth).toBe(SIDEBAR_DEFAULT_WIDTH);
   });
 
   it("setSidebarWidth 在 localStorage 写入失败时仍生效", () => {

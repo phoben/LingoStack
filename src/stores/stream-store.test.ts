@@ -8,6 +8,7 @@ vi.mock("@/lib/ipc", () => ({
 import type { ChatEvent, ChatMessage } from "@/lib/config-types";
 import { chatStream } from "@/lib/ipc";
 import { resetStreamStore, useStreamStore } from "./stream-store";
+import { AiConfigurationError } from "@/lib/ai-configuration";
 
 type Emit = (event: ChatEvent) => void;
 
@@ -108,6 +109,13 @@ describe("stream-store", () => {
     });
     expect(task().status).toBe("error");
     expect(task().error).toBe("模型未配置");
+  });
+
+  it("配置缺失会被标记为可引导的配置错误", async () => {
+    await useStreamStore.getState().start("translate", "hi", () => {
+      throw new AiConfigurationError();
+    });
+    expect(task()).toMatchObject({ status: "error", errorKind: "configuration" });
   });
 
   it("IPC 的字符串 reject 也归一化为可读文本", async () => {

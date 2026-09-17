@@ -6,6 +6,7 @@ import { create } from "zustand";
  */
 export type AppView =
   "translate" | "naming" | "docs" | "favorites" | "settings" | "about";
+export type SettingsSection = "general" | "shortcuts" | "ai" | "appearance";
 
 interface AppState {
   /** V0 占位字段：证明 Zustand 链路连通，V1 接入真实应用就绪状态。 */
@@ -15,6 +16,9 @@ interface AppState {
   /** 当前激活的视图标签页，默认「翻译」。 */
   activeView: AppView;
   setActiveView: (view: AppView) => void;
+  settingsSection: SettingsSection;
+  openSettings: (section?: SettingsSection) => void;
+  setSettingsSection: (section: SettingsSection) => void;
 
   /**
    * 待注入翻译视图的原文（热键划词触发时由 App 写入）。
@@ -28,7 +32,10 @@ export const useAppStore = create<AppState>((set) => ({
   ready: false,
   setReady: (ready) => set({ ready }),
   activeView: "translate",
-  setActiveView: (activeView) => set({ activeView }),
+  setActiveView: (activeView) => set({ activeView, ...(activeView === "settings" ? { settingsSection: "general" } : {}) }),
+  settingsSection: "general",
+  openSettings: (settingsSection = "general") => set({ activeView: "settings", settingsSection }),
+  setSettingsSection: (settingsSection) => set({ settingsSection }),
   injectSource: null,
   setInjectSource: (injectSource) => set({ injectSource }),
 }));

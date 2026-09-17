@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Pill } from "@/components/ui/pill";
 import { ProviderForm } from "@/components/provider-form";
-import { FuncCell, SetSection } from "@/components/views/settings-view";
+import { FuncCell, SetSection } from "@/components/settings-section";
 import { useConfigStore } from "@/stores/config-store";
 import type { ModelRef, ProviderConfig } from "@/lib/config-types";
 import { useT } from "@/lib/i18n";
@@ -189,6 +189,7 @@ export function SettingsAi() {
         {editing ? (
           <div className="mt-2">
             <ProviderForm
+              key={editing.mode === "edit" ? `edit:${editing.provider.id}` : "add"}
               initial={editing.mode === "edit" ? editing.provider : undefined}
               onSave={handleSave}
               onCancel={() => setEditing(null)}

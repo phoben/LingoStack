@@ -10,6 +10,12 @@ import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 import { stringifyError } from "@/lib/utils";
 import { toast } from "sonner";
+import { useConfigStore } from "@/stores/config-store";
+import { AiConfigurationAction } from "@/components/ai-configuration-action";
+import {
+  AiConfigurationError,
+  hasKnownMissingAiConfiguration,
+} from "@/lib/ai-configuration";
 
 /**
  * 命名视图（§3 场景 3）：顶部描述输入 + 生成按钮，结果按五列平铺。
@@ -27,6 +33,7 @@ export function NamingView() {
   const setInput = useStreamStore((s) => s.setInput);
   const start = useStreamStore((s) => s.start);
   const t = useT();
+  const config = useConfigStore((s) => s.config);
 
   const streaming = task.status === "streaming";
   const grid = buildNamingGrid(task.output);
@@ -34,6 +41,9 @@ export function NamingView() {
 
   const generate = () => {
     void start("naming", task.input, async () => {
+      if (hasKnownMissingAiConfiguration(config, "naming")) {
+        throw new AiConfigurationError();
+      }
       const system = await effectivePrompt("naming");
       return [
         { role: "system", content: system },
@@ -144,8 +154,8 @@ export function NamingView() {
               grid.length > 0 && "border-t border-border",
             )}
           >
-            <span className="text-xs text-accent">{task.error}</span>
-            <Button
+            <span className="text-xs text-accent">{task.errorKind === "configuration" ? t("aiConfigurationMissing") : task.error}</span>
+            {task.errorKind === "configuration" ? <AiConfigurationAction /> : <Button
               variant="ghost"
               size="sm"
               className="ml-auto"
@@ -153,7 +163,7 @@ export function NamingView() {
             >
               <RotateCcw className="h-3.5 w-3.5" />
               {t("retry")}
-            </Button>
+            </Button>}
           </div>
         ) : null}
       </div>

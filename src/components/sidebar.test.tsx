@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Sidebar } from "./sidebar";
 import { useAppStore } from "@/stores/app-store";
@@ -73,6 +73,27 @@ describe("Sidebar", () => {
     expect(labels).toEqual(["", "", "", "", "", ""]);
     // 文字隐藏后仍可按无障碍名定位（title 提供可访问名）
     expect(screen.getByRole("button", { name: "设置" })).toBeInTheDocument();
+  });
+
+  it("仅在当前语言的测量宽度足够时显示导航文字", () => {
+    const scrollWidth = vi
+      .spyOn(HTMLElement.prototype, "scrollWidth", "get")
+      .mockReturnValue(200);
+    useLayoutStore.setState({ sidebarWidth: 199 });
+
+    try {
+      render(<Sidebar />);
+      expect(Array.from(navButtons()).map((button) => button.textContent?.trim())).toEqual(
+        ["", "", "", "", "", ""],
+      );
+
+      act(() => useLayoutStore.setState({ sidebarWidth: 200 }));
+      expect(Array.from(navButtons()).map((button) => button.textContent?.trim())).toEqual(
+        ["翻译", "命名", "文档", "收藏", "设置", "关于"],
+      );
+    } finally {
+      scrollWidth.mockRestore();
+    }
   });
 
   it("resize handle exposes the current width range", () => {

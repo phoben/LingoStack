@@ -15,6 +15,9 @@ import { useTtsStore } from "@/stores/tts-store";
 import { cn } from "@/lib/utils";
 import { stringifyError } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { useConfigStore } from "@/stores/config-store";
+import { hasKnownMissingAiConfiguration } from "@/lib/ai-configuration";
+import { AiConfigurationAction } from "@/components/ai-configuration-action";
 import { toast } from "sonner";
 
 const FILTERS: ("all" | FavKind)[] = ["all", "word", "phrase"];
@@ -32,6 +35,7 @@ interface FavoriteRowProps {
   stop: () => Promise<void>;
   remove: (id: string) => Promise<void>;
   retry: (id: string) => Promise<void>;
+  canRetryExplanation: boolean;
 }
 
 function FavoriteRow({
@@ -41,7 +45,7 @@ function FavoriteRow({
   speakText,
   stop,
   remove,
-  retry,
+  retry, canRetryExplanation,
 }: FavoriteRowProps) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
@@ -96,7 +100,7 @@ function FavoriteRow({
             {favorite.meaning || (favorite.explanation?.status === "pending" ? t("explanationPending") : "")}
           </span>
         </div>
-        {favorite.explanation?.status === "failed" ? <div role="alert" className="mt-1 flex items-center gap-2 text-xs text-destructive"><span>{t("explanationFailed", { message: favorite.explanation.error })}</span><button type="button" className="text-info hover:underline" onClick={() => void retry(favorite.id)}>{t("retry")}</button></div> : null}
+        {favorite.explanation?.status === "failed" ? <div role="alert" className="mt-1 flex items-center gap-2 text-xs text-destructive"><span>{canRetryExplanation ? t("explanationFailed", { message: favorite.explanation.error }) : t("aiConfigurationMissing")}</span>{canRetryExplanation ? <button type="button" className="text-info hover:underline" onClick={() => void retry(favorite.id)}>{t("retry")}</button> : <AiConfigurationAction />}</div> : null}
         <div className="mt-1 flex min-w-0 items-center gap-2">
           <span className="min-w-0 font-mono text-[10px] text-muted-foreground">
             {t(favorite.kind)} · {favorite.source} · {formatDate(favorite.createdAt)}
@@ -163,6 +167,8 @@ export function FavoritesView() {
   const speakingText = useTtsStore((s) => s.text);
   const speakText = useTtsStore((s) => s.speakText);
   const stop = useTtsStore((s) => s.stop);
+  const config = useConfigStore((s) => s.config);
+  const canRetryExplanation = !hasKnownMissingAiConfiguration(config, "explain");
 
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | FavKind>("all");
@@ -317,6 +323,7 @@ export function FavoritesView() {
                 stop={stop}
                 remove={remove}
                 retry={(id) => retryExplanations([id])}
+                canRetryExplanation={canRetryExplanation}
               />
             ))
           )}
