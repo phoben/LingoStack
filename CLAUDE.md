@@ -147,3 +147,17 @@ pnpm tauri build        # 打包发布产物
 
 - 主开发机为 **Windows 11 + PowerShell 7**；本会话 shell 为 Git Bash，路径用正斜杠，环境变量用 `$VAR` 而非 `%VAR%`。
 - 涉及 macOS Accessibility / Linux AT-SPI 等平台能力时，在 Windows 上无法实跑验证，需明确标注"需在目标平台验证"。
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the five canonical label names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository. See `docs/agents/domain.md`.
