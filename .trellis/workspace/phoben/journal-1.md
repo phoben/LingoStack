@@ -156,3 +156,41 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 7: 发布 0.0.7 并修复稳定通道缓存刷新
+<!-- trellis-session: v=2 fp=9093ca0dc7ac4d03 -->
+
+**Date**: 2026-09-18
+**Task**: 发布 0.0.7 并修复稳定通道缓存刷新
+**Branch**: `codex/record-release-0.0.7`
+
+### Summary
+
+完成 0.0.7 版本同步、受保护分支合并、签名 Windows 稳定发布；修复 tccli CDN 刷新参数并通过受控恢复任务验证公网稳定通道。
+
+### Main Changes
+
+- 发布 v0.0.7 Windows 安装包、签名与稳定更新清单
+- 修复 CDN 刷新 JSON 参数并增加 COS 源对象校验恢复流程
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f58ab80` | chore(release): 发布 0.0.7 |
+| `e639c54` | fix(release): 修复稳定通道缓存刷新 |
+| `d34a05e` | fix(release): 校验稳定清单源对象 |
+
+### Testing
+
+- [OK] PR #28 与 #29 全部门禁通过
+- [OK] 生产恢复运行 35316199685 成功，公网 stable 与 versioned 清单一致
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 后续版本直接使用已修复的标签发布流程
