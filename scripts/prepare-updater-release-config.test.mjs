@@ -70,6 +70,44 @@ test("stable manifest upload passes the Windows path as an argv value, never Pyt
   assert.doesNotMatch(stableStep, /& python -c /);
 });
 
+test("CDN purge passes Paths as a JSON array", () => {
+  const stableStep = workflowStep(
+    "Publish version manifest then stable manifest last",
+    null,
+  );
+  assert.match(
+    stableStep,
+    /\$purgePaths = ConvertTo-Json -Compress @\("https:\/\/\$env:CDN_DOMAIN\/channels\/stable\/latest\.json"\)/,
+  );
+  assert.match(
+    stableStep,
+    /& tccli cdn PurgePathCache --Paths \$purgePaths --FlushType delete/,
+  );
+});
+
+test("manual recovery only purges a matching published stable version", () => {
+  assert.match(releaseWorkflow, /workflow_dispatch:/);
+  const start = releaseWorkflow.indexOf("  repair-stable-cache:");
+  assert.notEqual(start, -1, "workflow is missing the stable cache recovery job");
+  const repairJob = releaseWorkflow.slice(start);
+  assert.match(repairJob, /if: github\.event_name == 'workflow_dispatch'/);
+  assert.match(
+    repairJob,
+    /& python scripts\/verify_stable_manifest\.py --bucket "\$env:COS_BUCKET" --region "\$env:COS_REGION" --key "\$prefix\/channels\/stable\/latest\.json" --version "\$env:EXPECTED_VERSION"/,
+  );
+  assert.ok(
+    repairJob.indexOf("& python scripts/verify_stable_manifest.py") <
+      repairJob.indexOf("& tccli cdn PurgePathCache"),
+    "recovery must verify the authoritative COS object before purging",
+  );
+  assert.doesNotMatch(repairJob, /publish-stable-manifest\.py|publish_immutable\.py/);
+  assert.match(
+    repairJob,
+    /\$verified = Invoke-WebRequest -UseBasicParsing \$stableUrl/,
+  );
+  assert.doesNotMatch(repairJob, /\$stableUrl\?verify|\$\{stableUrl\}\?verify/);
+});
+
 test("release workflow fails fast when any native publisher command fails", () => {
   const steps = [
     [
@@ -117,7 +155,7 @@ test("release workflow fails fast when any native publisher command fails", () =
       /^\s*(?:\$\w+\s*=\s*)?&\s+(node|pnpm|python|cargo|gh|tccli)\b[^\r\n]*\r?\n([^\r\n]*)/gm,
     ),
   ];
-  assert.equal(nativeInvocations.length, 14);
+  assert.equal(nativeInvocations.length, 18);
   for (const [, command, followingLine] of nativeInvocations) {
     assert.match(
       followingLine,
