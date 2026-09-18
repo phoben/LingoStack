@@ -12,6 +12,7 @@
 - [ ] 动自动更新状态、About 或标题栏更新入口？→ 读 [自动更新与稳定版发布契约](../backend/auto-update-release.md)。
 - [ ] 要加组件？→ 读 [组件与样式](./components-and-styling.md)；`ui/` 原语是手写的，不是 shadcn 生成物。
 - [ ] 要新增或修改异步状态区域？→ 读 [测试与可访问性](./testing-and-a11y.md)。翻译、命名、收藏已有 live region；设置与提供商表单等区域仍是缺口。
+- [ ] 动 Vite、Tauri 本地启动或文件监听？→ 读 [前端开发服务器契约](./development-server.md)，保持 watcher 与 Rust `target/` 隔离。
 - [ ] 已按 [全仓测试策略](../backend/testing-strategy.md) 判断只需 Vitest，还是还要真实桌面 E2E/生产隔离
 
 ## 具体规范
@@ -22,6 +23,7 @@
 | [组件与样式](./components-and-styling.md) | 手写原语实现、组合边界、视图路由和主题接线             |
 | [状态管理](./state-management.md)         | Zustand 写法、选择器约定、失败处理和 IndexedDB 分层    |
 | [测试与可访问性](./testing-and-a11y.md)   | Vitest + RTL、mock 边界、已有 a11y 语义与缺口          |
+| [前端开发服务器](./development-server.md) | Vite/Tauri 端口、文件监听隔离与 Windows EBUSY 回归     |
 
 ## 质量门禁
 
