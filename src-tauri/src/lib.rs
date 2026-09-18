@@ -203,12 +203,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn main_window_starts_hidden_until_first_page_is_ready() {
+    fn main_window_configuration_supports_deferred_reveal_and_html5_file_drop() {
         let config: serde_json::Value =
             serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
 
         assert_eq!(config["app"]["windows"][0]["label"], "main");
         assert_eq!(config["app"]["windows"][0]["visible"], false);
+        assert_eq!(
+            config["app"]["windows"][0]["dragDropEnabled"], false,
+            "Windows 使用前端 HTML5 拖放接收图片，窗口不得拦截系统文件拖入"
+        );
     }
 
     #[test]

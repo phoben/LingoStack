@@ -363,6 +363,17 @@ export function TranslateView() {
 
   return (
     <ViewShell
+      onDragEnter={(event) => {
+        event.preventDefault();
+        setDraggingImage(true);
+      }}
+      onDragOver={(event) => event.preventDefault()}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setDraggingImage(false);
+        }
+      }}
+      onDrop={onDrop}
       toolbar={
         <>
           <Select
@@ -418,22 +429,7 @@ export function TranslateView() {
       {/* 原文 / 译文靠一条竖向分割线分隔，不各自成卡片 */}
       <div className="grid h-full grid-cols-2 divide-x divide-border">
         {/* 原文 */}
-        <section
-          className="relative flex min-h-0 flex-col overflow-hidden"
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setDraggingImage(true);
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={(event) => {
-            if (
-              !event.currentTarget.contains(event.relatedTarget as Node | null)
-            ) {
-              setDraggingImage(false);
-            }
-          }}
-          onDrop={onDrop}
-        >
+        <section className="relative flex min-h-0 flex-col overflow-hidden">
           <PaneLabel>
             <span>{t("sourceText")}</span>
             <span className="flex-1" aria-hidden="true" />

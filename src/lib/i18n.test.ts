@@ -11,4 +11,13 @@ describe("resolveLocale", () => {
     expect(t("zh", "translateAction")).toBe("翻译");
     expect(t("en", "translateAction")).toBe("Translate");
   });
+
+  it("在原文输入提示中说明文本与图片输入方式", () => {
+    expect(t("zh", "inputToTranslate")).toBe(
+      "输入或粘贴文本，也可粘贴或拖入图片",
+    );
+    expect(t("en", "inputToTranslate")).toBe(
+      "Enter or paste text, or paste/drop an image",
+    );
+  });
 });

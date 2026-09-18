@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type DragEventHandler, type ReactNode } from "react";
 
 interface ViewShellProps {
   /**
@@ -7,6 +7,10 @@ interface ViewShellProps {
    */
   toolbar?: ReactNode;
   children: ReactNode;
+  onDragEnter?: DragEventHandler<HTMLElement>;
+  onDragOver?: DragEventHandler<HTMLElement>;
+  onDragLeave?: DragEventHandler<HTMLElement>;
+  onDrop?: DragEventHandler<HTMLElement>;
 }
 
 /**
@@ -19,9 +23,22 @@ interface ViewShellProps {
  * 故内容区不带内边距，由各视图自行决定——这样分割线才能通到面板两侧边缘，
  * 而不是悬在半空。
  */
-export function ViewShell({ toolbar, children }: ViewShellProps) {
+export function ViewShell({
+  toolbar,
+  children,
+  onDragEnter,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+}: ViewShellProps) {
   return (
-    <section className="flex h-full animate-panel-in flex-col overflow-hidden">
+    <section
+      className="flex h-full animate-panel-in flex-col overflow-hidden"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
       {toolbar ? (
         <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-2.5">
           {toolbar}

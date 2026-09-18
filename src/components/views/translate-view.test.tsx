@@ -408,6 +408,21 @@ describe("TranslateView local OCR input", () => {
     expect(useStreamStore.getState().tasks.translate.input).toBe("手动输入");
   });
 
+  it("拖到译文侧也会交给同一个图片识别流程", async () => {
+    const file = imageFile("image/png");
+    render(<TranslateView />);
+    const translatedPane = screen.getByText("Translation").closest("section");
+    expect(translatedPane).not.toBeNull();
+
+    fireEvent.drop(translatedPane!, { dataTransfer: { files: [file] } });
+
+    await waitFor(() => expect(startOcr).toHaveBeenCalledTimes(1));
+    expect(startOcr).toHaveBeenCalledWith(
+      { mediaType: "image/png", content: new Uint8Array([1, 2, 3, 4]) },
+      undefined,
+    );
+  });
+
   it("旧图片读取较慢时不会反向覆盖后选择的图片", async () => {
     let resolveSlow!: (value: ArrayBuffer) => void;
     const slowFile = {
