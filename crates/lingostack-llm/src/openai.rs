@@ -205,22 +205,33 @@ mod tests {
             "data: {\"choices\":[{\"delta\":{\"content\":\" three\"}}]}\n\n",
             "data: [DONE]\n\n",
         ];
+        let keep_alive = ": keep-alive\n\n";
+        let keep_alive_count = 10;
         let handle = thread::spawn(move || {
             let (mut socket, _) = listener.accept().unwrap();
+            socket.set_nodelay(true).unwrap();
             socket
                 .set_read_timeout(Some(Duration::from_secs(1)))
                 .unwrap();
             let mut request = [0_u8; 2048];
             let _ = socket.read(&mut request);
-            let content_length: usize = chunks.iter().map(|chunk| chunk.len()).sum();
+            let content_length: usize = chunks.iter().map(|chunk| chunk.len()).sum::<usize>()
+                + keep_alive.len() * keep_alive_count;
             write!(
                 socket,
                 "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {content_length}\r\nConnection: close\r\n\r\n"
             )
             .unwrap();
             socket.flush().unwrap();
+            // 为真实套接字读取测试保留足够的调度裕量：持续发送 SSE
+            // 心跳，使总时长超过客户端空闲阈值，同时单次间隔远小于阈值。
+            for _ in 0..keep_alive_count {
+                thread::sleep(Duration::from_millis(100));
+                socket.write_all(keep_alive.as_bytes()).unwrap();
+                socket.flush().unwrap();
+            }
             for chunk in chunks {
-                thread::sleep(Duration::from_millis(120));
+                thread::sleep(Duration::from_millis(100));
                 socket.write_all(chunk.as_bytes()).unwrap();
                 socket.flush().unwrap();
             }
@@ -259,7 +270,7 @@ mod tests {
             base_url,
             api_key: "sk-test".into(),
             http: streaming_http_client_with_timeouts(
-                Duration::from_millis(300),
+                Duration::from_secs(1),
                 Duration::from_secs(1),
             )
             .unwrap(),

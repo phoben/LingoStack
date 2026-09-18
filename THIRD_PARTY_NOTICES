@@ -6025,7 +6025,7 @@ Used by:
 - rustc_version 0.4.1
 - rustix 1.1.4
 - rustls-native-certs 0.8.4
-- rustls 0.23.43
+- rustls 0.23.45
 - scopeguard 1.2.0
 - security-framework-sys 2.17.0
 - security-framework 3.7.0
@@ -9936,7 +9936,7 @@ THIS SOFTWARE.
 ## ISC License
 
 Used by:
-- rustls-webpki 0.103.13
+- rustls-webpki 0.103.15
 
 ```text
 Except as otherwise noted, this project is licensed under the following
@@ -11139,14 +11139,15 @@ developed by Chen Jiaju, licensed under the MIT License and the Apache License 2
 ## MIT License
 
 Used by:
-- lingostack-core 0.0.2
-- lingostack-docparse 0.0.2
-- lingostack-document 0.0.2
-- lingostack-hook 0.0.2
-- lingostack-llm 0.0.2
-- lingostack-selection 0.0.2
-- lingostack-tts 0.0.2
-- lingostack-app 0.0.2
+- lingostack-core 0.0.6
+- lingostack-docparse 0.0.6
+- lingostack-document 0.0.6
+- lingostack-hook 0.0.6
+- lingostack-llm 0.0.6
+- lingostack-ocr 0.0.6
+- lingostack-selection 0.0.6
+- lingostack-tts 0.0.6
+- lingostack-app 0.0.6
 - adobe-cmap-parser 0.4.1
 - async-stream-impl 0.3.6
 - async-stream 0.3.6
