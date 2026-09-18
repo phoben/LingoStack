@@ -123,6 +123,37 @@ describe("repository integrity checker", () => {
     assert.match(result.diffErrors, /trailing whitespace/u);
   });
 
+  it("报告相对基准提交中已经提交的格式错误", async () => {
+    const root = await createRepository();
+    await writeFile(join(root, "format.txt"), "clean\n", "utf8");
+    execFileSync("git", ["add", "format.txt"], {
+      cwd: root,
+      windowsHide: true,
+    });
+    execFileSync("git", ["commit", "--quiet", "-m", "base"], {
+      cwd: root,
+      windowsHide: true,
+    });
+    const base = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: root,
+      encoding: "utf8",
+      windowsHide: true,
+    }).trim();
+    await writeFile(
+      join(root, "format.txt"),
+      "committed trailing whitespace  \n",
+      "utf8",
+    );
+    execFileSync("git", ["commit", "--quiet", "-am", "bad formatting"], {
+      cwd: root,
+      windowsHide: true,
+    });
+
+    const result = await checkRepositoryIntegrity(root, base);
+
+    assert.match(result.diffErrors, /trailing whitespace/u);
+  });
+
   it("报告 Git 索引中的未解决冲突", async () => {
     const root = await createRepository();
     const conflictPath = join(root, "conflict.txt");

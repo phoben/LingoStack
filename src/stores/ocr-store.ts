@@ -51,13 +51,20 @@ export const useOcrStore = create<OcrState>((set, get) => ({
 
   cancel: async () => {
     const requestId = get().requestId;
-    set((state) => ({
-      status: "idle",
-      error: null,
-      requestId: null,
-      seq: state.seq + 1,
-    }));
-    if (requestId) await cancelOcr(requestId).catch(() => undefined);
+    if (requestId) {
+      // 后端确认取消后再清理本地任务态；失败时保留 requestId，
+      // 让调用方停止替换操作并向用户暴露真实失败。
+      await cancelOcr(requestId);
+    }
+    set((state) => {
+      if (requestId && state.requestId !== requestId) return state;
+      return {
+        status: "idle",
+        error: null,
+        requestId: null,
+        seq: state.seq + 1,
+      };
+    });
   },
 
   start: async (image, language) => {

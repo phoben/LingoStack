@@ -59,7 +59,10 @@ pub fn toggle_action(visible: bool, minimized: bool) -> WindowAction {
 /// 创建并注册系统托盘。在 `tauri::Builder::setup` 中调用一次。
 ///
 /// 失败通常意味着打包配置缺失（如图标未注入），启动期直接报错更易定位。
-pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
+pub fn setup_tray<F>(app: &AppHandle, translate_selection: F) -> tauri::Result<()>
+where
+    F: Fn(&AppHandle) + Send + Sync + 'static,
+{
     let icon = app
         .default_window_icon()
         .expect("默认窗口图标缺失：请检查 tauri.conf.json 的 bundle.icon")
@@ -82,7 +85,9 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|tray, event| handle_tray_event(tray.app_handle(), event))
-        .on_menu_event(handle_menu_event)
+        .on_menu_event(move |app, event| {
+            handle_menu_event(app, event, &translate_selection);
+        })
         .build(app)?;
 
     Ok(())
@@ -110,13 +115,13 @@ fn handle_tray_event(app: &AppHandle, event: TrayIconEvent) {
 }
 
 /// 右键菜单事件分发。
-fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
+fn handle_menu_event<F>(app: &AppHandle, event: tauri::menu::MenuEvent, translate_selection: &F)
+where
+    F: Fn(&AppHandle),
+{
     match tray_action(event.id().as_ref()) {
         Some(TrayAction::ShowMain) => apply_window_action(app, WindowAction::Show),
-        Some(TrayAction::TranslateSelection) => {
-            apply_window_action(app, WindowAction::Show);
-            let _ = app.emit("translate-selection", ());
-        }
+        Some(TrayAction::TranslateSelection) => translate_selection(app),
         Some(TrayAction::NavigateFavorites) => navigate_to(app, "favorites"),
         Some(TrayAction::NavigateSettings) => navigate_to(app, "settings"),
         Some(TrayAction::Quit) => app.exit(0),

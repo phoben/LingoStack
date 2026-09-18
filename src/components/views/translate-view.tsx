@@ -34,7 +34,11 @@ import {
 } from "@/lib/ai-configuration";
 import { cn, stringifyError } from "@/lib/utils";
 import { toast } from "sonner";
-import { MAX_OCR_INPUT_BYTES, useOcrStore } from "@/stores/ocr-store";
+import {
+  MAX_OCR_INPUT_BYTES,
+  OCR_MEDIA_TYPES,
+  useOcrStore,
+} from "@/stores/ocr-store";
 
 /** 面板标签栏（原型 .pane-label）：与正文之间只隔一条浅色线。 */
 function PaneLabel({ children }: { children: ReactNode }) {
@@ -226,6 +230,8 @@ export function TranslateView() {
     if (!ocrError) return null;
     if (ocrError === "图片内容为空") return t("ocrEmptyInput");
     if (ocrError === "图片超过 10 MiB 限制") return t("ocrInputTooLarge");
+    if (ocrError === "图片尺寸超过 4000 万像素限制")
+      return t("ocrImageTooLarge");
     if (ocrError === "图片内容与声明格式不一致") return t("ocrFormatMismatch");
     if (ocrError === "仅支持 PNG、JPEG 和 WebP 图片")
       return t("ocrUnsupportedFormat");
@@ -266,14 +272,19 @@ export function TranslateView() {
   const processImage = async (file: File) => {
     const seq = imageInputSeq.current + 1;
     imageInputSeq.current = seq;
-    await Promise.all([cancelStream("translate", true), cancelOcr()]);
-    if (imageInputSeq.current !== seq) return;
     if (file.size === 0) {
       rejectOcr(t("ocrEmptyInput"));
       return;
     }
     if (file.size > MAX_OCR_INPUT_BYTES) {
       rejectOcr(t("ocrInputTooLarge"));
+      return;
+    }
+    const mediaType = file.type.toLowerCase();
+    if (
+      !OCR_MEDIA_TYPES.includes(mediaType as (typeof OCR_MEDIA_TYPES)[number])
+    ) {
+      rejectOcr(t("ocrUnsupportedFormat"));
       return;
     }
     let content: Uint8Array;
@@ -285,8 +296,16 @@ export function TranslateView() {
       return;
     }
     if (imageInputSeq.current !== seq) return;
+    try {
+      await Promise.all([cancelStream("translate", true), cancelOcr()]);
+    } catch (error) {
+      if (imageInputSeq.current !== seq) return;
+      rejectOcr(t("ocrCancelFailed", { message: stringifyError(error) }));
+      return;
+    }
+    if (imageInputSeq.current !== seq) return;
     const text = await startOcr(
-      { mediaType: file.type.toLowerCase(), content },
+      { mediaType, content },
       sourceLang === "auto" ? undefined : (sourceLang as "zh" | "en" | "ja"),
     );
     if (text && imageInputSeq.current === seq) translate(text);
@@ -317,9 +336,11 @@ export function TranslateView() {
   };
 
   const onDrop = (event: DragEvent<HTMLElement>) => {
-    event.preventDefault();
-    setDraggingImage(false);
     const files = Array.from(event.dataTransfer.files);
+    setDraggingImage(false);
+    // 普通文本拖放交还给 textarea 的浏览器原生插入行为。
+    if (files.length === 0) return;
+    event.preventDefault();
     if (files.length !== 1) {
       rejectImageInput(t("ocrSingleImageOnly"));
       return;

@@ -123,8 +123,14 @@ export const useStreamStore = create<StreamState>((set, get) => ({
   cancel: async (feature, preserveContent = true) => {
     const current = get().tasks[feature];
     const runningRequest = current.requestId;
+    if (runningRequest) {
+      // 后端确认取消后再切换本地状态；失败时保留真实的运行态与 requestId，
+      // 让调用方停止后续替换工作并向用户暴露失败。
+      await cancelChat(runningRequest);
+    }
     set((s) => {
       const task = s.tasks[feature];
+      if (runningRequest && task.requestId !== runningRequest) return s;
       return {
         tasks: {
           ...s.tasks,
@@ -141,9 +147,6 @@ export const useStreamStore = create<StreamState>((set, get) => ({
         },
       };
     });
-    if (runningRequest) {
-      await cancelChat(runningRequest).catch(() => undefined);
-    }
   },
 
   start: async (feature, input, buildMessages) => {

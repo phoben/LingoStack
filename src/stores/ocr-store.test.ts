@@ -67,6 +67,36 @@ describe("ocr-store", () => {
     });
   });
 
+  it("取消失败时保留运行态并阻止替换识别", async () => {
+    const pending = deferred<string>();
+    vi.mocked(recognizeImage).mockReturnValue(pending.promise);
+    const running = useOcrStore.getState().start(png);
+    await vi.waitFor(() =>
+      expect(useOcrStore.getState().status).toBe("recognizing"),
+    );
+    const { requestId, seq } = useOcrStore.getState();
+    vi.mocked(cancelOcr).mockRejectedValue(new Error("取消服务不可用"));
+
+    await expect(useOcrStore.getState().cancel()).rejects.toThrow(
+      "取消服务不可用",
+    );
+    expect(useOcrStore.getState()).toMatchObject({
+      status: "recognizing",
+      error: null,
+      requestId,
+      seq,
+    });
+
+    await expect(useOcrStore.getState().start(png, "en")).rejects.toThrow(
+      "取消服务不可用",
+    );
+    expect(recognizeImage).toHaveBeenCalledTimes(1);
+    expect(useOcrStore.getState()).toMatchObject({ requestId, seq });
+
+    pending.resolve("原任务文字");
+    expect(await running).toBe("原任务文字");
+  });
+
   it("连续替换时只接受最后一张图片", async () => {
     const first = deferred<string>();
     vi.mocked(recognizeImage)

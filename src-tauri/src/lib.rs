@@ -188,7 +188,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(move |app| {
             let handle = app.handle();
-            lingostack_hook::setup_tray(handle)?;
+            lingostack_hook::setup_tray(handle, hotkeys::translate_selection)?;
             // 按配置注册全局热键；失败逐条上报前端（设置页标红），不中断启动。
             let cfg = config::load(&config_path).unwrap_or_default();
             hotkeys::register_and_report(handle, &cfg.hotkeys);

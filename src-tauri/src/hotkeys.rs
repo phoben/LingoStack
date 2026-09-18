@@ -150,6 +150,11 @@ fn apply_effect(app: &AppHandle, effect: HotkeyEffect) {
     }
 }
 
+/// 托盘与全局热键共用同一条划词路径，确保都在聚焦主窗口前读取原应用选区。
+pub(crate) fn translate_selection(app: &AppHandle) {
+    apply_effect(app, HotkeyEffect::TranslateSelection);
+}
+
 fn selection_payload(result: Result<Selection, SelectionError>) -> TranslateSelectionPayload {
     match result {
         Ok(selection) => TranslateSelectionPayload {

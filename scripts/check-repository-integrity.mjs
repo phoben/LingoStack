@@ -28,6 +28,36 @@ function runGit(root, args) {
   return result.stdout;
 }
 
+function runDiffCheck(root, args) {
+  const result = spawnSync("git", ["diff", "--check", ...args], {
+    cwd: root,
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  if (result.error) {
+    throw new Error(`无法执行 git diff --check：${result.error.message}`);
+  }
+  if (![0, 2].includes(result.status)) {
+    throw new Error(
+      `git diff --check 执行失败（退出码 ${result.status}）：${result.stderr.trim()}`,
+    );
+  }
+  return result.status === 2 ? result.stdout.trim() : "";
+}
+
+function committedDiffRange(root, base) {
+  if (base && !/^0+$/u.test(base)) {
+    runGit(root, ["rev-parse", "--verify", `${base}^{commit}`]);
+    return [`${base}...HEAD`];
+  }
+  const parent = spawnSync("git", ["rev-parse", "--verify", "HEAD^"], {
+    cwd: root,
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  return parent.status === 0 ? ["HEAD^..HEAD"] : [];
+}
+
 export function findConflictMarkers(path, content) {
   return content
     .split(/\r?\n/u)
@@ -38,7 +68,10 @@ export function findConflictMarkers(path, content) {
     );
 }
 
-export async function checkRepositoryIntegrity(root = process.cwd()) {
+export async function checkRepositoryIntegrity(
+  root = process.cwd(),
+  base = process.env.LINGOSTACK_INTEGRITY_BASE,
+) {
   const repositoryRoot = resolve(root);
   const unmergedFiles = runGit(repositoryRoot, [
     "diff",
@@ -81,25 +114,18 @@ export async function checkRepositoryIntegrity(root = process.cwd()) {
     );
   }
 
-  const diffCheck = spawnSync("git", ["diff", "--check"], {
-    cwd: repositoryRoot,
-    encoding: "utf8",
-    windowsHide: true,
-  });
-  if (diffCheck.error) {
-    throw new Error(`无法执行 git diff --check：${diffCheck.error.message}`);
-  }
-  if (![0, 2].includes(diffCheck.status)) {
-    throw new Error(
-      `git diff --check 执行失败（退出码 ${diffCheck.status}）：${diffCheck.stderr.trim()}`,
-    );
-  }
+  const diffErrors = [
+    runDiffCheck(repositoryRoot, committedDiffRange(repositoryRoot, base)),
+    runDiffCheck(repositoryRoot, []),
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return {
     root: repositoryRoot,
     unmergedFiles,
     conflictMarkers,
-    diffErrors: diffCheck.status === 2 ? diffCheck.stdout.trim() : "",
+    diffErrors,
   };
 }
 

@@ -323,10 +323,10 @@ describe("TranslateView local OCR input", () => {
   });
   afterEach(cleanup);
 
-  function imageFile(type = "image/png"): File {
+  function imageFile(type = "image/png", size = 4): File {
     return {
       type,
-      size: 4,
+      size,
       arrayBuffer: vi
         .fn()
         .mockResolvedValue(new Uint8Array([1, 2, 3, 4]).buffer),
@@ -368,6 +368,17 @@ describe("TranslateView local OCR input", () => {
     expect(startOcr).not.toHaveBeenCalled();
   });
 
+  it("纯文字拖放保持浏览器默认行为，不触发 OCR 错误", () => {
+    render(<TranslateView />);
+    const dispatched = fireEvent.drop(screen.getByRole("textbox"), {
+      dataTransfer: { files: [] },
+    });
+
+    expect(dispatched).toBe(true);
+    expect(rejectOcr).not.toHaveBeenCalled();
+    expect(startOcr).not.toHaveBeenCalled();
+  });
+
   it("多图粘贴拒绝且不读取任何图片", () => {
     render(<TranslateView />);
     fireEvent.paste(screen.getByRole("textbox"), {
@@ -387,6 +398,83 @@ describe("TranslateView local OCR input", () => {
       "Only one image can be recognized at a time",
     );
     expect(startOcr).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["空图片", imageFile("image/png", 0), "The image is empty"],
+    [
+      "超大图片",
+      imageFile("image/png", 10 * 1024 * 1024 + 1),
+      "The image exceeds the 10 MiB limit",
+    ],
+    [
+      "不支持的图片格式",
+      imageFile("image/gif"),
+      "Only PNG, JPEG, and WebP images are supported",
+    ],
+  ])("%s 不会取消正在进行的翻译", async (_name, file, message) => {
+    render(<TranslateView />);
+
+    fireEvent.drop(screen.getByRole("textbox").closest("section")!, {
+      dataTransfer: { files: [file] },
+    });
+
+    await waitFor(() => expect(rejectOcr).toHaveBeenCalledWith(message));
+    expect(cancelStream).not.toHaveBeenCalled();
+    expect(cancelOcr).not.toHaveBeenCalled();
+    expect(startOcr).not.toHaveBeenCalled();
+  });
+
+  it("读取图片失败时保留正在进行的翻译", async () => {
+    const file = {
+      type: "image/png",
+      size: 4,
+      arrayBuffer: vi.fn().mockRejectedValue(new Error("读取被拒绝")),
+    } as unknown as File;
+    render(<TranslateView />);
+
+    fireEvent.drop(screen.getByRole("textbox").closest("section")!, {
+      dataTransfer: { files: [file] },
+    });
+
+    await waitFor(() =>
+      expect(rejectOcr).toHaveBeenCalledWith(
+        "Could not read image: 读取被拒绝",
+      ),
+    );
+    expect(cancelStream).not.toHaveBeenCalled();
+    expect(cancelOcr).not.toHaveBeenCalled();
+    expect(startOcr).not.toHaveBeenCalled();
+  });
+
+  it("无法取消当前任务时不启动 OCR 并显示错误", async () => {
+    cancelStream.mockRejectedValueOnce(new Error("取消服务不可用"));
+    render(<TranslateView />);
+
+    fireEvent.drop(screen.getByRole("textbox").closest("section")!, {
+      dataTransfer: { files: [imageFile()] },
+    });
+
+    await waitFor(() =>
+      expect(rejectOcr).toHaveBeenCalledWith(
+        "Could not stop the current task: 取消服务不可用",
+      ),
+    );
+    expect(startOcr).not.toHaveBeenCalled();
+  });
+
+  it("英文界面本地化后端返回的图片像素超限错误", () => {
+    useOcrStore.setState({
+      status: "error",
+      error: "图片尺寸超过 4000 万像素限制",
+      requestId: null,
+    });
+
+    render(<TranslateView />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "The image exceeds the 40-megapixel limit",
+    );
   });
 
   it("拖入一张图片会识别，手动编辑会取消正在进行的 OCR", async () => {

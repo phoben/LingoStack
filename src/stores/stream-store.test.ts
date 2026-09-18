@@ -188,6 +188,35 @@ describe("stream-store", () => {
     await Promise.all([firstRun, secondRun]);
   });
 
+  it("后端取消失败时保留旧任务且不启动替换请求", async () => {
+    const first = captureEmit();
+    const firstRun = useStreamStore
+      .getState()
+      .start("translate", "a", messages);
+    await first.ready;
+    first.emit({ type: "chunk", delta: "仍在输出" });
+    const firstRequestId = task().requestId;
+    const firstSeq = task().seq;
+    vi.mocked(cancelChat).mockRejectedValueOnce(new Error("取消服务不可用"));
+
+    await expect(
+      useStreamStore.getState().start("translate", "b", messages),
+    ).rejects.toThrow("取消服务不可用");
+
+    expect(cancelChat).toHaveBeenCalledWith(firstRequestId);
+    expect(chatStream).toHaveBeenCalledTimes(1);
+    expect(task()).toMatchObject({
+      status: "streaming",
+      input: "a",
+      output: "仍在输出",
+      requestId: firstRequestId,
+      seq: firstSeq,
+    });
+
+    first.settle();
+    await firstRun;
+  });
+
   it("空输入不发起任务", async () => {
     await useStreamStore.getState().start("translate", "   ", messages);
     expect(chatStream).not.toHaveBeenCalled();

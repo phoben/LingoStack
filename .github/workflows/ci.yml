@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -33,6 +35,8 @@ jobs:
 
       - name: Reject unresolved conflicts and conflict markers
         run: node scripts/check-repository-integrity.mjs
+        env:
+          LINGOSTACK_INTEGRITY_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
 
   rust:
     name: Rust (${{ matrix.os }})
