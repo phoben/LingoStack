@@ -93,19 +93,19 @@ test("manual recovery only purges a matching published stable version", () => {
   assert.match(repairJob, /if: github\.event_name == 'workflow_dispatch'/);
   assert.match(
     repairJob,
-    /if \(\$published\.version -ne \$env:EXPECTED_VERSION\) \{ throw 'stable manifest does not match the requested recovery version' \}/,
+    /& python scripts\/verify_stable_manifest\.py --bucket "\$env:COS_BUCKET" --region "\$env:COS_REGION" --key "\$prefix\/channels\/stable\/latest\.json" --version "\$env:EXPECTED_VERSION"/,
   );
   assert.ok(
-    repairJob.indexOf("stable manifest does not match") <
+    repairJob.indexOf("& python scripts/verify_stable_manifest.py") <
       repairJob.indexOf("& tccli cdn PurgePathCache"),
-    "recovery must verify the current stable version before purging",
+    "recovery must verify the authoritative COS object before purging",
   );
   assert.doesNotMatch(repairJob, /publish-stable-manifest\.py|publish_immutable\.py/);
   assert.match(
     repairJob,
-    /"\$\{stableUrl\}\?verify=\$\(\$env:GITHUB_RUN_ID\)-(before|after)"/,
+    /\$verified = Invoke-WebRequest -UseBasicParsing \$stableUrl/,
   );
-  assert.doesNotMatch(repairJob, /"\$stableUrl\?verify=/);
+  assert.doesNotMatch(repairJob, /\$stableUrl\?verify|\$\{stableUrl\}\?verify/);
 });
 
 test("release workflow fails fast when any native publisher command fails", () => {
@@ -155,7 +155,7 @@ test("release workflow fails fast when any native publisher command fails", () =
       /^\s*(?:\$\w+\s*=\s*)?&\s+(node|pnpm|python|cargo|gh|tccli)\b[^\r\n]*\r?\n([^\r\n]*)/gm,
     ),
   ];
-  assert.equal(nativeInvocations.length, 17);
+  assert.equal(nativeInvocations.length, 18);
   for (const [, command, followingLine] of nativeInvocations) {
     assert.match(
       followingLine,

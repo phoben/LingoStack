@@ -26,7 +26,7 @@
     "test:production-isolation": "node scripts/check-production-isolation.mjs",
     "release:local": "pwsh -NoProfile -File scripts/build-release.ps1",
     "notices:generate": "node scripts/generate-third-party-notices.mjs",
-    "test:release": "node --test scripts/prepare-updater-release-config.test.mjs scripts/release-manifest.test.mjs && python scripts/test_publish_immutable.py && cargo test -p lingostack-app --bin verify-updater-signature"
+    "test:release": "node --test scripts/prepare-updater-release-config.test.mjs scripts/release-manifest.test.mjs && python scripts/test_publish_immutable.py && python scripts/test_verify_stable_manifest.py && cargo test -p lingostack-app --bin verify-updater-signature"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",
