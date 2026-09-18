@@ -50,7 +50,7 @@ jobs:
       # 两处同时声明会触发 action 的版本冲突检查而直接失败。
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
