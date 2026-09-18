@@ -133,3 +133,26 @@
 ### Next Steps
 
 - 审阅并合并 PR；合并后由 Closes #24 自动关闭 Issue
+
+
+## Session 6: Issue 25 Windows 图片拖放与本地调试收尾
+<!-- trellis-session: v=2 fp=d85fb620ab12eedb -->
+
+**Date**: 2026-09-18
+**Task**: Issue 25 Windows 图片拖放与本地调试收尾
+**Branch**: `codex/issue-25-local-ocr`
+
+### Summary
+
+完成翻译窗口图片拖放修复、图片输入提示与回归测试；修复 Vite 监听 Cargo target 导致的 Windows EBUSY；通过前后端全量门禁并完成本地启动验收。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c3fb795` | fix(ocr): 修复翻译窗口图片拖放 |
+| `5a95f27` | fix(dev): 排除 Cargo 构建产物监听 |
+
+### Status
+
+[OK] **Completed**

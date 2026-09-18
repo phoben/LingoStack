@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 5
+- **Total Sessions**: 6
 - **Last Active**: 2026-09-18
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~135 | Active |
+| `journal-1.md` | ~158 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 6 | 2026-09-18 | Issue 25 Windows 图片拖放与本地调试收尾 | `c3fb795`, `5a95f27` | `codex/issue-25-local-ocr` |
 | 5 | 2026-09-18 | 完成 Issue 24 LLM 提供商架构升级 | `176f2344e8da4572d3d9a1a75d0328b97783b383` | `codex/issue-24-clean-delivery` |
 | 4 | 2026-08-30 | 完成并归档 Bootstrap Guidelines | `ebf14bc` | `develop` |
 | 3 | 2026-08-14 | 完成 V1 桌面集成与结果操作 | `20e5403`, `a9919e0` | `develop` |
