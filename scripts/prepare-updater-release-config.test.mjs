@@ -70,6 +70,44 @@ test("stable manifest upload passes the Windows path as an argv value, never Pyt
   assert.doesNotMatch(stableStep, /& python -c /);
 });
 
+test("CDN purge passes Paths as a JSON array", () => {
+  const stableStep = workflowStep(
+    "Publish version manifest then stable manifest last",
+    null,
+  );
+  assert.match(
+    stableStep,
+    /\$purgePaths = ConvertTo-Json -Compress @\("https:\/\/\$env:CDN_DOMAIN\/channels\/stable\/latest\.json"\)/,
+  );
+  assert.match(
+    stableStep,
+    /& tccli cdn PurgePathCache --Paths \$purgePaths --FlushType delete/,
+  );
+});
+
+test("manual recovery only purges a matching published stable version", () => {
+  assert.match(releaseWorkflow, /workflow_dispatch:/);
+  const start = releaseWorkflow.indexOf("  repair-stable-cache:");
+  assert.notEqual(start, -1, "workflow is missing the stable cache recovery job");
+  const repairJob = releaseWorkflow.slice(start);
+  assert.match(repairJob, /if: github\.event_name == 'workflow_dispatch'/);
+  assert.match(
+    repairJob,
+    /if \(\$published\.version -ne \$env:EXPECTED_VERSION\) \{ throw 'stable manifest does not match the requested recovery version' \}/,
+  );
+  assert.ok(
+    repairJob.indexOf("stable manifest does not match") <
+      repairJob.indexOf("& tccli cdn PurgePathCache"),
+    "recovery must verify the current stable version before purging",
+  );
+  assert.doesNotMatch(repairJob, /publish-stable-manifest\.py|publish_immutable\.py/);
+  assert.match(
+    repairJob,
+    /"\$\{stableUrl\}\?verify=\$\(\$env:GITHUB_RUN_ID\)-(before|after)"/,
+  );
+  assert.doesNotMatch(repairJob, /"\$stableUrl\?verify=/);
+});
+
 test("release workflow fails fast when any native publisher command fails", () => {
   const steps = [
     [
@@ -117,7 +155,7 @@ test("release workflow fails fast when any native publisher command fails", () =
       /^\s*(?:\$\w+\s*=\s*)?&\s+(node|pnpm|python|cargo|gh|tccli)\b[^\r\n]*\r?\n([^\r\n]*)/gm,
     ),
   ];
-  assert.equal(nativeInvocations.length, 14);
+  assert.equal(nativeInvocations.length, 17);
   for (const [, command, followingLine] of nativeInvocations) {
     assert.match(
       followingLine,
