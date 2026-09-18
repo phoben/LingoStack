@@ -64,7 +64,10 @@ describe("SettingsView", () => {
       config: { ...defaultConfig(), ui_language: "zh" },
       error: null,
     });
-    useAppStore.setState({ activeView: "translate", settingsSection: "general" });
+    useAppStore.setState({
+      activeView: "translate",
+      settingsSection: "general",
+    });
   });
 
   it("配置加载失败时显示可操作错误而不是永久加载提示", () => {
@@ -275,28 +278,18 @@ describe("SettingsView", () => {
       fireEvent.click(screen.getByRole("button", { name: "AI" }));
     });
     fireEvent.click(await screen.findByRole("button", { name: "添加提供商" }));
-<<<<<<< HEAD
-=======
     await screen.findByRole("option", { name: "OpenAI Responses" });
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
     const input = screen.getByPlaceholderText("sk-...");
     expect(input).toHaveAttribute("type", "password");
     fireEvent.click(screen.getByRole("button", { name: "显示 API Key" }));
     expect(input).toHaveAttribute("type", "text");
-<<<<<<< HEAD
-    expect(screen.getByRole("button", { name: "隐藏 API Key" })).toHaveAttribute("aria-pressed", "true");
-=======
     expect(
       screen.getByRole("button", { name: "隐藏 API Key" }),
     ).toHaveAttribute("aria-pressed", "true");
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "取消" }));
     });
     fireEvent.click(await screen.findByRole("button", { name: "添加提供商" }));
-<<<<<<< HEAD
-    expect(screen.getByPlaceholderText("sk-...")).toHaveAttribute("type", "password");
-=======
     await screen.findByRole("option", { name: "OpenAI Responses" });
     expect(screen.getByPlaceholderText("sk-...")).toHaveAttribute(
       "type",
@@ -348,7 +341,12 @@ describe("SettingsView", () => {
         {
           id: "llama3.2",
           origin: "bundled_verified",
-          supported_features: ["translate", "naming", "explain", "doc_translate"],
+          supported_features: [
+            "translate",
+            "naming",
+            "explain",
+            "doc_translate",
+          ],
           supports_temperature: true,
           supports_max_output: true,
           supports_reasoning: false,
@@ -365,10 +363,13 @@ describe("SettingsView", () => {
     expect(options[0]).toHaveTextContent("自定义提供商");
 
     fireEvent.change(presetSelect, { target: { value: "ollama" } });
-    expect(await screen.findByDisplayValue("Ollama（OpenAI 兼容）")).toBeInTheDocument();
+    expect(
+      await screen.findByDisplayValue("Ollama（OpenAI 兼容）"),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("认证方式")).toHaveValue("none");
-    expect(screen.getByDisplayValue("http://localhost:11434")).toBeInTheDocument();
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
+    expect(
+      screen.getByDisplayValue("http://localhost:11434"),
+    ).toBeInTheDocument();
   });
 
   it("编辑提供商时默认掩码，并在保存关闭后重新掩码", async () => {
@@ -379,13 +380,6 @@ describe("SettingsView", () => {
         providers: [
           {
             id: "deepseek",
-<<<<<<< HEAD
-            kind: "open_ai_compatible",
-            name: "DeepSeek",
-            base_url: "https://api.deepseek.com",
-            api_key: "secret",
-            models: ["deepseek-chat"],
-=======
             protocol: "open_ai_chat_completions",
             name: "DeepSeek",
             base_url: "https://api.deepseek.com",
@@ -406,7 +400,6 @@ describe("SettingsView", () => {
                 supports_reasoning: false,
               },
             ],
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
           },
         ],
       },
@@ -424,9 +417,6 @@ describe("SettingsView", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "编辑 DeepSeek" }));
-<<<<<<< HEAD
-    expect(screen.getByDisplayValue("secret")).toHaveAttribute("type", "password");
-=======
     expect(screen.getByDisplayValue("secret")).toHaveAttribute(
       "type",
       "password",
@@ -492,10 +482,9 @@ describe("SettingsView", () => {
     const modelInput = screen.getByRole("combobox", {
       name: "模型（逗号或换行分隔）",
     });
-    expect(await screen.findByRole("option", { name: "remote-a" })).toHaveAttribute(
-      "aria-selected",
-      "false",
-    );
+    expect(
+      await screen.findByRole("option", { name: "remote-a" }),
+    ).toHaveAttribute("aria-selected", "false");
     const listbox = screen.getByRole("listbox");
     expect(modelInput).toHaveAttribute("aria-expanded", "true");
     expect(modelInput).toHaveAttribute("aria-controls", listbox.id);
@@ -503,9 +492,7 @@ describe("SettingsView", () => {
       "tabindex",
       "-1",
     );
-    expect(modelInput).not.toHaveValue(
-      expect.stringContaining("remote-a"),
-    );
+    expect(modelInput).not.toHaveValue(expect.stringContaining("remote-a"));
     fireEvent.change(modelInput, { target: { value: "manual, custom-model" } });
     fireEvent.click(screen.getByRole("option", { name: "remote-a" }));
     expect(modelInput).toHaveValue("manual, custom-model, remote-a");
@@ -546,10 +533,9 @@ describe("SettingsView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "编辑 OpenAI" }));
     fireEvent.click(await screen.findByRole("button", { name: "刷新模型" }));
-    expect(await screen.findByRole("option", { name: "remote-a" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    expect(
+      await screen.findByRole("option", { name: "remote-a" }),
+    ).toHaveAttribute("aria-selected", "true");
   });
 
   it("刷新失败或空结果不清空草稿，规格覆盖和 Responses 参数会保存", async () => {
@@ -637,7 +623,6 @@ describe("SettingsView", () => {
         useConfigStore.getState().config?.models.translate?.generation,
       ).toMatchObject({ max_output_tokens: 512, reasoning_effort: "high" }),
     );
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
   });
 
   it("reports provider create, edit, and delete completion", async () => {

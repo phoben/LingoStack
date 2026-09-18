@@ -25,6 +25,11 @@ pnpm test:e2e:run             # 只运行 WDIO；通常由 wrapper 调用
 pnpm test:production-isolation
 ```
 
+```json
+// src-tauri/tauri.conf.json：Windows 上把系统文件拖放交给前端 HTML5 事件。
+{ "app": { "windows": [{ "label": "main", "dragDropEnabled": false }] } }
+```
+
 ```rust
 // 只在 cfg(feature = "e2e") 下存在并注册；生产 invoke handler 不含这些命令。
 fn e2e_emit_translate_selection(app: tauri::AppHandle) -> Result<(), String>;
@@ -52,6 +57,7 @@ fn e2e_emit_hotkey_status(
 - 生产 `tauri.conf.json` 只启用 `default` capability，且不得设置 `withGlobalTauri`；`tauri.e2e.conf.json` 才启用 `withGlobalTauri`、`default + e2e` capability、独立 identifier `dev.lingostack.e2e` 和无 bundle 构建。
 - `build.rs` 必须声明 `rerun-if-env-changed=CARGO_FEATURE_E2E`：默认构建只扫描 `capabilities/default.json`，E2E feature 才扫描含 `e2e.json` 的 capability 集合。不能依赖上一次 feature 构建留下的 codegen 输出。
 - `src/main.tsx` 只在 `import.meta.env.MODE === "e2e"` 时动态加载 `@wdio/tauri-plugin`。普通 `pnpm build` 产物不得包含 `wdioTauri` bridge。
+- Windows 主窗口依赖 React 的 `dragenter` / `drop` 读取图片字节时，生产 `tauri.conf.json` 必须显式设置 `dragDropEnabled: false`。Tauri 默认值 `true` 会用原生处理器替换 WebView2 拖放处理器，表现为从资源管理器拖入文件时前端完全无事件；参见 [Tauri 配置契约](https://v2.tauri.app/reference/config/#dragdropenabled)。
 - `config_path()` 的 E2E override 必须同时供 managed `AppState` 与 setup 热键读取复用，不能一处隔离、一处仍访问真实用户配置。
 - fixture provider 必须实现现有 `LlmProvider`，从 `chat_stream` 返回确定性 chunk/error；不得创建 HTTP client、读取真实 API Key 或绕过 Tauri `Channel`。
 - renderer 需要触发热键/选区/TTS 边界时，必须调用只在 `cfg(feature = "e2e")` 注册的后端 fixture command，让事件继续经过真实 Tauri emitter/listener 和生产 UI 状态机。embedded provider 下的 `browser.tauri.mock(...)` / renderer invoke mock 不能作为该链路证据。
@@ -65,6 +71,7 @@ fn e2e_emit_hotkey_status(
 | ----------------------------------------------------- | ------------------------------------------------------------------------- |
 | 默认 Cargo dependency tree 出现 WDIO crate            | `test:production-isolation` 失败                                          |
 | 生产 config/default capability 出现 `e2e` 或 `wdio:*` | 隔离检查失败                                                              |
+| 生产主窗口缺少 `dragDropEnabled: false`               | Rust 配置回归测试失败；Windows HTML5 文件拖放不得交付                     |
 | 普通前端 `dist/` 含 `wdioTauri`                       | 隔离检查失败                                                              |
 | `LINGOSTACK_E2E_CONFIG_PATH` 未提供                   | E2E 应在加载 fixture/执行用例时明确失败，不得回退到真实用户配置作为“通过” |
 | fixture endpoint/model 不同时匹配                     | 走现有生产 provider 工厂；不得误选 fixture                                |
@@ -80,13 +87,16 @@ fn e2e_emit_hotkey_status(
 
 - **Good**：`pnpm test:e2e` 从临时配置启动 `dev.lingostack.e2e`，覆盖基础五链路以及术语、命名、热键冲突恢复、选区事件和 TTS 状态，随后 `pnpm test:production-isolation` 通过。
 - **Base**：只改纯前端逻辑时继续跑 Vitest；若改到真实窗口、IPC、配置持久化或结果操作，再跑完整桌面 E2E。
+- **Good**：使用 HTML5 文件拖放时由配置测试锁定 `dragDropEnabled: false`，并在 Windows 上从资源管理器真实拖入一张图片，观察拖入遮罩、OCR 状态和最终原文替换。
 - **Bad**：为让 guest plugin 可用而在生产 `tauri.conf.json` 打开 `withGlobalTauri`，或把 `wdio:*` 加到 `default.json`。
+- **Bad**：只用 jsdom `fireEvent.drop` 证明组件逻辑后就宣称 Windows 系统文件拖放可用；它绕过了 Tauri/WebView2 的窗口级事件接管。
 - **Bad**：用 `browser.tauri.mock("chat_stream")` 替代 fixture provider；简单 invoke mock 不能证明真实 `Channel` 流。
 - **Bad**：在 `browser.refresh()` 前后反复重建 renderer mock，或用截图中出现文案代替可重复断言；测试必须走 feature-gated backend seam，并等待真实 DOM 状态。
 
 ### 6. Tests Required
 
 - Rust：`cargo test -p lingostack-app --features e2e`，至少断言 fixture provider 的实际 chunk 内容和 E2E 配置路径 override。
+- 配置回归：Rust 读取生产 `tauri.conf.json`，断言 `main` 窗口的 `dragDropEnabled` 严格为 `false`；缺失字段也必须失败，不能依赖默认值。
 - 生产隔离：`pnpm test:production-isolation`，断言默认依赖图、生产 config/capability 和普通前端产物。
 - 桌面 E2E：启动/导航、真实 IPC/Channel 成功、确定性错误后重试、设置持久化、结果收藏、术语 envelope、五种命名、热键冲突→恢复、clipboard selection event、TTS speak→stop；断言 role/accessible name、`aria-busy`、`role=alert` 或有界 DOM 状态，不依赖 CSS 层级。
 - 清理：连续运行两次；每次确认应用进程为 0、4445 listener 为 0 且端口可重绑。
@@ -95,6 +105,11 @@ fn e2e_emit_hotkey_status(
 ### 7. Wrong vs Correct
 
 #### Wrong
+
+```json
+// Windows 上默认 true 会截获系统文件拖放，React onDrop 收不到事件。
+{ "app": { "windows": [{ "label": "main" }] } }
+```
 
 ```json
 // src-tauri/tauri.conf.json（生产）
@@ -112,6 +127,11 @@ builder.plugin(tauri_plugin_wdio_webdriver::init());
 ```
 
 #### Correct
+
+```json
+// 前端需要读取 File 字节时，显式关闭 Tauri 原生拖放处理器。
+{ "app": { "windows": [{ "label": "main", "dragDropEnabled": false }] } }
+```
 
 ```json
 // 生产只选择 default；测试差异放 tauri.e2e.conf.json overlay
@@ -140,3 +160,5 @@ fn e2e_emit_translate_selection(app: tauri::AppHandle) -> Result<(), String> {
 ## WebDriver 证明边界
 
 桌面 E2E 证明真实 LingoStack 窗口、DOM、配置 IPC、`chat_stream`/Channel、feature-gated command/event、fixture provider 与 IndexedDB 结果操作。fixture 的热键/选区/TTS 状态只证明应用内事件与 UI 状态机，不能单独证明系统热键注册、外部应用 UIA/选区或真实扬声器可听输出；这些按 `docs/testing.md` 的 Windows 原生清单验收，并遵守 [平台隔离指南](../../guides/platform-isolation-guide.md)。
+
+同理，jsdom 或 WebDriver 合成的 `drop` 事件只能证明事件到达 React 后的处理逻辑，不能证明资源管理器文件能穿过 Tauri/WebView2 窗口边界；系统文件拖入必须保留 Windows 手工验收证据。

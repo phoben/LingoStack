@@ -3,10 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // 必须在 import store 之前 mock：vitest 会把 vi.mock 提升到文件顶部。
 vi.mock("@/lib/ipc", () => ({
   chatStream: vi.fn(),
+  cancelChat: vi.fn(),
 }));
 
 import type { ChatEvent, ChatMessage } from "@/lib/config-types";
-import { chatStream } from "@/lib/ipc";
+import { cancelChat, chatStream } from "@/lib/ipc";
 import { resetStreamStore, useStreamStore } from "./stream-store";
 import { AiConfigurationError } from "@/lib/ai-configuration";
 
@@ -18,7 +19,7 @@ const messages = async (): Promise<ChatMessage[]> => [
 
 /** 让 chatStream 立即推一串事件后 resolve。 */
 function emitsThenResolve(events: ChatEvent[]) {
-  vi.mocked(chatStream).mockImplementation(async (_f, _m, onEvent) => {
+  vi.mocked(chatStream).mockImplementation(async (_id, _f, _m, onEvent) => {
     for (const e of events) onEvent(e);
   });
 }
@@ -40,7 +41,7 @@ function captureEmit(): {
   const ready = new Promise<void>((resolve) => {
     signalReady = resolve;
   });
-  vi.mocked(chatStream).mockImplementation((_f, _m, onEvent) => {
+  vi.mocked(chatStream).mockImplementation((_id, _f, _m, onEvent) => {
     emit = onEvent;
     signalReady();
     return new Promise<void>((resolve) => {
@@ -60,6 +61,7 @@ const task = (feature: "translate" | "naming" = "translate") =>
 describe("stream-store", () => {
   beforeEach(() => {
     vi.mocked(chatStream).mockReset();
+    vi.mocked(cancelChat).mockReset().mockResolvedValue(undefined);
     resetStreamStore();
   });
 
@@ -88,7 +90,9 @@ describe("stream-store", () => {
 
   it("status 事件在冷却期间保留流式状态并显示非阻塞诊断", async () => {
     const live = captureEmit();
-    const running = useStreamStore.getState().start("translate", "hi", messages);
+    const running = useStreamStore
+      .getState()
+      .start("translate", "hi", messages);
     await live.ready;
     live.emit({ type: "status", message: "服务繁忙，正在短暂等待后重试…" });
     expect(task().status).toBe("streaming");
@@ -115,7 +119,10 @@ describe("stream-store", () => {
     await useStreamStore.getState().start("translate", "hi", () => {
       throw new AiConfigurationError();
     });
-    expect(task()).toMatchObject({ status: "error", errorKind: "configuration" });
+    expect(task()).toMatchObject({
+      status: "error",
+      errorKind: "configuration",
+    });
   });
 
   it("IPC 的字符串 reject 也归一化为可读文本", async () => {
@@ -127,7 +134,9 @@ describe("stream-store", () => {
   it("旧任务的迟到增量被丢弃（seq 守卫）", async () => {
     // 第一条流：拿到回调引用后放行，回调引用仍握在测试手里。
     const first = captureEmit();
-    const firstRun = useStreamStore.getState().start("translate", "a", messages);
+    const firstRun = useStreamStore
+      .getState()
+      .start("translate", "a", messages);
     await first.ready;
     first.emit({ type: "chunk", delta: "旧" });
     expect(task().output).toBe("旧");
@@ -154,19 +163,58 @@ describe("stream-store", () => {
     await secondRun;
   });
 
-  it("进行中再次 start 被忽略", async () => {
-    const live = captureEmit();
-    const running = useStreamStore.getState().start("translate", "a", messages);
-    await live.ready;
-    live.emit({ type: "chunk", delta: "跑着" });
+  it("进行中再次 start 会取消旧请求并以新输入替换", async () => {
+    const first = captureEmit();
+    const firstRun = useStreamStore
+      .getState()
+      .start("translate", "a", messages);
+    await first.ready;
+    first.emit({ type: "chunk", delta: "旧内容" });
+    const firstRequestId = task().requestId;
 
-    await useStreamStore.getState().start("translate", "b", messages);
-    expect(task().input).toBe("a");
-    expect(task().output).toBe("跑着");
+    const second = captureEmit();
+    const secondRun = useStreamStore
+      .getState()
+      .start("translate", "b", messages);
+    await second.ready;
+
+    expect(cancelChat).toHaveBeenCalledWith(firstRequestId);
+    expect(task().input).toBe("b");
+    expect(task().output).toBe("");
+    expect(chatStream).toHaveBeenCalledTimes(2);
+
+    first.settle();
+    second.settle();
+    await Promise.all([firstRun, secondRun]);
+  });
+
+  it("后端取消失败时保留旧任务且不启动替换请求", async () => {
+    const first = captureEmit();
+    const firstRun = useStreamStore
+      .getState()
+      .start("translate", "a", messages);
+    await first.ready;
+    first.emit({ type: "chunk", delta: "仍在输出" });
+    const firstRequestId = task().requestId;
+    const firstSeq = task().seq;
+    vi.mocked(cancelChat).mockRejectedValueOnce(new Error("取消服务不可用"));
+
+    await expect(
+      useStreamStore.getState().start("translate", "b", messages),
+    ).rejects.toThrow("取消服务不可用");
+
+    expect(cancelChat).toHaveBeenCalledWith(firstRequestId);
     expect(chatStream).toHaveBeenCalledTimes(1);
+    expect(task()).toMatchObject({
+      status: "streaming",
+      input: "a",
+      output: "仍在输出",
+      requestId: firstRequestId,
+      seq: firstSeq,
+    });
 
-    live.settle();
-    await running;
+    first.settle();
+    await firstRun;
   });
 
   it("空输入不发起任务", async () => {

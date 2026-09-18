@@ -24,6 +24,10 @@ struct AppState {
     documents: Arc<Mutex<lingostack_document::DocumentModule>>,
     document_limits: lingostack_docparse::ParseLimits,
     document_jobs: Arc<Mutex<HashMap<String, Arc<DocumentJobControl>>>>,
+    /// 短生命周期 OCR 请求；只保存取消句柄，不保存图片字节。
+    ocr_jobs: Arc<Mutex<HashMap<String, Arc<lingostack_ocr::OcrCancellation>>>>,
+    /// 流式 LLM 请求的取消信号；取消即丢弃 provider stream。
+    chat_jobs: Arc<Mutex<HashMap<String, Arc<tokio::sync::watch::Sender<bool>>>>>,
 }
 
 /// Cooperative controls are checked between provider requests; an in-flight
@@ -94,6 +98,9 @@ pub fn run() {
         commands::effective_translation_prompt,
         commands::explain_terms,
         commands::chat_stream,
+        commands::cancel_chat,
+        commands::recognize_image,
+        commands::cancel_ocr,
         commands::get_selection,
         commands::speak,
         commands::stop_speaking,
@@ -121,6 +128,9 @@ pub fn run() {
         commands::effective_translation_prompt,
         commands::explain_terms,
         commands::chat_stream,
+        commands::cancel_chat,
+        commands::recognize_image,
+        commands::cancel_ocr,
         commands::get_selection,
         commands::speak,
         commands::stop_speaking,
@@ -166,6 +176,8 @@ pub fn run() {
             documents: Arc::new(Mutex::new(documents)),
             document_limits,
             document_jobs: Arc::new(Mutex::new(HashMap::new())),
+            ocr_jobs: Arc::new(Mutex::new(HashMap::new())),
+            chat_jobs: Arc::new(Mutex::new(HashMap::new())),
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -176,7 +188,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(move |app| {
             let handle = app.handle();
-            lingostack_hook::setup_tray(handle)?;
+            lingostack_hook::setup_tray(handle, hotkeys::translate_selection)?;
             // 按配置注册全局热键；失败逐条上报前端（设置页标红），不中断启动。
             let cfg = config::load(&config_path).unwrap_or_default();
             hotkeys::register_and_report(handle, &cfg.hotkeys);
@@ -191,12 +203,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn main_window_starts_hidden_until_first_page_is_ready() {
+    fn main_window_configuration_supports_deferred_reveal_and_html5_file_drop() {
         let config: serde_json::Value =
             serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
 
         assert_eq!(config["app"]["windows"][0]["label"], "main");
         assert_eq!(config["app"]["windows"][0]["visible"], false);
+        assert_eq!(
+            config["app"]["windows"][0]["dragDropEnabled"], false,
+            "Windows 使用前端 HTML5 拖放接收图片，窗口不得拦截系统文件拖入"
+        );
     }
 
     #[test]

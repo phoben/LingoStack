@@ -17,6 +17,7 @@
 - [ ] 动客户端自动更新、签名验证或 release workflow？→ 必读 [自动更新与稳定版发布契约](./auto-update-release.md)
 - [ ] 动版本号、Git Tag、GitHub Environment/Secrets 或 COS/CDN 部署？→ 必读 [版本更新与生产部署契约](./version-release-deployment.md)
 - [ ] 准备交付或改 CI/构建？→ 按 [全仓测试策略](./testing-strategy.md) 选择完整门禁并标注证据等级
+- [ ] 做过 merge/rebase/cherry-pick、修复冲突或准备结束任务？→ 必跑 `pnpm check:integrity`，并确认目标分支 CI 为成功终态
 
 ## 具体规范
 
@@ -62,6 +63,8 @@ Rust 单元测试主要在纯函数和 provider 工厂上：
 ## 质量检查
 
 ```bash
+pnpm check:integrity
+pnpm typecheck
 cargo clippy --all-targets -- -D warnings
 cargo test -p lingostack-app
 pnpm test:production-isolation

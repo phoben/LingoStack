@@ -1,0 +1,35 @@
+{
+  "id": "issue-25-local-image-ocr",
+  "name": "issue-25-local-image-ocr",
+  "title": "实施 Issue 25 翻译页本地图片取字",
+  "description": "为翻译页增加单张图片本地 OCR 取字能力，识别成功后替换原文并沿用现有翻译链路自动翻译",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "phoben",
+  "assignee": "phoben",
+  "createdAt": "2026-09-18",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "develop",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "09-18-issue-25-windows-ocr",
+    "09-18-issue-25-macos-vision-ocr",
+    "09-18-issue-25-linux-tesseract-ocr"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "source_kind": "github_issue",
+    "github_repo": "phoben/LingoStack",
+    "github_issue": "25",
+    "github_issue_url": "https://github.com/phoben/LingoStack/issues/25"
+  }
+}

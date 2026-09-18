@@ -80,6 +80,8 @@ AI 配置缺失等跨视图恢复操作必须调用 `openSettings("ai")`，不�
 
 `tts-store` 是跨翻译页与收藏页的瞬时设备状态，不持久化。它用请求代次忽略过期 async 完成，避免“停止后旧 speak resolve 又变回 speaking”；完整契约见 [lingostack-tts 规范](../../lingostack-tts/backend/index.md#scenario前端朗读状态与停止)。
 
+`stream-store` 与 `ocr-store` 共同承担图片替换的抢占语义：两者都保存 `seq + requestId`，先递增序号让旧回调失效，再调用 `cancel_chat` / `cancel_ocr` 停止底层工作。`ocr-store.start()` 的图片字节只能是动作局部变量，state 中不得出现 `content`、`File`、`ArrayBuffer` 或路径。OCR 成功才把非空文本交给 `stream-store.start()`；空、失败、取消均不得构造 Prompt 或调用 LLM。
+
 新增动作时先想清楚属于哪种：配置保存失败保留用户输入更友好；收藏增删失败必须回滚否则列表与库不一致。
 
 `config-store.update()` 会先 `structuredClone` 再改（`:40`），避免污染调用方引用——有测试守护（`config-store.test.ts:54-72`）。改这个函数别把克隆去掉。

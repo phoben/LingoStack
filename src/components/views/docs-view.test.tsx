@@ -69,6 +69,7 @@ import { defaultConfig } from "@/lib/config-types";
 import { useDocumentStore } from "@/stores/document-store";
 import { useConfigStore } from "@/stores/config-store";
 import { deleteDocument } from "@/lib/ipc";
+import { createProviderConfig } from "@/test/provider-fixtures";
 
 describe("DocsView continuous Markdown reader", () => {
   beforeEach(() => {
@@ -76,7 +77,12 @@ describe("DocsView continuous Markdown reader", () => {
     useConfigStore.setState({
       config: {
         ...defaultConfig(),
-        providers: [{ id: "test", kind: "open_ai_compatible", name: "Test", base_url: "https://example.test", api_key: "key", models: ["model"] }],
+        providers: [
+          createProviderConfig({
+            id: "test",
+            name: "Test",
+          }),
+        ],
         models: { global_default: { provider_id: "test", model: "model" } },
       },
     });
@@ -164,7 +170,9 @@ describe("DocsView continuous Markdown reader", () => {
 
     render(<DocsView />);
 
-    expect(await screen.findByRole("heading", { name: "原文标题" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "原文标题" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("原文段落")).toBeInTheDocument();
     expect(ipc.documentContent).toHaveBeenCalledWith("pending", "source");
     expect(
@@ -174,17 +182,19 @@ describe("DocsView continuous Markdown reader", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: "Translation" }));
     await waitFor(() =>
-      expect(ipc.documentContent).toHaveBeenCalledWith("pending", "translation"),
+      expect(ipc.documentContent).toHaveBeenCalledWith(
+        "pending",
+        "translation",
+      ),
     );
     expect(screen.queryByText("[未翻译]")).not.toBeInTheDocument();
     expect(screen.queryByText("原文段落")).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Translating");
     expect(screen.getByRole("status")).toHaveClass("absolute", "inset-0");
     expect(screen.getByRole("status")).toHaveAttribute("aria-live", "polite");
-    expect(screen.getByRole("status").parentElement?.parentElement).toHaveAttribute(
-      "aria-busy",
-      "true",
-    );
+    expect(
+      screen.getByRole("status").parentElement?.parentElement,
+    ).toHaveAttribute("aria-busy", "true");
   });
 
   it("announces a durable failed-translation reason once through toast without an inline alert", async () => {
@@ -243,7 +253,9 @@ describe("DocsView continuous Markdown reader", () => {
     expect(
       await screen.findByRole("button", { name: "Set up AI" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Retry" }),
+    ).not.toBeInTheDocument();
   });
 
   it("已完成文档在配置缺失时也引导设置 AI，加载中保留重新翻译", async () => {
@@ -303,7 +315,9 @@ describe("DocsView continuous Markdown reader", () => {
     render(<DocsView />);
 
     await waitFor(() => expect(sonner.error).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(useDocumentStore.getState().loading).toBe(false));
+    await waitFor(() =>
+      expect(useDocumentStore.getState().loading).toBe(false),
+    );
     await act(async () => {
       useDocumentStore.setState({
         documents: [
@@ -454,9 +468,10 @@ describe("DocsView continuous Markdown reader", () => {
     render(<DocsView />);
     await screen.findByRole("heading", { name: "Source" });
     fireEvent.click(screen.getByRole("radio", { name: "Translation" }));
-    expect(
-      screen.getByRole("radio", { name: "Translation" }),
-    ).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: "Translation" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
     fireEvent.click(screen.getByRole("radio", { name: "Source" }));
     expect(
       await screen.findByRole("heading", { name: "Source" }),
@@ -465,7 +480,9 @@ describe("DocsView continuous Markdown reader", () => {
     const sourceToggle = screen.getByRole("radiogroup", {
       name: "Document reading mode",
     });
-    const importButton = screen.getByRole("button", { name: "Import document" });
+    const importButton = screen.getByRole("button", {
+      name: "Import document",
+    });
     expect(sourceToggle.compareDocumentPosition(importButton)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
@@ -621,20 +638,29 @@ describe("DocsView continuous Markdown reader", () => {
     await screen.findByRole("heading", { name: "working source" });
 
     ipc.documentContent.mockClear();
-    fireEvent.click(screen.getByRole("button", { name: "complete.md: Complete" }));
-    expect(await screen.findByRole("heading", { name: "complete translation" })).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "complete.md: Complete" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "complete translation" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Translation" })).toHaveAttribute(
       "aria-checked",
       "true",
     );
     expect(ipc.documentContent).toHaveBeenCalledTimes(1);
-    expect(ipc.documentContent).toHaveBeenCalledWith(completed.id, "translation");
+    expect(ipc.documentContent).toHaveBeenCalledWith(
+      completed.id,
+      "translation",
+    );
 
     ipc.documentContent.mockClear();
     fireEvent.click(
       screen.getByRole("button", { name: "failed-selection.md: Error" }),
     );
-    expect(await screen.findByRole("heading", { name: "failed-selection source" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "failed-selection source" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Source" })).toHaveAttribute(
       "aria-checked",
       "true",
@@ -656,16 +682,25 @@ describe("DocsView continuous Markdown reader", () => {
       Promise.resolve(
         nextView === "translation"
           ? {
-              markdown: completed ? "# Completed translation" : "> [unfinished]",
+              markdown: completed
+                ? "# Completed translation"
+                : "> [unfinished]",
               complete: completed,
               missing_parts: completed ? 0 : 1,
             }
-          : { markdown: "# Source should stay hidden", complete: true, missing_parts: 0 },
+          : {
+              markdown: "# Source should stay hidden",
+              complete: true,
+              missing_parts: 0,
+            },
       ),
     );
     native.open.mockResolvedValue(["C:\\tmp\\new-document.md"]);
     native.readFile.mockResolvedValue(new Uint8Array([1]));
-    ipc.importDocument.mockResolvedValue({ type: "imported", data: translating });
+    ipc.importDocument.mockResolvedValue({
+      type: "imported",
+      data: translating,
+    });
     ipc.listDocuments.mockResolvedValue([translating]);
     useDocumentStore.setState({ documents: [], selectedId: null });
 
@@ -678,13 +713,17 @@ describe("DocsView continuous Markdown reader", () => {
       "true",
     );
     expect(screen.queryByText("[unfinished]")).not.toBeInTheDocument();
-    expect(screen.queryByText("Source should stay hidden")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Source should stay hidden"),
+    ).not.toBeInTheDocument();
 
     ipc.documentContent.mockClear();
     completed = true;
     await act(async () => {
       useDocumentStore.setState({
-        documents: [{ ...translating, status: "completed", translated_count: 1 }],
+        documents: [
+          { ...translating, status: "completed", translated_count: 1 },
+        ],
       });
     });
     expect(
@@ -706,13 +745,19 @@ describe("DocsView continuous Markdown reader", () => {
       block_count: 1,
       translated_count: 1,
     };
-    useDocumentStore.setState({ documents: [completed], selectedId: completed.id });
+    useDocumentStore.setState({
+      documents: [completed],
+      selectedId: completed.id,
+    });
     ipc.listDocuments.mockResolvedValue([completed]);
 
     render(<DocsView />);
     fireEvent.click(screen.getByRole("radio", { name: "Translation" }));
     await waitFor(() =>
-      expect(ipc.documentContent).toHaveBeenCalledWith(completed.id, "translation"),
+      expect(ipc.documentContent).toHaveBeenCalledWith(
+        completed.id,
+        "translation",
+      ),
     );
     fireEvent.click(screen.getByRole("radio", { name: "Source" }));
     await waitFor(() =>
@@ -752,7 +797,10 @@ describe("DocsView continuous Markdown reader", () => {
         block_count: 1,
         translated_count: 0,
       };
-      useDocumentStore.setState({ documents: [inactive], selectedId: inactive.id });
+      useDocumentStore.setState({
+        documents: [inactive],
+        selectedId: inactive.id,
+      });
       ipc.listDocuments.mockResolvedValue([inactive]);
 
       render(<DocsView />);
@@ -765,10 +813,7 @@ describe("DocsView continuous Markdown reader", () => {
         status === "unsupported"
           ? screen.getByRole("alert").closest("section")
           : screen.getByText(message).closest("section");
-      expect(readerSection).toHaveAttribute(
-        "aria-busy",
-        "false",
-      );
+      expect(readerSection).toHaveAttribute("aria-busy", "false");
     },
   );
 

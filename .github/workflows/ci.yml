@@ -2,8 +2,12 @@ name: CI
 
 on:
   pull_request:
+  merge_group:
   push:
     branches: [main, develop]
+
+permissions:
+  contents: read
 
 # 同一分支的新运行取消旧的
 concurrency:
@@ -14,6 +18,26 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  integrity:
+    name: Repository Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test repository integrity checker
+        run: node --test scripts/check-repository-integrity.test.mjs
+
+      - name: Reject unresolved conflicts and conflict markers
+        run: node scripts/check-repository-integrity.mjs
+        env:
+          LINGOSTACK_INTEGRITY_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+
   rust:
     name: Rust (${{ matrix.os }})
     strategy:
@@ -109,6 +133,12 @@ jobs:
       - name: pnpm install
         run: pnpm install --frozen-lockfile
 
+      - name: repository integrity
+        run: pnpm check:integrity
+
+      - name: typecheck
+        run: pnpm typecheck
+
       - name: lint
         run: pnpm lint
 
@@ -116,7 +146,7 @@ jobs:
         run: pnpm test
 
       - name: build
-        run: pnpm build
+        run: pnpm build:bundle
 
   e2e-windows:
     name: Desktop E2E (Windows embedded)
@@ -149,3 +179,17 @@ jobs:
           path: artifacts/e2e/
           if-no-files-found: warn
           retention-days: 14
+
+  quality-gate:
+    name: Quality Gate
+    if: ${{ always() }}
+    needs: [integrity, rust, frontend, e2e-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every quality job to pass
+        shell: bash
+        run: |
+          test '${{ needs.integrity.result }}' = 'success'
+          test '${{ needs.rust.result }}' = 'success'
+          test '${{ needs.frontend.result }}' = 'success'
+          test '${{ needs.e2e-windows.result }}' = 'success'

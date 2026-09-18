@@ -202,12 +202,28 @@ pub fn parse_docx(bytes: &[u8], limits: ParseLimits) -> Result<ParsedDocument, D
     }
     let mut archive =
         zip::ZipArchive::new(Cursor::new(bytes)).map_err(|_| DocParseError::Corrupt)?;
-    let mut xml = String::new();
-    archive
+    let document_xml = archive
         .by_name("word/document.xml")
-        .map_err(|_| DocParseError::Corrupt)?
+        .map_err(|_| DocParseError::Corrupt)?;
+    let declared_size = document_xml.size();
+    let max_xml_bytes = limits.max_input_bytes as u64;
+    if declared_size > max_xml_bytes {
+        return Err(DocParseError::InputTooLarge {
+            actual: usize::try_from(declared_size).unwrap_or(usize::MAX),
+            max: limits.max_input_bytes,
+        });
+    }
+    let mut xml = String::new();
+    document_xml
+        .take(max_xml_bytes.saturating_add(1))
         .read_to_string(&mut xml)
         .map_err(|_| DocParseError::Corrupt)?;
+    if xml.len() > limits.max_input_bytes {
+        return Err(DocParseError::InputTooLarge {
+            actual: xml.len(),
+            max: limits.max_input_bytes,
+        });
+    }
     let mut reader = Reader::from_str(&xml);
     reader.config_mut().trim_text(false);
     let mut in_paragraph = false;
@@ -776,6 +792,41 @@ mod tests {
         assert_eq!(
             parse_docx(&docx_fixture("<w:document"), ParseLimits::default()).unwrap_err(),
             DocParseError::Corrupt
+        );
+    }
+
+    #[test]
+    fn docx_rejects_oversized_decompressed_document_xml() {
+        let document_xml = format!(
+            r#"<w:document xmlns:w="urn:w"><w:body><w:p><w:r><w:t>{}</w:t></w:r></w:p></w:body></w:document>"#,
+            "x".repeat(4096)
+        );
+        let mut cursor = Cursor::new(Vec::new());
+        let mut writer = zip::ZipWriter::new(&mut cursor);
+        writer
+            .start_file(
+                "word/document.xml",
+                SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated),
+            )
+            .unwrap();
+        writer.write_all(document_xml.as_bytes()).unwrap();
+        writer.finish().unwrap();
+        let bytes = cursor.into_inner();
+        assert!(bytes.len() < 1024, "fixture 必须先通过压缩输入上限");
+
+        assert_eq!(
+            parse_docx(
+                &bytes,
+                ParseLimits {
+                    max_input_bytes: 1024,
+                    max_text_chars: 10_000,
+                },
+            )
+            .unwrap_err(),
+            DocParseError::InputTooLarge {
+                actual: document_xml.len(),
+                max: 1024,
+            }
         );
     }
 

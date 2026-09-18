@@ -45,6 +45,7 @@ lingostack-selection = { workspace = true }
 lingostack-tts = { workspace = true }
 lingostack-document = { workspace = true }
 lingostack-docparse = { workspace = true }
+lingostack-ocr = { workspace = true }
 tauri-plugin-updater = "2.10.1"
 
 [dev-dependencies]
@@ -53,4 +54,4 @@ tempfile = { workspace = true }
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
-e2e = ["dep:tauri-plugin-wdio", "dep:tauri-plugin-wdio-webdriver"]
+e2e = ["dep:tauri-plugin-wdio", "dep:tauri-plugin-wdio-webdriver", "lingostack-ocr/fixture"]

@@ -24,7 +24,7 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 
 **LingoStack（译栈）** — 面向程序员的跨平台桌面翻译工具。Tauri 2 应用，核心场景：划词翻译、文本翻译、变量名生成、词条解释、收藏管理、文档翻译。MIT 开源、零遥测、用户自带 LLM Key。
 
-**当前状态：V1 进行中（主窗口 MVP 已跑通）。** 7 crate workspace + Tauri 2 前端 + 工具链 / CI 就绪，门禁（fmt / clippy / test / lint）全绿。
+**当前状态：V1 进行中（主窗口 MVP 已跑通）。** 9 crate workspace + Tauri 2 前端 + 工具链 / CI 就绪。
 
 已完成：`lingostack-core` 配置模型（提供商 / 模型解析 / 语言规则 / 热键 / 内置 Prompt）；`lingostack-llm` **四协议全实装**（OpenAI 兼容 + Anthropic + Gemini + Ollama，含 SSE 与 JSON 数组流两种流式解析，wiremock 集成测试）；`src-tauri` 配置读写 + IPC（`load_config` / `save_config` / `effective_prompt` / `chat_stream`）+ 单实例锁；主窗口四视图接真实能力（翻译流式 / 命名生成 / 收藏 IndexedDB / 设置 provider CRUD）。
 
@@ -36,7 +36,7 @@ Managed by Trellis. Edits outside this block are preserved; edits inside may be 
 
 ## 仓库布局（目标结构，搭建脚手架时遵循）
 
-> **结构说明**：`lingostack-app` 是 Tauri 入口 crate。因 Tauri 2 CLI 约定——Tauri 的 Rust 代码与 `tauri.conf.json` 必须位于 `src-tauri/` 目录——其物理路径为 `src-tauri/`，仅在 `Cargo.toml` 中以 `package.name = "lingostack-app"` 体现包名。前端工程根为仓库根（`package.json` 在根），符合 Vite + Tauri 2 惯例。包层面共 **7 个 crate**（`crates/*` 六个 + `src-tauri` 一个）。
+> **结构说明**：`lingostack-app` 是 Tauri 入口 crate。因 Tauri 2 CLI 约定——Tauri 的 Rust 代码与 `tauri.conf.json` 必须位于 `src-tauri/` 目录——其物理路径为 `src-tauri/`，仅在 `Cargo.toml` 中以 `package.name = "lingostack-app"` 体现包名。前端工程根为仓库根（`package.json` 在根），符合 Vite + Tauri 2 惯例。包层面共 **9 个 crate**（`crates/*` 八个 + `src-tauri` 一个）。
 
 ```
 package.json / vite.config.ts / tsconfig.json / tailwind.config.ts / index.html
@@ -52,12 +52,12 @@ src/                            # 前端源码
                                 #   favorites(+db) / view-meta / sidebar-layout
                                 #   utils（cn / stringifyError，错误文案唯一来源）
   stores/                       #   zustand：app / theme / config / favorites / layout
-                                #   stream（流式任务态，跨视图存活——见下方说明）
+                                #   stream / ocr（可取消瞬时任务态，跨视图存活）
   hooks/                        #   use-theme
 Cargo.toml                      # workspace 根；members = ["crates/*", "src-tauri"]
 src-tauri/                      # Tauri 入口 crate（package.name = "lingostack-app"）
   tauri.conf.json               #   仅主窗口（翻译浮窗 / 划词工具栏 / 文档阅读器留待 V1）
-  Cargo.toml                    #   依赖 tauri + 其余 6 个 crate（仓库内唯一依赖 tauri 的 crate）
+  Cargo.toml                    #   依赖 tauri + 其余 8 个 crate（仓库内唯一依赖 tauri 的 crate）
   build.rs
   src/{main.rs, lib.rs}         #   入口：单实例锁 + 托盘 + IPC 注册
   src/{config.rs, commands.rs}  #   配置文件读写（0600）/ IPC commands + provider 工厂
@@ -70,6 +70,7 @@ crates/                         # Rust workspace（纯后端能力，跨平台 /
   lingostack-tts/               #   系统 TTS（Windows SAPI 直调 + 专用朗读线程 / macOS AVSpeechSynthesizer）
   lingostack-docparse/          #   Markdown / PDF(文本版) / DOCX 提取、分块、结构骨架
   lingostack-document/          #   文档记录、SQLite 世代、术语与导出（纯 Rust）
+  lingostack-ocr/               #   本地图片 OCR（WinRT / macOS Vision / Linux Tesseract，按 target 分文件）
 docs/                           # 设计文档
 .github/                        # CI / Dependabot / Issue 与 PR 模板
 ```

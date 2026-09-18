@@ -1,0 +1,31 @@
+{
+  "id": "issue-25-macos-vision-ocr",
+  "name": "issue-25-macos-vision-ocr",
+  "title": "Issue 25 macOS Vision OCR",
+  "description": "在 macOS 目标机实现并验收 Apple Vision 本地 OCR，验收通过前保持能力不可用",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P3",
+  "creator": "phoben",
+  "assignee": "phoben",
+  "createdAt": "2026-09-18",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "develop",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "09-18-issue-25-local-image-ocr",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "source_kind": "github_issue",
+    "github_repo": "phoben/LingoStack",
+    "github_issue": "25",
+    "github_issue_url": "https://github.com/phoben/LingoStack/issues/25"
+  }
+}

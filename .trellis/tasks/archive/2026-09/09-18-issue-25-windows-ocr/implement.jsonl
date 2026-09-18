@@ -1,0 +1,8 @@
+{"file":"docs/research/issue-25-local-ocr.md","reason":"Issue 25 的平台选型、隐私边界、取消要求和目标机验收依据"}
+{"file":".trellis/spec/guides/platform-isolation-guide.md","reason":"新 OCR crate 必须沿用 trait 与 target 文件隔离模式"}
+{"file":".trellis/spec/guides/ipc-contract-guide.md","reason":"新增 OCR/chat 取消命令与 TypeScript 封装必须保持 IPC 契约一致"}
+{"file":".trellis/spec/guides/rust-conventions.md","reason":"新 crate 的错误、测试、依赖和 unsafe 注释约定"}
+{"file":".trellis/spec/lingostack-app/frontend/ui-design.md","reason":"翻译页状态行、拖入遮罩和视觉层级约束"}
+{"file":".trellis/spec/lingostack-app/frontend/state-management.md","reason":"OCR 跨视图 Zustand 任务态和异步动作边界"}
+{"file":".trellis/spec/lingostack-app/backend/ipc-commands.md","reason":"命令注册、流式 Channel、错误字符串与 chat_stream 行为"}
+{"file":".trellis/spec/lingostack-ocr/backend/index.md","reason":"OCR 输入限制、平台引擎、真实取消与隐私边界的可执行契约"}

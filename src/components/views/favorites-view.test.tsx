@@ -13,6 +13,7 @@ import { useTtsStore } from "@/stores/tts-store";
 import { useConfigStore } from "@/stores/config-store";
 import { useAppStore } from "@/stores/app-store";
 import { defaultConfig } from "@/lib/config-types";
+import { createProviderConfig } from "@/test/provider-fixtures";
 
 const sonner = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 vi.mock("sonner", () => ({ toast: sonner }));
@@ -46,7 +47,10 @@ describe("FavoritesView", () => {
       clearError: vi.fn(),
     });
     useConfigStore.setState({ config: defaultConfig() });
-    useAppStore.setState({ activeView: "favorites", settingsSection: "general" });
+    useAppStore.setState({
+      activeView: "favorites",
+      settingsSection: "general",
+    });
   });
 
   afterEach(cleanup);
@@ -112,11 +116,14 @@ describe("FavoritesView", () => {
       disconnect() {}
       unobserve() {}
     }
-    globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+    globalThis.ResizeObserver =
+      ResizeObserverMock as unknown as typeof ResizeObserver;
 
     try {
       render(<FavoritesView />);
-      expect(screen.queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Show more" }),
+      ).not.toBeInTheDocument();
 
       act(() => {
         overflowing = true;
@@ -125,12 +132,18 @@ describe("FavoritesView", () => {
 
       const expand = await screen.findByRole("button", { name: "Show more" });
       expect(expand).toHaveAttribute("aria-expanded", "false");
-      expect(screen.getByRole("button", { name: `Speak ${longFavorite.term}` })).toBeEnabled();
-      expect(screen.getByRole("button", { name: `Delete ${longFavorite.term}` })).toBeEnabled();
+      expect(
+        screen.getByRole("button", { name: `Speak ${longFavorite.term}` }),
+      ).toBeEnabled();
+      expect(
+        screen.getByRole("button", { name: `Delete ${longFavorite.term}` }),
+      ).toBeEnabled();
 
       fireEvent.click(expand);
       expect(expand).toHaveAttribute("aria-expanded", "true");
-      expect(screen.getByRole("button", { name: "Show less" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Show less" }),
+      ).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("button", { name: "Show less" }));
       expect(screen.getByRole("button", { name: "Show more" })).toHaveAttribute(
@@ -169,17 +182,10 @@ describe("FavoritesView", () => {
       useConfigStore.setState({
         config: {
           ...defaultConfig(),
-          providers: [
-            {
-              id: "provider",
-              kind: "open_ai_compatible",
-              name: "Provider",
-              base_url: "https://example.test",
-              api_key: "key",
-              models: ["model"],
-            },
-          ],
-          models: { global_default: { provider_id: "provider", model: "model" } },
+          providers: [createProviderConfig()],
+          models: {
+            global_default: { provider_id: "provider", model: "model" },
+          },
         },
       });
     });

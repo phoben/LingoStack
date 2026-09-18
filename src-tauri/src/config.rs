@@ -5,6 +5,8 @@
 
 use std::fs;
 use std::io;
+#[cfg(unix)]
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use lingostack_core::config::{AppConfig, ConfigValidationError, CONFIG_SCHEMA_VERSION};
@@ -61,7 +63,7 @@ pub fn load(path: &Path) -> Result<AppConfig, ConfigError> {
     }
 }
 
-/// 保存配置：确保父目录存在 → 写 pretty JSON → 收紧权限。
+/// 保存配置：确保父目录存在 → 以安全权限打开 → 写 pretty JSON。
 pub fn save(path: &Path, config: &AppConfig) -> Result<(), ConfigError> {
     config.validate()?;
     if let Some(parent) = path.parent() {
@@ -70,24 +72,43 @@ pub fn save(path: &Path, config: &AppConfig) -> Result<(), ConfigError> {
     let mut normalized = config.clone();
     normalized.normalize_hotkeys();
     let text = serde_json::to_string_pretty(&normalized)?;
-    fs::write(path, text)?;
-    restrict_permissions(path)?;
+    write_config(path, text.as_bytes())?;
+    Ok(())
+}
+
+fn write_config(path: &Path, contents: &[u8]) -> Result<(), ConfigError> {
+    #[cfg(unix)]
+    {
+        use std::fs::OpenOptions;
+        use std::os::unix::fs::OpenOptionsExt;
+
+        // mode(0600) 在创建文件时立即生效，避免 API Key 因进程 umask 短暂暴露；
+        // 已存在的文件则先收紧权限，再截断并写入新内容。
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .mode(0o600)
+            .open(path)?;
+        restrict_permissions(path)?;
+        file.set_len(0)?;
+        file.write_all(contents)?;
+        file.sync_all()?;
+    }
+    #[cfg(not(unix))]
+    {
+        fs::write(path, contents)?;
+    }
     Ok(())
 }
 
 /// 收紧文件权限：Unix 设 0600；Windows 暂留默认（待 ACL 加固）。
+#[cfg(unix)]
 fn restrict_permissions(path: &Path) -> Result<(), ConfigError> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(path)?.permissions();
-        perms.set_mode(0o600);
-        fs::set_permissions(path, perms)?;
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = path;
-    }
+    use std::os::unix::fs::PermissionsExt;
+    let mut perms = fs::metadata(path)?.permissions();
+    perms.set_mode(0o600);
+    fs::set_permissions(path, perms)?;
     Ok(())
 }
 
@@ -130,6 +151,21 @@ mod tests {
         let text = fs::read_to_string(&path).unwrap();
         assert!(text.contains('\n'), "应为 pretty 多行 JSON");
         assert!(text.contains("\"ui_language\""));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn save_creates_config_with_owner_only_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        save(&path, &AppConfig::default()).unwrap();
+
+        assert_eq!(
+            fs::metadata(path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
     }
 
     #[test]

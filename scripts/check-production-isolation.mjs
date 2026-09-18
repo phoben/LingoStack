@@ -97,6 +97,16 @@ const tree = execFileSync("cargo", ["tree", "-p", "lingostack-app"], {
 if (/tauri-plugin-wdio/.test(tree)) {
   throw new Error("default cargo dependency graph includes a WDIO plugin");
 }
+const featureTree = execFileSync(
+  "cargo",
+  ["tree", "-e", "features", "-p", "lingostack-app"],
+  { cwd: root, encoding: "utf8" },
+);
+if (/lingostack-ocr feature "fixture"/.test(featureTree)) {
+  throw new Error(
+    "default cargo dependency graph includes the OCR E2E fixture",
+  );
+}
 run(process.platform === "win32" ? "pnpm.cmd" : "pnpm", ["build"]);
 for (const file of await files(
   fileURLToPath(new URL("../dist", import.meta.url)),

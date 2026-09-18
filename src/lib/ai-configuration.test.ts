@@ -4,10 +4,20 @@ import {
   aiConfigurationStatus,
   hasKnownMissingAiConfiguration,
 } from "./ai-configuration";
+import {
+  createModelDescriptor,
+  createProviderConfig,
+} from "@/test/provider-fixtures";
 
 const configured = () => ({
   ...defaultConfig(),
-  providers: [{ id: "p", kind: "open_ai_compatible" as const, name: "P", base_url: "https://example.test", api_key: "key", models: ["m"] }],
+  providers: [
+    createProviderConfig({
+      id: "p",
+      name: "P",
+      models: [createModelDescriptor({ id: "m" })],
+    }),
+  ],
 });
 
 describe("aiConfigurationStatus", () => {
@@ -23,14 +33,30 @@ describe("aiConfigurationStatus", () => {
   });
   it("识别未分配、孤儿提供商和空模型", () => {
     expect(aiConfigurationStatus(defaultConfig(), "naming")).toBe("unassigned");
-    expect(aiConfigurationStatus({ ...configured(), models: { naming: { provider_id: "gone", model: "m" } } }, "naming")).toBe("unknown_provider");
-    expect(aiConfigurationStatus({ ...configured(), models: { naming: { provider_id: "p", model: " " } } }, "naming")).toBe("empty_model");
+    expect(
+      aiConfigurationStatus(
+        {
+          ...configured(),
+          models: { naming: { provider_id: "gone", model: "m" } },
+        },
+        "naming",
+      ),
+    ).toBe("unknown_provider");
+    expect(
+      aiConfigurationStatus(
+        {
+          ...configured(),
+          models: { naming: { provider_id: "p", model: " " } },
+        },
+        "naming",
+      ),
+    ).toBe("empty_model");
   });
 
   it("配置尚在加载时不误报为配置缺失", () => {
     expect(hasKnownMissingAiConfiguration(null, "translate")).toBe(false);
-    expect(
-      hasKnownMissingAiConfiguration(defaultConfig(), "translate"),
-    ).toBe(true);
+    expect(hasKnownMissingAiConfiguration(defaultConfig(), "translate")).toBe(
+      true,
+    );
   });
 });

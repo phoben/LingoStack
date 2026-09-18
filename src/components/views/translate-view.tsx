@@ -1,4 +1,11 @@
-import { type ReactNode, useEffect, useState } from "react";
+import {
+  type ClipboardEvent,
+  type DragEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowRight,
   Bookmark,
@@ -27,7 +34,11 @@ import {
 } from "@/lib/ai-configuration";
 import { cn, stringifyError } from "@/lib/utils";
 import { toast } from "sonner";
-
+import {
+  MAX_OCR_INPUT_BYTES,
+  OCR_MEDIA_TYPES,
+  useOcrStore,
+} from "@/stores/ocr-store";
 
 /** 面板标签栏（原型 .pane-label）：与正文之间只隔一条浅色线。 */
 function PaneLabel({ children }: { children: ReactNode }) {
@@ -50,6 +61,11 @@ const STATUS_STYLE: Record<
   streaming: { dot: "animate-pulse bg-info", text: "流式", cls: "text-info" },
   done: { dot: "bg-success", text: "已完成", cls: "text-success" },
   error: { dot: "bg-accent", text: "错误", cls: "text-accent" },
+  cancelled: {
+    dot: "bg-muted-foreground/40",
+    text: "已取消",
+    cls: "text-muted-foreground",
+  },
 };
 
 /** 状态点 + 文案（工具条内，兼作流式进度指示）。 */
@@ -71,7 +87,9 @@ function StatusBadge({ status }: { status: StreamStatus }) {
             ? "streaming"
             : status === "done"
               ? "completed"
-              : "error",
+              : status === "error"
+                ? "error"
+                : "cancelled",
       )}
     </span>
   );
@@ -189,16 +207,43 @@ export function TranslateView() {
   const task = useStreamStore((s) => s.tasks.translate);
   const setInput = useStreamStore((s) => s.setInput);
   const start = useStreamStore((s) => s.start);
+  const cancelStream = useStreamStore((s) => s.cancel);
+  const ocrStatus = useOcrStore((s) => s.status);
+  const ocrError = useOcrStore((s) => s.error);
+  const startOcr = useOcrStore((s) => s.start);
+  const cancelOcr = useOcrStore((s) => s.cancel);
+  const rejectOcr = useOcrStore((s) => s.reject);
   const uiLanguage = useConfigStore((s) => s.config?.ui_language ?? "system");
   const config = useConfigStore((s) => s.config);
   const t = useT();
   const [sourceLang, setSourceLang] = useState("auto");
   const [targetLang, setTargetLang] = useState("auto");
+  const [draggingImage, setDraggingImage] = useState(false);
+  const imageInputSeq = useRef(0);
   const explanationLanguage = resolveLocale(uiLanguage);
 
   const streaming = task.status === "streaming";
+  const recognizing = ocrStatus === "recognizing";
   const source = task.input;
   const target = task.output;
+  const displayedOcrError = (() => {
+    if (!ocrError) return null;
+    if (ocrError === "图片内容为空") return t("ocrEmptyInput");
+    if (ocrError === "图片超过 10 MiB 限制") return t("ocrInputTooLarge");
+    if (ocrError === "图片尺寸超过 4000 万像素限制")
+      return t("ocrImageTooLarge");
+    if (ocrError === "图片内容与声明格式不一致") return t("ocrFormatMismatch");
+    if (ocrError === "仅支持 PNG、JPEG 和 WebP 图片")
+      return t("ocrUnsupportedFormat");
+    if (ocrError === "无法解码图片") return t("ocrDecodeFailed");
+    if (ocrError === "图片中未识别到文字") return t("ocrNoText");
+    if (ocrError === "当前平台暂不支持本地图片识别")
+      return t("ocrPlatformUnsupported");
+    if (ocrError === "本地图片识别失败") return t("ocrFailed");
+    if (ocrError.startsWith("Windows 未安装"))
+      return t("ocrLanguageUnavailable");
+    return ocrError;
+  })();
 
   const translate = (override?: string) => {
     const src = override ?? source;
@@ -224,11 +269,96 @@ export function TranslateView() {
     });
   };
 
+  const processImage = async (file: File) => {
+    const seq = imageInputSeq.current + 1;
+    imageInputSeq.current = seq;
+    if (file.size === 0) {
+      rejectOcr(t("ocrEmptyInput"));
+      return;
+    }
+    if (file.size > MAX_OCR_INPUT_BYTES) {
+      rejectOcr(t("ocrInputTooLarge"));
+      return;
+    }
+    const mediaType = file.type.toLowerCase();
+    if (
+      !OCR_MEDIA_TYPES.includes(mediaType as (typeof OCR_MEDIA_TYPES)[number])
+    ) {
+      rejectOcr(t("ocrUnsupportedFormat"));
+      return;
+    }
+    let content: Uint8Array;
+    try {
+      content = new Uint8Array(await file.arrayBuffer());
+    } catch (error) {
+      if (imageInputSeq.current !== seq) return;
+      rejectOcr(t("ocrReadFailed", { message: stringifyError(error) }));
+      return;
+    }
+    if (imageInputSeq.current !== seq) return;
+    try {
+      await Promise.all([cancelStream("translate", true), cancelOcr()]);
+    } catch (error) {
+      if (imageInputSeq.current !== seq) return;
+      rejectOcr(t("ocrCancelFailed", { message: stringifyError(error) }));
+      return;
+    }
+    if (imageInputSeq.current !== seq) return;
+    const text = await startOcr(
+      { mediaType, content },
+      sourceLang === "auto" ? undefined : (sourceLang as "zh" | "en" | "ja"),
+    );
+    if (text && imageInputSeq.current === seq) translate(text);
+  };
+
+  const rejectImageInput = (message: string) => {
+    imageInputSeq.current += 1;
+    rejectOcr(message);
+  };
+
+  const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    const images = Array.from(event.clipboardData.items).filter(
+      (item) =>
+        item.kind === "file" && item.type.toLowerCase().startsWith("image/"),
+    );
+    if (images.length === 0) return;
+    event.preventDefault();
+    if (images.length !== 1) {
+      rejectImageInput(t("ocrSingleImageOnly"));
+      return;
+    }
+    const file = images[0].getAsFile();
+    if (!file) {
+      rejectImageInput(t("ocrReadFailed", { message: t("unknown") }));
+      return;
+    }
+    void processImage(file);
+  };
+
+  const onDrop = (event: DragEvent<HTMLElement>) => {
+    const files = Array.from(event.dataTransfer.files);
+    setDraggingImage(false);
+    // 普通文本拖放交还给 textarea 的浏览器原生插入行为。
+    if (files.length === 0) return;
+    event.preventDefault();
+    if (files.length !== 1) {
+      rejectImageInput(t("ocrSingleImageOnly"));
+      return;
+    }
+    const file = files[0];
+    if (!file.type.toLowerCase().startsWith("image/")) {
+      rejectImageInput(t("ocrUnsupportedFormat"));
+      return;
+    }
+    void processImage(file);
+  };
+
   // 划词热键注入的原文：消费后立即翻译（覆盖当前输入框内容）。
   useEffect(() => {
     if (injectSource != null) {
       setInjectSource(null);
-      translate(injectSource);
+      imageInputSeq.current += 1;
+      void cancelOcr().then(() => translate(injectSource));
     }
     // translate 与 setInjectSource 为稳定引用；仅 injectSource 变化时触发。
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -254,6 +384,17 @@ export function TranslateView() {
 
   return (
     <ViewShell
+      onDragEnter={(event) => {
+        event.preventDefault();
+        setDraggingImage(true);
+      }}
+      onDragOver={(event) => event.preventDefault()}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setDraggingImage(false);
+        }
+      }}
+      onDrop={onDrop}
       toolbar={
         <>
           <Select
@@ -282,13 +423,23 @@ export function TranslateView() {
             <option value="en">English</option>
             <option value="ja">日本語</option>
           </Select>
-          <StatusBadge status={task.status} />
+          {recognizing ? (
+            <span
+              className="inline-flex items-center gap-1 font-mono text-[10px] text-info"
+              aria-live="polite"
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-info" />
+              {t("ocrRecognizingShort")}
+            </span>
+          ) : (
+            <StatusBadge status={task.status} />
+          )}
           <Button
             size="sm"
             className="ml-auto"
             aria-label="执行翻译"
             onClick={() => translate()}
-            disabled={streaming || !source.trim()}
+            disabled={streaming || recognizing || !source.trim()}
           >
             <Sparkles className="h-3.5 w-3.5" />
             {streaming ? t("translating") : t("translateAction")}
@@ -299,7 +450,7 @@ export function TranslateView() {
       {/* 原文 / 译文靠一条竖向分割线分隔，不各自成卡片 */}
       <div className="grid h-full grid-cols-2 divide-x divide-border">
         {/* 原文 */}
-        <section className="flex min-h-0 flex-col overflow-hidden">
+        <section className="relative flex min-h-0 flex-col overflow-hidden">
           <PaneLabel>
             <span>{t("sourceText")}</span>
             <span className="flex-1" aria-hidden="true" />
@@ -312,10 +463,36 @@ export function TranslateView() {
           </PaneLabel>
           <textarea
             value={source}
-            onChange={(e) => setInput("translate", e.target.value)}
+            onChange={(e) => {
+              imageInputSeq.current += 1;
+              void cancelOcr();
+              setInput("translate", e.target.value);
+            }}
+            onPaste={onPaste}
+            aria-busy={recognizing}
             placeholder={t("inputToTranslate")}
             className="min-h-0 flex-1 resize-none bg-transparent px-4 py-3.5 text-sm leading-7 text-foreground outline-none placeholder:text-muted-foreground/60"
           />
+          {recognizing ? (
+            <p
+              aria-live="polite"
+              className="border-t border-border px-4 py-2 text-xs text-muted-foreground"
+            >
+              {t("ocrRecognizing")}
+            </p>
+          ) : ocrStatus === "error" ? (
+            <p
+              role="alert"
+              className="border-t border-border px-4 py-2 text-xs text-accent"
+            >
+              {displayedOcrError}
+            </p>
+          ) : null}
+          {draggingImage ? (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-primary bg-background/90 text-sm font-medium text-primary">
+              {t("ocrDropImage")}
+            </div>
+          ) : null}
         </section>
 
         {/* 译文 */}
@@ -344,11 +521,19 @@ export function TranslateView() {
             ) : null}
             {task.status === "error" ? (
               <div role="alert" className="mt-2 flex items-center gap-2">
-                <span className="text-xs text-accent">{task.errorKind === "configuration" ? t("aiConfigurationMissing") : task.error}</span>
-                {task.errorKind === "configuration" ? <AiConfigurationAction /> : <Button variant="ghost" size="sm" onClick={() => translate()}>
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  {t("retry")}
-                </Button>}
+                <span className="text-xs text-accent">
+                  {task.errorKind === "configuration"
+                    ? t("aiConfigurationMissing")
+                    : task.error}
+                </span>
+                {task.errorKind === "configuration" ? (
+                  <AiConfigurationAction />
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={() => translate()}>
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    {t("retry")}
+                  </Button>
+                )}
               </div>
             ) : null}
           </div>

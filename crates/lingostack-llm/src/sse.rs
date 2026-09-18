@@ -32,6 +32,9 @@ where
                 Ok(bytes) => match utf8.push(bytes.as_ref()) {
                     Ok(text) => {
                         buf.push_str(&text);
+                        if buf.contains('\r') {
+                            buf = buf.replace("\r\n", "\n");
+                        }
                         // 以空行（\n\n）为事件边界，逐个弹出完整事件块。
                         while let Some(idx) = buf.find("\n\n") {
                             let block: String = buf.drain(..idx + 2).collect();
@@ -141,6 +144,19 @@ mod tests {
             chunk("data: {\"a\":"),
             chunk("1}\n\ndata: {\"b\":"),
             chunk("2}\n\n"),
+        ]);
+        assert_eq!(
+            collect(parse_data_lines(s)).await,
+            vec!["{\"a\":1}".to_string(), "{\"b\":2}".to_string()]
+        );
+    }
+
+    #[tokio::test]
+    async fn supports_crlf_events_split_across_chunks() {
+        let s = futures::stream::iter(vec![
+            chunk("data: {\"a\":1}\r"),
+            chunk("\n\r"),
+            chunk("\ndata: {\"b\":2}\r\n\r\n"),
         ]);
         assert_eq!(
             collect(parse_data_lines(s)).await,
