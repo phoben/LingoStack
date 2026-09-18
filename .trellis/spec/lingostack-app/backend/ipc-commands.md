@@ -18,13 +18,71 @@
 | `translation_plan`             | `text`, `source_override?`, `target_override?`, `effective_system_language?`, `state` | `TranslationPlan { source, target }`              | `commands.rs`       |
 | `effective_translation_prompt` | `source`, `target`, `explanation_language`, `state`                                   | 已替换语言占位符且追加不可覆盖机器协议的 `String` | `commands.rs`       |
 | `explain_terms`                | `items: ExplainTermInput[]`, `language`, `state`                                      | `ExplainTermsResponse { items }`                  | `commands.rs`       |
-| `chat_stream`                  | `feature`, `messages`, `on_event: Channel<ChatEvent>`, `state`                        | `()`                                              | `:75-104`           |
+| `chat_stream`                  | `request_id`, `feature`, `messages`, `on_event: Channel<ChatEvent>`, `state`          | `()`                                              | `commands.rs`       |
+| `cancel_chat`                  | `request_id`, `state`                                                                 | `()`                                              | `commands.rs`       |
+| `recognize_image`              | `request_id`, `media_type`, `source_override?`, `content`, `state`                    | OCR 非空文本 `String`                             | `commands.rs`       |
+| `cancel_ocr`                   | `request_id`, `state`                                                                 | `()`                                              | `commands.rs`       |
 | `get_selection`                | 无                                                                                    | `Selection`                                       | `:15-20`            |
 | `speak`                        | `text: String`, `on_event: Channel<TtsEvent>`                                         | `()`                                              | `:23-28`            |
 | `stop_speaking`                | 无                                                                                    | `()`                                              | `:31-34`            |
 
 `speak` / `stop_speaking` 由共享 `tts-store` 调用，翻译页与收藏页复用同一 active utterance 状态。
 `speak` 使用请求级 `Channel<TtsEvent>`：引擎受理时发送 `started`，自然结束发送 `done`，完成监测失败发送 `error`；被新的朗读或停止打断的旧请求不发送 `done`。TypeScript 侧仍以 camelCase 传递 `onEvent`。
+
+## Scenario：本地图片 OCR 与请求级取消
+
+### 1. Scope / Trigger
+
+- 新增或修改图片粘贴/拖放、OCR 平台实现、流式聊天抢占、请求注册表时适用。
+
+### 2. Signatures
+
+```text
+recognize_image(requestId, mediaType, sourceOverride?, content) -> String
+cancel_ocr(requestId) -> ()
+chat_stream(requestId, feature, messages, onEvent) -> ()
+cancel_chat(requestId) -> ()
+```
+
+### 3. Contracts
+
+- TypeScript 只经 `src/lib/ipc.ts` 发送 camelCase 参数；Rust 使用 snake_case。
+- `content` 是单次调用拥有的内存字节，不得进入 AppState、SQLite、IndexedDB、配置、临时文件或日志。
+- OCR/聊天注册表只保存请求 ID 和取消句柄；正常、失败、取消都按相同 ID 清理。
+- `cancel_*` 幂等；不存在或已经结束的请求仍返回成功。
+- 聊天取消不发送 `done`/`error`，前端以序号和 cancelled 状态收尾。
+
+### 4. Validation & Error Matrix
+
+| 条件 | 结果 |
+|---|---|
+| request ID 为空或超过 128 字节 | IPC 拒绝，不注册任务 |
+| 非 PNG/JPEG/WebP 或魔数不符 | OCR 拒绝，不调用系统解码器/LLM |
+| 编码大小超过 10 MiB或解码像素超过 40 MP | OCR 拒绝，不完整解码、不调用 LLM |
+| 系统语言不可用/无文字/解码失败 | 返回短可读错误，稳定原文不变 |
+| 取消发生在冷却、provider stream、WinRT decode/recognize | 丢弃底层 future/stream，迟到结果不发布 |
+
+### 5. Good/Base/Bad Cases
+
+- Good：图片在内存中由 WinRT 识别为文字，只把文字送入现有翻译消息。
+- Base：纯文字粘贴完全保留 textarea 默认行为，不调用 OCR。
+- Bad：只在前端忽略迟到结果，却让旧 WinRT/HTTP 请求继续运行和计费。
+
+### 6. Tests Required
+
+- Rust：格式/大小/像素/缩放、对象安全、取消、e2e feature 隔离。
+- Vitest：图片优先、纯文字回退、多图拒绝、连续替换、Prompt 前取消、不保存字节。
+- WDIO：真实 `recognize_image` IPC 使用确定性 feature-gated fixture；Windows 手工测试真实语言包、断网与图片质量。
+
+### 7. Wrong vs Correct
+
+```ts
+// Wrong：组件直接 invoke，且没有请求 ID。
+invoke("recognize_image", { content });
+
+// Correct：唯一封装携带请求 ID，并由 store 持有取消/序号语义。
+recognizeImage(requestId, mediaType, sourceOverride, content);
+```
 
 ## 错误一律拍平为 String
 

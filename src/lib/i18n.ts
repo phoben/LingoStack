@@ -50,11 +50,22 @@ const zh = {
   completed: "已完成",
   error: "错误",
   retry: "重试",
-<<<<<<< HEAD
+  ocrRecognizing: "正在本机识别图片文字…",
+  ocrRecognizingShort: "识别中",
+  ocrDropImage: "松开以识别并翻译图片",
+  ocrSingleImageOnly: "每次只能识别一张图片",
+  ocrUnsupportedFormat: "仅支持 PNG、JPEG 和 WebP 图片",
+  ocrReadFailed: "读取图片失败：{message}",
+  ocrEmptyInput: "图片内容为空",
+  ocrInputTooLarge: "图片超过 10 MiB 限制",
+  ocrFormatMismatch: "图片内容与格式不一致",
+  ocrDecodeFailed: "无法解码图片",
+  ocrNoText: "图片中未识别到文字",
+  ocrLanguageUnavailable: "Windows 未安装所选语言的 OCR 语言包",
+  ocrPlatformUnsupported: "当前平台暂不支持本地图片识别",
+  ocrFailed: "本地图片识别失败",
   aiConfigurationMissing: "尚未完成 AI 配置，无法执行此操作。",
   openAiSettings: "设置 AI",
-=======
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
   showApiKey: "显示 API Key",
   hideApiKey: "隐藏 API Key",
   copy: "复制",
@@ -308,11 +319,25 @@ const en: { [K in keyof typeof zh]: string } = {
   completed: "Complete",
   error: "Error",
   retry: "Retry",
-<<<<<<< HEAD
-  aiConfigurationMissing: "AI configuration is required before this action can run.",
+  ocrRecognizing: "Recognizing image text on this device…",
+  ocrRecognizingShort: "Recognizing",
+  ocrDropImage: "Drop to recognize and translate the image",
+  ocrSingleImageOnly: "Only one image can be recognized at a time",
+  ocrUnsupportedFormat: "Only PNG, JPEG, and WebP images are supported",
+  ocrReadFailed: "Could not read image: {message}",
+  ocrEmptyInput: "The image is empty",
+  ocrInputTooLarge: "The image exceeds the 10 MiB limit",
+  ocrFormatMismatch: "The image content does not match its format",
+  ocrDecodeFailed: "Could not decode the image",
+  ocrNoText: "No text was found in the image",
+  ocrLanguageUnavailable:
+    "The selected Windows OCR language pack is not installed",
+  ocrPlatformUnsupported:
+    "Local image recognition is not supported on this platform yet",
+  ocrFailed: "Local image recognition failed",
+  aiConfigurationMissing:
+    "AI configuration is required before this action can run.",
   openAiSettings: "Set up AI",
-=======
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
   showApiKey: "Show API key",
   hideApiKey: "Hide API key",
   copy: "Copy",

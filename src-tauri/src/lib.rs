@@ -24,6 +24,10 @@ struct AppState {
     documents: Arc<Mutex<lingostack_document::DocumentModule>>,
     document_limits: lingostack_docparse::ParseLimits,
     document_jobs: Arc<Mutex<HashMap<String, Arc<DocumentJobControl>>>>,
+    /// 短生命周期 OCR 请求；只保存取消句柄，不保存图片字节。
+    ocr_jobs: Arc<Mutex<HashMap<String, Arc<lingostack_ocr::OcrCancellation>>>>,
+    /// 流式 LLM 请求的取消信号；取消即丢弃 provider stream。
+    chat_jobs: Arc<Mutex<HashMap<String, Arc<tokio::sync::watch::Sender<bool>>>>>,
 }
 
 /// Cooperative controls are checked between provider requests; an in-flight
@@ -94,6 +98,9 @@ pub fn run() {
         commands::effective_translation_prompt,
         commands::explain_terms,
         commands::chat_stream,
+        commands::cancel_chat,
+        commands::recognize_image,
+        commands::cancel_ocr,
         commands::get_selection,
         commands::speak,
         commands::stop_speaking,
@@ -121,6 +128,9 @@ pub fn run() {
         commands::effective_translation_prompt,
         commands::explain_terms,
         commands::chat_stream,
+        commands::cancel_chat,
+        commands::recognize_image,
+        commands::cancel_ocr,
         commands::get_selection,
         commands::speak,
         commands::stop_speaking,
@@ -166,6 +176,8 @@ pub fn run() {
             documents: Arc::new(Mutex::new(documents)),
             document_limits,
             document_jobs: Arc::new(Mutex::new(HashMap::new())),
+            ocr_jobs: Arc::new(Mutex::new(HashMap::new())),
+            chat_jobs: Arc::new(Mutex::new(HashMap::new())),
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())

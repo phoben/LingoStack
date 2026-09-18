@@ -166,13 +166,44 @@ export function effectiveTranslationPrompt(
  * 流式中断时已渲染部分保留，前端可「重试」（见设计文档 §9）。
  */
 export async function chatStream(
+  requestId: string,
   feature: Feature,
   messages: ChatMessage[],
   onEvent: (event: ChatEvent) => void,
 ): Promise<void> {
   const channel = new Channel<ChatEvent>();
   channel.onmessage = onEvent;
-  await invoke<void>("chat_stream", { feature, messages, onEvent: channel });
+  await invoke<void>("chat_stream", {
+    requestId,
+    feature,
+    messages,
+    onEvent: channel,
+  });
+}
+
+/** 取消指定流式请求；请求不存在或已结束时仍成功。 */
+export function cancelChat(requestId: string): Promise<void> {
+  return invoke<void>("cancel_chat", { requestId });
+}
+
+/** 调用系统本地 OCR；图片字节只随本次 IPC 传递。 */
+export function recognizeImage(
+  requestId: string,
+  mediaType: string,
+  sourceOverride: Language | undefined,
+  content: Uint8Array,
+): Promise<string> {
+  return invoke<string>("recognize_image", {
+    requestId,
+    mediaType,
+    sourceOverride,
+    content: Array.from(content),
+  });
+}
+
+/** 取消指定 OCR 请求；请求不存在或已结束时仍成功。 */
+export function cancelOcr(requestId: string): Promise<void> {
+  return invoke<void>("cancel_ocr", { requestId });
 }
 
 export function listDocuments(): Promise<DocumentSnapshot[]> {

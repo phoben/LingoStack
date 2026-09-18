@@ -21,6 +21,37 @@ use tauri::{AppHandle, Emitter, State};
 use crate::config as config_store;
 use crate::AppState;
 
+fn ocr_engine() -> Box<dyn lingostack_ocr::OcrEngine> {
+    #[cfg(feature = "e2e")]
+    {
+        lingostack_ocr::fixture_engine("LingoStack 本地 OCR")
+    }
+    #[cfg(not(feature = "e2e"))]
+    {
+        lingostack_ocr::engine()
+    }
+}
+
+fn validate_request_id(request_id: &str) -> Result<(), String> {
+    if request_id.is_empty() || request_id.len() > 128 {
+        Err("请求标识无效".into())
+    } else {
+        Ok(())
+    }
+}
+
+/// 只等待显式取消。发送端关闭不是取消，避免清理注册表时误伤已完成请求。
+async fn cancellation_requested(receiver: &mut tokio::sync::watch::Receiver<bool>) {
+    loop {
+        if *receiver.borrow() {
+            return;
+        }
+        if receiver.changed().await.is_err() {
+            futures::future::pending::<()>().await;
+        }
+    }
+}
+
 /// Return locally persisted document snapshots. The frontend holds only these
 /// snapshots; Rust keeps the durable records while the window is hidden.
 #[tauri::command]
@@ -676,10 +707,12 @@ pub fn speak(text: String, on_event: Channel<TtsEvent>) -> Result<(), String> {
 pub fn stop_speaking() -> Result<(), String> {
     #[cfg(feature = "e2e")]
     {
-        return Ok(());
+        Ok(())
     }
     #[cfg(not(feature = "e2e"))]
-    lingostack_tts::speaker().stop().map_err(|e| e.to_string())
+    {
+        lingostack_tts::speaker().stop().map_err(|e| e.to_string())
+    }
 }
 
 #[cfg(feature = "e2e")]
@@ -964,62 +997,192 @@ pub enum ChatEvent {
     Error { message: String },
 }
 
+/// 使用系统本地 OCR 识别内存中的单张图片。图片字节不写入状态、磁盘或日志。
+#[tauri::command]
+pub async fn recognize_image(
+    request_id: String,
+    media_type: String,
+    source_override: Option<Language>,
+    content: Vec<u8>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    validate_request_id(&request_id)?;
+    let format = lingostack_ocr::ImageFormat::from_media_type(&media_type)
+        .map_err(|error| error.to_string())?;
+    let language = match source_override {
+        None => lingostack_ocr::OcrLanguage::Auto,
+        Some(Language::Zh) => lingostack_ocr::OcrLanguage::Zh,
+        Some(Language::En) => lingostack_ocr::OcrLanguage::En,
+        Some(Language::Ja) => lingostack_ocr::OcrLanguage::Ja,
+    };
+    let operation = ocr_engine().recognize(lingostack_ocr::OcrInput {
+        content,
+        format,
+        language,
+    });
+    let control = Arc::new(operation.cancellation());
+    {
+        let mut jobs = state
+            .ocr_jobs
+            .lock()
+            .map_err(|_| "OCR 请求状态不可用".to_string())?;
+        if let Some(previous) = jobs.insert(request_id.clone(), Arc::clone(&control)) {
+            previous.cancel();
+        }
+    }
+
+    let result = operation.result().await.map(|result| result.text);
+    if let Ok(mut jobs) = state.ocr_jobs.lock() {
+        if jobs
+            .get(&request_id)
+            .is_some_and(|current| Arc::ptr_eq(current, &control))
+        {
+            jobs.remove(&request_id);
+        }
+    }
+    result.map_err(|error| error.to_string())
+}
+
+/// 幂等取消指定 OCR 请求；请求不存在或已完成同样视为成功。
+#[tauri::command]
+pub fn cancel_ocr(request_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    validate_request_id(&request_id)?;
+    let control = state
+        .ocr_jobs
+        .lock()
+        .map_err(|_| "OCR 请求状态不可用".to_string())?
+        .get(&request_id)
+        .cloned();
+    if let Some(control) = control {
+        control.cancel();
+    }
+    Ok(())
+}
+
+/// 幂等取消指定流式聊天请求；请求不存在或已完成同样视为成功。
+#[tauri::command]
+pub fn cancel_chat(request_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    validate_request_id(&request_id)?;
+    let control = state
+        .chat_jobs
+        .lock()
+        .map_err(|_| "流式请求状态不可用".to_string())?
+        .get(&request_id)
+        .cloned();
+    if let Some(control) = control {
+        let _ = control.send(true);
+    }
+    Ok(())
+}
+
 /// 按 feature 解析模型并发起流式聊天，增量经 Channel 推回前端。
 #[tauri::command]
 pub async fn chat_stream(
+    request_id: String,
     feature: Feature,
     messages: Vec<ChatMessage>,
     on_event: Channel<ChatEvent>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let cfg = config_store::load(&state.config_path).map_err(|e| e.to_string())?;
-    let resolved = cfg.resolve_request(feature).map_err(|e| e.to_string())?;
-    let request = chat_request_for(&resolved, messages);
-    let mut retried = false;
-    loop {
-        if let Some(delay) = shared_cooldown_delay(&state.rate_limit_until, Instant::now()) {
-            on_event
-                .send(ChatEvent::Status {
-                    message: "服务繁忙，正在短暂等待后重试…".into(),
-                })
-                .map_err(|e| e.to_string())?;
-            tokio::time::sleep(delay).await;
+    validate_request_id(&request_id)?;
+    let (sender, mut receiver) = tokio::sync::watch::channel(false);
+    let control = Arc::new(sender);
+    {
+        let mut jobs = state
+            .chat_jobs
+            .lock()
+            .map_err(|_| "流式请求状态不可用".to_string())?;
+        if let Some(previous) = jobs.insert(request_id.clone(), Arc::clone(&control)) {
+            let _ = previous.send(true);
         }
-        let provider = build_provider(resolved.provider)?;
-        let mut stream = provider.chat_stream(&request);
-        let mut sent_chunk = false;
-        let mut retry_error: Option<LlmError> = None;
-        while let Some(result) = stream.next().await {
-            match result {
-                Ok(chunk) => {
-                    sent_chunk = true;
-                    on_event
-                        .send(ChatEvent::Chunk { delta: chunk.delta })
-                        .map_err(|e| e.to_string())?;
-                }
-                Err(e) if should_retry(sent_chunk, retried, &e) => {
-                    retry_error = Some(e);
-                    break;
-                }
-                Err(e) => {
-                    on_event
-                        .send(ChatEvent::Error {
-                            message: e.to_string(),
-                        })
-                        .ok();
-                    return Err(e.to_string());
+    }
+
+    // true 表示正常完成，应发送 done；false 表示用户取消，不伪装成完成或错误。
+    let outcome: Result<bool, String> = async {
+        let cfg = config_store::load(&state.config_path).map_err(|e| e.to_string())?;
+        let resolved = cfg.resolve_request(feature).map_err(|e| e.to_string())?;
+        let request = chat_request_for(&resolved, messages);
+        let mut retried = false;
+        loop {
+            if let Some(delay) = shared_cooldown_delay(&state.rate_limit_until, Instant::now()) {
+                on_event
+                    .send(ChatEvent::Status {
+                        message: "服务繁忙，正在短暂等待后重试…".into(),
+                    })
+                    .map_err(|e| e.to_string())?;
+                tokio::select! {
+                    biased;
+                    () = cancellation_requested(&mut receiver) => return Ok(false),
+                    () = tokio::time::sleep(delay) => {}
                 }
             }
+            let provider = build_provider(resolved.provider)?;
+            let mut stream = provider.chat_stream(&request);
+            let mut sent_chunk = false;
+            let mut retry_error: Option<LlmError> = None;
+            loop {
+                let next = tokio::select! {
+                    biased;
+                    () = cancellation_requested(&mut receiver) => return Ok(false),
+                    result = stream.next() => result,
+                };
+                let Some(result) = next else { break };
+                match result {
+                    Ok(chunk) => {
+                        sent_chunk = true;
+                        on_event
+                            .send(ChatEvent::Chunk { delta: chunk.delta })
+                            .map_err(|e| e.to_string())?;
+                    }
+                    Err(e) if should_retry(sent_chunk, retried, &e) => {
+                        retry_error = Some(e);
+                        break;
+                    }
+                    Err(e) => {
+                        on_event
+                            .send(ChatEvent::Error {
+                                message: e.to_string(),
+                            })
+                            .ok();
+                        return Err(e.to_string());
+                    }
+                }
+            }
+            if let Some(error) = retry_error {
+                retried = true;
+                // 429/退避等待同样可取消，避免替换输入后仍占用旧请求。
+                if error.is_rate_limited() {
+                    extend_shared_cooldown(
+                        &state.rate_limit_until,
+                        Instant::now(),
+                        Duration::from_secs(1),
+                    );
+                } else {
+                    tokio::select! {
+                        biased;
+                        () = cancellation_requested(&mut receiver) => return Ok(false),
+                        () = tokio::time::sleep(Duration::from_millis(250)) => {}
+                    }
+                }
+                continue;
+            }
+            return Ok(true);
         }
-        if let Some(error) = retry_error {
-            retried = true;
-            retry_after_zero_output_failure(&error, &state.rate_limit_until).await;
-            continue;
-        }
-        break;
     }
-    on_event.send(ChatEvent::Done).ok();
-    Ok(())
+    .await;
+
+    if let Ok(mut jobs) = state.chat_jobs.lock() {
+        if jobs
+            .get(&request_id)
+            .is_some_and(|current| Arc::ptr_eq(current, &control))
+        {
+            jobs.remove(&request_id);
+        }
+    }
+    if matches!(outcome, Ok(true)) {
+        on_event.send(ChatEvent::Done).ok();
+    }
+    outcome.map(|_| ())
 }
 
 fn chat_request_for(
@@ -1154,6 +1317,25 @@ mod tests {
         provider.id = "deepseek-1".into();
         provider.api_key = "sk-test".into();
         provider
+    }
+
+    #[test]
+    fn request_ids_are_bounded_before_registry_insertion() {
+        assert!(validate_request_id("ocr-1").is_ok());
+        assert!(validate_request_id("").is_err());
+        assert!(validate_request_id(&"x".repeat(129)).is_err());
+    }
+
+    #[tokio::test]
+    async fn explicit_cancel_signal_wakes_waiter() {
+        let (sender, mut receiver) = tokio::sync::watch::channel(false);
+        sender.send(true).unwrap();
+        tokio::time::timeout(
+            Duration::from_millis(50),
+            cancellation_requested(&mut receiver),
+        )
+        .await
+        .expect("取消信号应立即唤醒等待方");
     }
 
     #[test]

@@ -76,6 +76,17 @@ describe("LingoStack desktop E2E", () => {
     await expect(output).toHaveText("确定性的 E2E 翻译结果");
   });
 
+  it("recognizes an in-memory image through the real OCR IPC boundary", async () => {
+    const requestId = `e2e-ocr-${Date.now()}`;
+    const text = await invokeTauri<string>("recognize_image", {
+      requestId,
+      mediaType: "image/png",
+      content: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+    });
+    expect(text).toBe("LingoStack 本地 OCR");
+    await invokeTauri<void>("cancel_ocr", { requestId });
+  });
+
   it("shows a deterministic error and retries successfully", async () => {
     const input = await $("textarea");
     await input.clearValue();
@@ -139,9 +150,7 @@ describe("LingoStack desktop E2E", () => {
     await input.clearValue();
     await input.setValue("E2E_SUCCESS");
     await $("button[aria-label='执行翻译']").click();
-    await expect($("[aria-live='polite']")).toHaveText(
-      "确定性的 E2E 翻译结果",
-    );
+    await expect($("[aria-live='polite']")).toHaveText("确定性的 E2E 翻译结果");
     await $("button[aria-label='收藏']").click();
     await $("button=收藏").click();
     await expect($("button[aria-label^='删除 ']")).toBeDisplayed();

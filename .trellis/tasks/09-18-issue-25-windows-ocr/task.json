@@ -1,0 +1,31 @@
+{
+  "id": "issue-25-windows-ocr",
+  "name": "issue-25-windows-ocr",
+  "title": "Issue 25 Windows 本地 OCR 首发",
+  "description": "实现通用 OCR 合约、Windows 系统 OCR、翻译页图片粘贴与拖入，以及 OCR 和翻译取消链路",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "phoben",
+  "assignee": "phoben",
+  "createdAt": "2026-09-18",
+  "completedAt": null,
+  "branch": "develop",
+  "base_branch": "develop",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "09-18-issue-25-local-image-ocr",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "source_kind": "github_issue",
+    "github_repo": "phoben/LingoStack",
+    "github_issue": "25",
+    "github_issue_url": "https://github.com/phoben/LingoStack/issues/25"
+  }
+}

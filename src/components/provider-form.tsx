@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-import { useState } from "react";
-=======
 import {
   type KeyboardEvent,
   useEffect,
@@ -9,7 +6,6 @@ import {
   useRef,
   useState,
 } from "react";
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -133,8 +129,6 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
   );
   const [error, setError] = useState<string | null>(null);
   const [keyVisible, setKeyVisible] = useState(false);
-<<<<<<< HEAD
-=======
   const [presets, setPresets] = useState<ProviderPreset[]>([]);
   const [presetsLoading, setPresetsLoading] = useState(!initial);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
@@ -184,11 +178,14 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
       }
     };
     document.addEventListener("mousedown", closeOnOutsidePointer);
-    return () => document.removeEventListener("mousedown", closeOnOutsidePointer);
+    return () =>
+      document.removeEventListener("mousedown", closeOnOutsidePointer);
   }, [modelListOpen]);
 
   const modelIds = useMemo(() => parseModelIds(modelsText), [modelsText]);
-  const selectedPreset = presets.find((preset) => preset.id === draft.preset_id);
+  const selectedPreset = presets.find(
+    (preset) => preset.id === draft.preset_id,
+  );
   const canDiscover = canDiscoverProvider(draft, selectedPreset);
   const updateDraft = (patch: Partial<ProviderConfig>) => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -252,7 +249,6 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
       };
     });
   };
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
 
   const submit = () => {
     if (
@@ -467,31 +463,6 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
             placeholder="https://api.deepseek.com"
           />
         </label>
-<<<<<<< HEAD
-        <label className="col-span-2 flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">API Key</span>
-          <div className="relative">
-            <Input
-              type={keyVisible ? "text" : "password"}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="pr-9 font-mono text-xs"
-              placeholder="sk-..."
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-0 top-0 h-9 w-9"
-              aria-label={t(keyVisible ? "hideApiKey" : "showApiKey")}
-              aria-pressed={keyVisible}
-              onClick={() => setKeyVisible((visible) => !visible)}
-            >
-              {keyVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            </Button>
-          </div>
-        </label>
-=======
         {selectedPreset && selectedPreset.suggested_endpoints.length > 1 ? (
           <label className="col-span-2 flex flex-col gap-1">
             <span className="text-xs text-muted-foreground">
@@ -517,7 +488,6 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
             </Select>
           </label>
         ) : null}
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
         <label className="col-span-2 flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">
             {t("apiKey")}
@@ -554,7 +524,10 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
           aria-live="polite"
           aria-busy={discovering}
         >
-          <span id={`${modelListId}-label`} className="text-xs text-muted-foreground">
+          <span
+            id={`${modelListId}-label`}
+            className="text-xs text-muted-foreground"
+          >
             {t("providerModels")}
           </span>
           <div className="flex gap-2">
@@ -593,7 +566,9 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
             </p>
           ) : null}
           {discoveryAttempted && discovered.length === 0 && !discoveryError ? (
-            <p className="text-xs text-muted-foreground">{t("noModelsFound")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("noModelsFound")}
+            </p>
           ) : null}
           {modelListOpen && discovered.length > 0 ? (
             <div
@@ -663,7 +638,10 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
               <div className="flex flex-wrap gap-2 py-2">
                 <label className="min-w-[180px] flex-1">
                   <span className="mb-1 block text-muted-foreground">
-                    {t("contextWindow")}: {override.context || model.context_window?.value || t("unknown")}
+                    {t("contextWindow")}:{" "}
+                    {override.context ||
+                      model.context_window?.value ||
+                      t("unknown")}
                     {contextSource
                       ? ` · ${valueSourceLabel(contextSource, t)}`
                       : ""}
@@ -685,7 +663,10 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
                 </label>
                 <label className="min-w-[180px] flex-1">
                   <span className="mb-1 block text-muted-foreground">
-                    {t("maxOutput")}: {override.output || model.max_output_tokens?.value || t("unknown")}
+                    {t("maxOutput")}:{" "}
+                    {override.output ||
+                      model.max_output_tokens?.value ||
+                      t("unknown")}
                     {outputSource
                       ? ` · ${valueSourceLabel(outputSource, t)}`
                       : ""}
@@ -707,7 +688,12 @@ export function ProviderForm({ initial, onSave, onCancel }: ProviderFormProps) {
                 </label>
               </div>
               <p className="py-2 text-muted-foreground">
-                {t("parameterSupport")}: {t("temperature")} {model.supports_temperature ? t("supported") : t("unsupported")} · {t("maxOutput")} {model.supports_max_output ? t("supported") : t("unsupported")} · {t("reasoningEffort")} {model.supports_reasoning ? t("supported") : t("unsupported")}
+                {t("parameterSupport")}: {t("temperature")}{" "}
+                {model.supports_temperature ? t("supported") : t("unsupported")}{" "}
+                · {t("maxOutput")}{" "}
+                {model.supports_max_output ? t("supported") : t("unsupported")}{" "}
+                · {t("reasoningEffort")}{" "}
+                {model.supports_reasoning ? t("supported") : t("unsupported")}
               </p>
               <div
                 className="flex flex-wrap gap-2 pt-2"

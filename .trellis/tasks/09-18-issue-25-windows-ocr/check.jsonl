@@ -1,0 +1,6 @@
+{"file":"docs/research/issue-25-local-ocr.md","reason":"复核本地处理、平台验收和不纳入范围没有漂移"}
+{"file":".trellis/spec/lingostack-app/frontend/testing-and-a11y.md","reason":"验证 paste/drop、busy/live/alert 与 RTL 证据边界"}
+{"file":".trellis/spec/lingostack-app/backend/testing-strategy.md","reason":"选择单元、IPC、桌面 E2E、发行和系统验收门禁"}
+{"file":".trellis/spec/lingostack-app/backend/e2e-testing.md","reason":"确保 OCR fixture 只存在于 e2e feature 且生产构建隔离"}
+{"file":".trellis/spec/guides/github-issue-lifecycle.md","reason":"Windows 子任务完成后仍需保持 Issue 开放并遵守远端授权边界"}
+{"file":".trellis/spec/lingostack-ocr/backend/index.md","reason":"复核格式/尺寸/语言/取消/平台隔离的可执行契约"}

@@ -41,6 +41,7 @@ LingoStack 的 bug 风险不是均匀分布的。以下五处是「改一边、�
 ### 该读测试选择指南
 
 - [ ] 要判断这次改动最少跑哪些检查
+- [ ] 刚完成 merge/rebase/cherry-pick、冲突解决或目标分支同步
 - [ ] 改了 IPC、Tauri config/capability、Cargo feature 或关键桌面流程
 - [ ] 要汇报 CI/平台/系统能力是否真正运行
 - [ ] 不确定单元测试、E2E 与手工验收能分别证明什么

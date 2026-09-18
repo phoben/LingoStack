@@ -5,12 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Pill } from "@/components/ui/pill";
 import { Select } from "@/components/ui/select";
 import { ProviderForm } from "@/components/provider-form";
-<<<<<<< HEAD
 import { FuncCell, SetSection } from "@/components/settings-section";
-import { useConfigStore } from "@/stores/config-store";
-import type { ModelRef, ProviderConfig } from "@/lib/config-types";
-=======
-import { FuncCell, SetSection } from "@/components/views/settings-view";
 import type { Feature, ModelRef, ProviderConfig } from "@/lib/config-types";
 import {
   generationCapabilities,
@@ -18,7 +13,6 @@ import {
   modelsForFeature,
   validGeneration,
 } from "@/lib/provider-catalog";
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
 import { useT } from "@/lib/i18n";
 import { useConfigStore } from "@/stores/config-store";
 import { toast } from "sonner";
@@ -259,13 +253,9 @@ export function SettingsAi() {
         {editing ? (
           <div className="mt-2">
             <ProviderForm
-<<<<<<< HEAD
-              key={editing.mode === "edit" ? `edit:${editing.provider.id}` : "add"}
-=======
               key={
                 editing.mode === "edit" ? `edit:${editing.provider.id}` : "add"
               }
->>>>>>> 1dbad488ffe5aef98ca852d3215bf57e46a4699d
               initial={editing.mode === "edit" ? editing.provider : undefined}
               onSave={handleSave}
               onCancel={() => setEditing(null)}

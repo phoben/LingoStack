@@ -1,0 +1,31 @@
+{
+  "id": "issue-25-linux-tesseract-ocr",
+  "name": "issue-25-linux-tesseract-ocr",
+  "title": "Issue 25 Linux Tesseract OCR",
+  "description": "随 Linux 应用发行 Tesseract 与中英文语言数据，并完成离线、打包、许可和目标机验收",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P3",
+  "creator": "phoben",
+  "assignee": "phoben",
+  "createdAt": "2026-09-18",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "develop",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "09-18-issue-25-local-image-ocr",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "source_kind": "github_issue",
+    "github_repo": "phoben/LingoStack",
+    "github_issue": "25",
+    "github_issue_url": "https://github.com/phoben/LingoStack/issues/25"
+  }
+}

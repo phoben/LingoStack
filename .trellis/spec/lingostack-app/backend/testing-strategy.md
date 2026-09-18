@@ -8,13 +8,14 @@
 
 任何产品代码、测试、fixture、依赖、构建脚本、Tauri 配置/capability、CI workflow 或平台实现变更，都必须先按本文判定最小反馈集，并在交付前执行与影响范围匹配的最终门禁。
 
-测试分五层，不能互相冒充：
+测试分六层，不能互相冒充：
 
-1. 纯逻辑/单元测试：Rust 内联 tests、Vitest/jsdom。
-2. 协议/边界测试：serde 往返、wiremock、流式分片、IPC fixture provider。
-3. 构建与静态门禁：lint、TypeScript build、fmt、clippy、Cargo build、生产隔离。
-4. 真实桌面 E2E：Windows Tauri 应用、真实 IPC/Channel、确定性 fixture、结果持久化。
-5. 系统/平台验收：外部选区、全局快捷键、真实扬声器，以及目标平台占位/实装验证。
+1. 仓库集成完整性：未解决冲突、残留冲突标记、diff 格式与目标分支 CI 基线。
+2. 纯逻辑/单元测试：Rust 内联 tests、Vitest/jsdom。
+3. 协议/边界测试：serde 往返、wiremock、流式分片、IPC fixture provider。
+4. 构建与静态门禁：lint、TypeScript build、fmt、clippy、Cargo build、生产隔离。
+5. 真实桌面 E2E：Windows Tauri 应用、真实 IPC/Channel、确定性 fixture、结果持久化。
+6. 系统/平台验收：外部选区、全局快捷键、真实扬声器，以及目标平台占位/实装验证。
 
 ### 2. Signatures
 
@@ -22,9 +23,13 @@
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm check:integrity
+pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build
+pnpm verify:fast                 # 本地快速闭环：完整性 + 类型 + lint
+pnpm verify                      # 前端交付闭环：快速闭环 + test + bundle
 ```
 
 #### Rust 快速反馈与全仓门禁
@@ -57,6 +62,8 @@ cargo build --release -p lingostack-app
 #### CI 静态检查与运行入口
 
 ```bash
+pnpm test:integrity
+pnpm check:integrity
 pnpm exec prettier --check .github/workflows/ci.yml
 git diff --check
 ```
@@ -69,22 +76,32 @@ pnpm notices:generate
 git diff --exit-code -- THIRD_PARTY_NOTICES
 ```
 
-CI 运行契约：`.github/workflows/ci.yml` 包含三平台 `rust`、Ubuntu `frontend`、Windows `e2e-windows`。`audit.yml` 是安全审计，不替代功能测试；`dco.yml` 是治理检查，不替代质量门禁。
+CI 运行契约：`.github/workflows/ci.yml` 包含独立 `integrity`、三平台 `rust`、Ubuntu `frontend`、Windows `e2e-windows`，并由稳定命名的 `Quality Gate` 汇总。`Quality Gate` 只有在所有依赖任务成功时才成功；取消、跳过、失败或运行中均不是可合并终态。`audit.yml` 是安全审计，不替代功能测试；`dco.yml` 是治理检查，不替代质量门禁。
 
 ### 3. Contracts
 
 #### 测试归属
 
-| 被测对象                | 测试位置与手段                              | 必须证明                                                |
-| ----------------------- | ------------------------------------------- | ------------------------------------------------------- |
-| Rust 纯函数/serde/error | 源文件底部 `#[cfg(test)] mod tests`         | 正常、边界、错误；serde 类型往返与默认值                |
-| LLM HTTP/provider       | `lingostack-llm` 内联 `wiremock`            | 请求形状、鉴权、状态错误、流错误；无真实 key/网络       |
-| SSE/JSON 分帧           | 解码器内联分片测试                          | 最坏切分、非法 UTF-8、上游错误、终止行为                |
-| React/store/lib         | 相邻 `*.test.ts[x]` + Vitest/RTL            | 用户可观察状态与语义，不断言 Tailwind class/内部实现    |
-| Tauri IPC/Channel/配置  | feature-gated fixture 单测 + WDIO E2E       | 真实 command/Channel、成功/错误/重试、隔离配置          |
-| Tauri 测试面隔离        | `test:production-isolation` + release build | 默认依赖图、生产 capability/config、普通前端产物无 WDIO |
-| Windows 本地发行脚本    | 临时 fixture/fake pnpm + 当前版本真实构建   | 版本原子同步、命令选择、退出码、日志和本次新产物路径    |
-| Windows 原生能力        | Rust 结构测试 + `docs/testing.md` 手工清单  | 自动化只证明不 panic/线程/错误形状；物理结果单独记录    |
+| 被测对象                | 测试位置与手段                               | 必须证明                                                |
+| ----------------------- | -------------------------------------------- | ------------------------------------------------------- |
+| Rust 纯函数/serde/error | 源文件底部 `#[cfg(test)] mod tests`          | 正常、边界、错误；serde 类型往返与默认值                |
+| LLM HTTP/provider       | `lingostack-llm` 内联 `wiremock`             | 请求形状、鉴权、状态错误、流错误；无真实 key/网络       |
+| SSE/JSON 分帧           | 解码器内联分片测试                           | 最坏切分、非法 UTF-8、上游错误、终止行为                |
+| React/store/lib         | 相邻 `*.test.ts[x]` + Vitest/RTL             | 用户可观察状态与语义，不断言 Tailwind class/内部实现    |
+| Tauri IPC/Channel/配置  | feature-gated fixture 单测 + WDIO E2E        | 真实 command/Channel、成功/错误/重试、隔离配置          |
+| Tauri 测试面隔离        | `test:production-isolation` + release build  | 默认依赖图、生产 capability/config、普通前端产物无 WDIO |
+| Windows 本地发行脚本    | 临时 fixture/fake pnpm + 当前版本真实构建    | 版本原子同步、命令选择、退出码、日志和本次新产物路径    |
+| Windows 原生能力        | Rust 结构测试 + `docs/testing.md` 手工清单   | 自动化只证明不 panic/线程/错误形状；物理结果单独记录    |
+| 仓库完整性              | Node 测试 + `check:integrity` + CI integrity | Git 未解决状态、文本冲突边界、diff 格式均被阻断         |
+
+#### 仓库集成完整性
+
+- `scripts/check-repository-integrity.mjs` 必须扫描 Git 已跟踪文件和未忽略文件；二进制文件跳过，文本中行首七个 `<` 或 `>` 的冲突边界必须失败。单独出现的 Markdown `=======` 不作为冲突证据，避免误报。
+- 检查器同时读取 `git diff --name-only --diff-filter=U` 与 `git diff --check`，任何命令异常都 fail closed；不得因“其余测试通过”忽略完整性失败。
+- merge、rebase、cherry-pick、冲突解决、目标分支同步后必须重新运行 `pnpm check:integrity` 和受影响门禁。冲突前的绿色结果全部失效。
+- 目标分支最近一次必需 CI 为红色、取消或未知时，先修复基线；不得继续合并并把失败归类为“与本次无关”。
+- PR 只有在 GitHub 页面无冲突、所有必需检查成功且 `Quality Gate` 成功时才可合并。创建 PR、推送成功、本地全绿或部分 job 绿色都不是等价证据。
+- 测试中的完整 `ProviderConfig` / `ModelDescriptor` 默认通过 `src/test/provider-fixtures.ts` 构造；协议或配置新增必填字段时先更新工厂，再按场景覆盖差异字段，避免散落对象静默漂移。
 
 新增测试必须确定性：不得依赖真实 LLM Key、互联网、开发者配置、上次运行的 IndexedDB 或人工点击。测试数据用显式 fake 值；诊断中不得泄漏 secret。
 
@@ -116,26 +133,30 @@ Windows 本机 E2E 通过不能写成 GitHub-hosted Windows 已通过；官方�
 
 ### 4. Validation & Error Matrix
 
-| 变更/条件                | 最小必跑                                       | 失败或缺证据时的结论                                                     |
-| ------------------------ | ---------------------------------------------- | ------------------------------------------------------------------------ |
-| TS 纯函数/store          | `pnpm lint && pnpm test && pnpm build`         | 任何失败都不能交付；jsdom 不能声明桌面运行通过                           |
-| React 交互/a11y          | 上述命令 + RTL 语义断言                        | 无键盘/ARIA 断言时不能声明可访问性已覆盖                                 |
-| Rust 纯逻辑/serde        | package test + fmt/clippy                      | 公共 API 无正常/边界/错误测试即不完整                                    |
-| LLM 请求/响应            | `cargo test -p lingostack-llm`                 | 用真实网络/key 或漏 wiremock/分片错误测试即失败                          |
-| IPC/config/Tauri 装配    | app feature test + production isolation + E2E  | 只跑单测不能证明真实往返；E2E 绿但隔离红仍失败                           |
-| Cargo feature/capability | production isolation + E2E + release build     | 测试插件/bridge/ACL 进入默认生产路径即失败                               |
-| 本地发行脚本             | PowerShell fixture + parser + 当前版本真实构建 | 只跑 `-NoBuild` 不能声明成品可用；旧产物、吞退出码或版本部分写入均阻断    |
-| 原生 confirm 消息        | capability 静态断言 + RTL reject/取消/成功路径 | 缺 `dialog:allow-message` 或 reject 静默即失败；自动化不冒充原生窗口手感 |
-| selection/TTS/hotkey     | package/workspace test + Windows 清单          | 自动测试绿只能声明结构通过，不能声明外部选区/出声成功                    |
-| CI YAML                  | Prettier/static review；最终看 CI run          | 本地静态通过不能声明 GitHub-hosted runner 通过                           |
-| Linux/macOS 未运行       | 三平台 Rust CI 或目标平台运行                  | 只能报告静态/官方支持；不得报告 runtime pass                             |
-| 依赖或许可证发生变化     | `notices:generate` + 产物 diff                 | 未接受 SPDX、生成失败或 diff 非空都阻断交付                              |
+| 变更/条件                | 最小必跑                                          | 失败或缺证据时的结论                                                     |
+| ------------------------ | ------------------------------------------------- | ------------------------------------------------------------------------ |
+| TS 纯函数/store          | `pnpm lint && pnpm test && pnpm build`            | 任何失败都不能交付；jsdom 不能声明桌面运行通过                           |
+| React 交互/a11y          | 上述命令 + RTL 语义断言                           | 无键盘/ARIA 断言时不能声明可访问性已覆盖                                 |
+| Rust 纯逻辑/serde        | package test + fmt/clippy                         | 公共 API 无正常/边界/错误测试即不完整                                    |
+| LLM 请求/响应            | `cargo test -p lingostack-llm`                    | 用真实网络/key 或漏 wiremock/分片错误测试即失败                          |
+| IPC/config/Tauri 装配    | app feature test + production isolation + E2E     | 只跑单测不能证明真实往返；E2E 绿但隔离红仍失败                           |
+| Cargo feature/capability | production isolation + E2E + release build        | 测试插件/bridge/ACL 进入默认生产路径即失败                               |
+| 本地发行脚本             | PowerShell fixture + parser + 当前版本真实构建    | 只跑 `-NoBuild` 不能声明成品可用；旧产物、吞退出码或版本部分写入均阻断   |
+| 原生 confirm 消息        | capability 静态断言 + RTL reject/取消/成功路径    | 缺 `dialog:allow-message` 或 reject 静默即失败；自动化不冒充原生窗口手感 |
+| selection/TTS/hotkey     | package/workspace test + Windows 清单             | 自动测试绿只能声明结构通过，不能声明外部选区/出声成功                    |
+| CI YAML                  | Prettier/static review；最终看 CI run             | 本地静态通过不能声明 GitHub-hosted runner 通过                           |
+| Linux/macOS 未运行       | 三平台 Rust CI 或目标平台运行                     | 只能报告静态/官方支持；不得报告 runtime pass                             |
+| 依赖或许可证发生变化     | `notices:generate` + 产物 diff                    | 未接受 SPDX、生成失败或 diff 非空都阻断交付                              |
+| merge/rebase/冲突解决    | `test:integrity` + `check:integrity` + 受影响门禁 | 冲突边界、未合并索引或 diff 错误均阻断；旧的绿色结果失效                 |
+| PR/目标分支 CI           | GitHub 必需检查 + `Quality Gate` 成功终态         | 红色、取消、跳过、运行中或目标分支红基线均不可合并                       |
 
 所有命令必须保留原退出码。测试失败后允许上传工件，但 `always()` 只能用于诊断步骤，不能吞掉主测试失败。
 
 ### 5. Good / Base / Bad Cases
 
 - **Good**：先跑受影响 package 快速反馈，最终按触发矩阵跑全量；报告写明 OS、命令、测试场景、退出码、工件和未执行平台。
+- **Good**：解决冲突后先跑 `pnpm check:integrity`，再重新执行受影响测试；PR 等到 `Quality Gate` 和必需检查成功终态才合并。
+- **Good**：配置模型测试通过共享 fixture factory 提供完整默认对象，单个测试只覆盖自己关心的差异。
 - **Good**：确认型破坏操作同时测试 capability 存在、任一步取消不执行 command、原生调用 reject 有 alert、两次确认后真实业务 command 才执行。
 - **Good**：发行脚本先用 fake `pnpm` 验证 portable/installer、外部失败码和旧产物边界，再用当前版本完成一次真实 release build，并报告日志与绝对产物路径。
 - **Base**：纯文档/spec 变更只跑格式、链接/内容核对和 `git diff --check`；不得声称业务 runtime 被重新验证。
@@ -146,6 +167,8 @@ Windows 本机 E2E 通过不能写成 GitHub-hosted Windows 已通过；官方�
 - **Bad**：手改 `THIRD_PARTY_NOTICES`，或使用未固定/未启用 CLI feature 的 cargo-about 让本机与 CI 产物漂移。
 - **Bad**：只 mock `confirm()` 返回 true 后断言删除成功，却没有锁定 production capability；真实应用会表现为点击无反馈。
 - **Bad**：`-NoBuild` 测试通过后直接宣称安装包可用，或扫描目录时把构建前已有的 `.exe` 当成本次产物。
+- **Bad**：本地或部分 job 通过后，在目标分支/PR CI 仍红、运行中或跳过时继续合并。
+- **Bad**：冲突处理后沿用冲突前测试结果，或只依赖编译器偶然发现残留冲突标记。
 
 ### 6. Tests Required
 
@@ -153,6 +176,9 @@ Windows 本机 E2E 通过不能写成 GitHub-hosted Windows 已通过；官方�
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm test:integrity
+pnpm check:integrity
+pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build

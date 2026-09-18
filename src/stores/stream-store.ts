@@ -1,10 +1,13 @@
 import { create } from "zustand";
 
 import type { ChatMessage, Feature } from "@/lib/config-types";
-import { chatStream } from "@/lib/ipc";
+import { cancelChat, chatStream } from "@/lib/ipc";
 import { stringifyError } from "@/lib/utils";
 import { AiConfigurationError } from "@/lib/ai-configuration";
-import { TranslationEnvelopeParser, type TranslationTerm } from "@/lib/translation-envelope";
+import {
+  TranslationEnvelopeParser,
+  type TranslationTerm,
+} from "@/lib/translation-envelope";
 
 /**
  * 流式任务状态（跨视图存活）。
@@ -17,7 +20,8 @@ import { TranslationEnvelopeParser, type TranslationTerm } from "@/lib/translati
  * 可自由卸载重挂，任务不受影响。
  */
 
-export type StreamStatus = "idle" | "streaming" | "done" | "error";
+export type StreamStatus =
+  "idle" | "streaming" | "done" | "error" | "cancelled";
 
 export interface StreamTask {
   status: StreamStatus;
@@ -32,9 +36,11 @@ export interface StreamTask {
   parser: TranslationEnvelopeParser | null;
   /**
    * 任务序号。回调先比对序号，不等则丢弃——避免用户连点两次生成时，
-   * 上一条流的迟到增量污染新结果。Tauri Channel 无 abort 语义，这是最小可行守卫。
+   * 上一条流的迟到增量污染新结果。后端取消负责停止工作，序号仍是发布结果的最终守卫。
    */
   seq: number;
+  /** 后端请求标识，仅用于精确取消，不承载业务内容。 */
+  requestId: string | null;
 }
 
 /** 本 store 覆盖的功能通道。explain / doc_translate 接入时复用同一形状。 */
@@ -50,7 +56,22 @@ const SAMPLE_INPUT: Record<StreamFeature, string> = {
 };
 
 function emptyTask(input = ""): StreamTask {
-  return { status: "idle", output: "", error: null, errorKind: null, input, terms: [], diagnostic: null, parser: null, seq: 0 };
+  return {
+    status: "idle",
+    output: "",
+    error: null,
+    errorKind: null,
+    input,
+    terms: [],
+    diagnostic: null,
+    parser: null,
+    seq: 0,
+    requestId: null,
+  };
+}
+
+function requestId(feature: StreamFeature): string {
+  return `${feature}-${crypto.randomUUID()}`;
 }
 
 function initialTasks(): Record<StreamFeature, StreamTask> {
@@ -73,6 +94,8 @@ interface StreamState {
     input: string,
     buildMessages: (input: string) => Promise<ChatMessage[]>,
   ) => Promise<void>;
+  /** 立即让本地回调失效，并请求后端丢弃正在进行的 provider stream。 */
+  cancel: (feature: StreamFeature, preserveContent?: boolean) => Promise<void>;
   /** 清空某功能的任务态（回到初始）。序号保留递增，防止旧回调复活。 */
   reset: (feature: StreamFeature) => void;
 }
@@ -87,19 +110,52 @@ export const useStreamStore = create<StreamState>((set, get) => ({
   },
 
   reset: (feature) => {
+    const runningRequest = get().tasks[feature].requestId;
     set((s) => ({
       tasks: {
         ...s.tasks,
         [feature]: { ...emptyTask(), seq: s.tasks[feature].seq + 1 },
       },
     }));
+    if (runningRequest) void cancelChat(runningRequest).catch(() => undefined);
+  },
+
+  cancel: async (feature, preserveContent = true) => {
+    const current = get().tasks[feature];
+    const runningRequest = current.requestId;
+    set((s) => {
+      const task = s.tasks[feature];
+      return {
+        tasks: {
+          ...s.tasks,
+          [feature]: {
+            ...task,
+            status: task.status === "streaming" ? "cancelled" : task.status,
+            output: preserveContent ? task.output : "",
+            terms: preserveContent ? task.terms : [],
+            diagnostic: null,
+            parser: null,
+            requestId: null,
+            seq: task.seq + 1,
+          },
+        },
+      };
+    });
+    if (runningRequest) {
+      await cancelChat(runningRequest).catch(() => undefined);
+    }
   },
 
   start: async (feature, input, buildMessages) => {
-    const current = get().tasks[feature];
-    if (current.status === "streaming" || !input.trim()) return;
+    let current = get().tasks[feature];
+    if (!input.trim()) return;
+    if (current.status === "streaming") {
+      await get().cancel(feature, true);
+      current = get().tasks[feature];
+    }
 
     const seq = current.seq + 1;
+    const activeRequestId = requestId(feature);
     set((s) => ({
       tasks: {
         ...s.tasks,
@@ -111,8 +167,10 @@ export const useStreamStore = create<StreamState>((set, get) => ({
           input,
           terms: [],
           diagnostic: null,
-          parser: feature === "translate" ? new TranslationEnvelopeParser() : null,
+          parser:
+            feature === "translate" ? new TranslationEnvelopeParser() : null,
           seq,
+          requestId: activeRequestId,
         },
       },
     }));
@@ -128,36 +186,83 @@ export const useStreamStore = create<StreamState>((set, get) => ({
 
     try {
       const messages = await buildMessages(input);
-      await chatStream(feature, messages, (event) => {
+      const latest = get().tasks[feature];
+      if (latest.seq !== seq || latest.requestId !== activeRequestId) return;
+      await chatStream(activeRequestId, feature, messages, (event) => {
         if (event.type === "chunk") {
-          patch((task) => task.parser
-            ? { output: task.parser.push(event.delta) }
-            : { output: task.output + event.delta });
+          patch((task) =>
+            task.parser
+              ? { output: task.parser.push(event.delta) }
+              : { output: task.output + event.delta },
+          );
         } else if (event.type === "status") {
           patch(() => ({ diagnostic: event.message }));
         } else if (event.type === "done") {
-          patch((task) => task.parser
-            ? { status: "done", ...task.parser.finish(task.input), parser: null }
-            : { status: "done" });
+          patch((task) =>
+            task.parser
+              ? {
+                  status: "done",
+                  ...task.parser.finish(task.input),
+                  parser: null,
+                  requestId: null,
+                }
+              : { status: "done", requestId: null },
+          );
         } else {
-          patch((task) => task.parser
-            ? { status: "error", error: event.message, errorKind: "request", ...task.parser.finish(task.input, true), parser: null }
-            : { status: "error", error: event.message, errorKind: "request" });
+          patch((task) =>
+            task.parser
+              ? {
+                  status: "error",
+                  error: event.message,
+                  errorKind: "request",
+                  ...task.parser.finish(task.input, true),
+                  parser: null,
+                  requestId: null,
+                }
+              : {
+                  status: "error",
+                  error: event.message,
+                  errorKind: "request",
+                  requestId: null,
+                },
+          );
         }
       });
       // 兜底：调用已返回却没收到 done / error 时收尾。否则状态永久停在
       // streaming，后续 start 会被「进行中」判定挡掉，按钮形同失效。
       patch((task) =>
-        task.status === "streaming" ? (task.parser
-          ? { status: "done", ...task.parser.finish(task.input), parser: null }
-          : { status: "done" }) : {},
+        task.status === "streaming"
+          ? task.parser
+            ? {
+                status: "done",
+                ...task.parser.finish(task.input),
+                parser: null,
+                requestId: null,
+              }
+            : { status: "done", requestId: null }
+          : {},
       );
     } catch (e) {
       // 已累积的输出保留，用户可「重试」（设计文档 §9）。
-      const errorKind = e instanceof AiConfigurationError ? "configuration" : "request";
-      patch((task) => task.parser
-        ? { status: "error", error: stringifyError(e), errorKind, ...task.parser.finish(task.input, true), parser: null }
-        : { status: "error", error: stringifyError(e), errorKind });
+      const errorKind =
+        e instanceof AiConfigurationError ? "configuration" : "request";
+      patch((task) =>
+        task.parser
+          ? {
+              status: "error",
+              error: stringifyError(e),
+              errorKind,
+              ...task.parser.finish(task.input, true),
+              parser: null,
+              requestId: null,
+            }
+          : {
+              status: "error",
+              error: stringifyError(e),
+              errorKind,
+              requestId: null,
+            },
+      );
     }
   },
 }));

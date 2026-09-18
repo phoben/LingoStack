@@ -2418,6 +2418,7 @@ dependencies = [
  "lingostack-document",
  "lingostack-hook",
  "lingostack-llm",
+ "lingostack-ocr",
  "lingostack-selection",
  "lingostack-tts",
  "minisign-verify",
@@ -2495,6 +2496,18 @@ dependencies = [
  "thiserror 2.0.19",
  "tokio",
  "wiremock",
+]
+
+[[package]]
+name = "lingostack-ocr"
+version = "0.0.6"
+dependencies = [
+ "futures",
+ "serde",
+ "thiserror 2.0.19",
+ "tokio",
+ "windows",
+ "windows-future",
 ]
 
 [[package]]
