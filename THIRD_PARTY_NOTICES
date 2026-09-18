@@ -11139,15 +11139,15 @@ developed by Chen Jiaju, licensed under the MIT License and the Apache License 2
 ## MIT License
 
 Used by:
-- lingostack-core 0.0.6
-- lingostack-docparse 0.0.6
-- lingostack-document 0.0.6
-- lingostack-hook 0.0.6
-- lingostack-llm 0.0.6
-- lingostack-ocr 0.0.6
-- lingostack-selection 0.0.6
-- lingostack-tts 0.0.6
-- lingostack-app 0.0.6
+- lingostack-core 0.0.7
+- lingostack-docparse 0.0.7
+- lingostack-document 0.0.7
+- lingostack-hook 0.0.7
+- lingostack-llm 0.0.7
+- lingostack-ocr 0.0.7
+- lingostack-selection 0.0.7
+- lingostack-tts 0.0.7
+- lingostack-app 0.0.7
 - adobe-cmap-parser 0.4.1
 - async-stream-impl 0.3.6
 - async-stream 0.3.6
